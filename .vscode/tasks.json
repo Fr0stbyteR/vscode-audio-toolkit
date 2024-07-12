@@ -1,0 +1,94 @@
+// See https://go.microsoft.com/fwlink/?LinkId=733558
+// for the documentation about the tasks.json format
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "watch-web",
+			"dependsOn": [
+				"npm: watch-web:tsc",
+				"npm: watch-web:esbuild",
+				"npm: watch-web:webview-tsc",
+				"npm: watch-web:webview-vite"
+			],
+			"presentation": {
+				"reveal": "never"
+			},
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"type": "npm",
+			"script": "watch-web:esbuild",
+			"group": "build",
+			"problemMatcher": "$esbuild-watch",
+			"isBackground": true,
+			"label": "npm: watch-web:esbuild",
+			"presentation": {
+				"group": "watch",
+				"reveal": "never"
+			}
+		},
+		{
+			"type": "npm",
+			"script": "watch-web:tsc",
+			"group": "build",
+			"problemMatcher": "$tsc-watch",
+			"isBackground": true,
+			"label": "npm: watch-web:tsc",
+			"presentation": {
+				"group": "watch",
+				"reveal": "never"
+			}
+		},
+		{
+			"type": "npm",
+			"script": "watch-web:webview-vite",
+			"group": "build",
+			"problemMatcher": {
+				"pattern": {
+					"regexp": "^([a-zA-Z]\\:/?([\\w\\-]/?)+\\.\\w+):(\\d+):(\\d+): (ERROR|WARNING)\\: (.*)$",
+					"file": 1,
+					"line": 3,
+					"column": 4,
+					"code": 5,
+					"message": 6
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "build started",
+					"endsPattern": "built in .*"
+				}
+			},
+			"isBackground": true,
+			"label": "npm: watch-web:webview-vite",
+			"presentation": {
+				"group": "watch",
+				"reveal": "never"
+			}
+		},
+		{
+			"type": "npm",
+			"script": "watch-web:webview-tsc",
+			"group": "build",
+			"problemMatcher": "$tsc-watch",
+			"isBackground": true,
+			"label": "npm: watch-web:webview-tsc",
+			"presentation": {
+				"group": "watch",
+				"reveal": "never"
+			}
+		},
+		{
+			"label": "compile",
+			"type": "npm",
+			"script": "compile-web",
+			"problemMatcher": [
+				"$tsc",
+				"$esbuild"
+			]
+		}
+	]
+}
