@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react";
 // https://vitejs.dev/config/
 export default defineConfig((configEnv) => ({
     plugins: [react()],
+    base: '',
     build: {
         outDir: "../dist/web/webview",
         rollupOptions: {
@@ -15,6 +16,6 @@ export default defineConfig((configEnv) => ({
         },
         emptyOutDir: true,
         minify: configEnv.mode !== "development",
-        sourcemap: configEnv.mode === "development"
+        sourcemap: configEnv.mode === "development" ? "inline" : false
     }
 }));
