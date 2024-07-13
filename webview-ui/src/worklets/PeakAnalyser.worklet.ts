@@ -1,12 +1,12 @@
 // import { rms, zcr, setTypedArray, absMax } from "../../utils/buffer";
 // import { mod } from "../../utils/math";
 // import yinEstimate from "../../utils/yin";
-import { AudioWorkletGlobalScope, TypedAudioParamDescriptor } from "./TypedAudioWorklet";
+import { AudioWorkletGlobalScope, TypedAudioParamDescriptor } from "./types";
 import { IPeakAnalyserProcessor, IPeakAnalyserNode, PeakAnalyserParameters } from "./PeakAnalyserWorklet.types";
 import AudioWorkletProxyProcessor from "./AudioWorkletProxyProcessor";
 import { absMax, mod, setTypedArray } from "../utils";
 
-const processorId = "__JSPatcher_TemporalAnalyser";
+const processorId = "__AudioToolkit_PeakAnalyser";
 declare const globalThis: AudioWorkletGlobalScope & { SharedArrayBuffer: typeof SharedArrayBuffer | typeof ArrayBuffer; Atomics: typeof Atomics };
 if (!globalThis.SharedArrayBuffer) globalThis.SharedArrayBuffer = ArrayBuffer;
 const { registerProcessor, sampleRate } = globalThis;
