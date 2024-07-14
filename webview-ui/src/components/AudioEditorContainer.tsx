@@ -15,11 +15,15 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
     const audioEditor = useContext(AudioEditorContext)!;
     return (
         <div className="audio-editor-container">
-            <span>Duration: {audioEditor.duration}s</span>
-            <AudioEditorMap {...props} />
-            <AudioEditorMain {...props} />
-            <AudioEditorControls {...props} />
-            <AudioEditorMonitor {...props} />
+            <div className="audio-editor-left-container">
+                <span>Duration: {audioEditor.duration}s</span>
+                <AudioEditorMap {...props} />
+                <AudioEditorMain {...props} />
+                <AudioEditorControls {...props} />
+                <AudioEditorMonitor {...props} />
+            </div>
+            <div className="audio-editor-right-container">
+            </div>
         </div>
     );
 };

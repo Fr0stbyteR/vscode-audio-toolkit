@@ -170,6 +170,23 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
 	public static register(context: vscode.ExtensionContext): vscode.Disposable {
 		const provider = new MainEditorProvider(context);
 		const providerRegistration = vscode.window.registerCustomEditorProvider(MainEditorProvider.viewType, provider);
+		const postMessageToActiveWebviewPanel = (type: string, body?: any) => {
+			for (const uri of provider.documentUris) {
+				let found = false;
+				for (const webviewPanel of provider.webviews.get(uri)) {
+					if (webviewPanel.active) {
+						provider.postMessage(webviewPanel, type, body || null);
+						found = true;
+						break;
+					}
+				}
+				if (found) {
+					break;
+				}
+			}
+		};
+		vscode.commands.registerCommand("audioToolkit.playOrStop", () => postMessageToActiveWebviewPanel("playOrStop"));
+		vscode.commands.registerCommand("audioToolkit.pauseOrResume", () => postMessageToActiveWebviewPanel("pauseOrResume"));
 		return providerRegistration;
 	}
 
@@ -179,6 +196,7 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
 	 * Tracks all known webviews
 	 */
 	private readonly webviews = new WebviewCollection();
+	private readonly documentUris = new Set<vscode.Uri>();
 
 	constructor(
 		private readonly context: vscode.ExtensionContext
@@ -186,6 +204,7 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
     }
 	private readonly _onDidChangeCustomDocument = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<AudioDocument>>();
 	public readonly onDidChangeCustomDocument = this._onDidChangeCustomDocument.event;
+	
     saveCustomDocument(document: AudioDocument, cancellation: vscode.CancellationToken) {
         return document.save(cancellation);
     }
@@ -310,6 +329,7 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
                     */
 			}
 		});
+		this.documentUris.add(document.uri);
     }
 
     /**
@@ -344,7 +364,7 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
     Use a content security policy to only allow loading images from https or from our extension directory,
     and only allow scripts that have a specific nonce.
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src ${webview.cspSource}; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}' ${webview.cspSource} 'self'; worker-src 'self' blob:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src ${webview.cspSource}; font-src ${webview.cspSource}; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}' ${webview.cspSource} 'self'; worker-src 'self' blob:;">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 

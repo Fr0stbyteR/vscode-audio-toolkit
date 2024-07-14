@@ -19,6 +19,23 @@ export const atodb = (a: number) => 20 * Math.log10(a);
  */
 export const dbtoa = (db: number) => 10 ** (db / 20);
 
+/**
+ * De-scale a exponently scaled value
+ *
+ * @param x normalized value to scale between ([0, 1])
+ * @param e exponent factor used to scale, 0 means linear, 1 does ** 1.5 curve
+ * @returns de-scaled value
+ */
+export const iNormExp = (x: number, e: number) => Math.max(0, x) ** (1.5 ** -e);
+/**
+ * Scale exponently a normalized value
+ *
+ * @param x normalized value to scale between ([0, 1])
+ * @param e exponent factor, 0 means linear, 1 does ** 1.5 curve
+ * @returns scaled value
+ */
+export const normExp = (x: number, e: number) => Math.max(0, x) ** (1.5 ** e);
+
 export const absMax = (signal: TypedArray | number[], from = 0, length = signal.length) => {
     const slice = signal.slice(from, from + length).map(v => Math.abs(v)) as any;
     return Math.max.apply(Math, slice);

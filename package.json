@@ -16,6 +16,15 @@
   "activationEvents": [],
   "browser": "./dist/web/extension.js",
   "contributes": {
+    "menus": {
+      "editor/title": [
+        {
+          "command": "audioToolkit.playOrStop",
+          "group": "navigation",
+          "when": "activeCustomEditorId == audioToolkit.editor"
+        }
+      ]
+    },
 		"customEditors": [
 			{
 				"viewType": "audioToolkit.editor",
@@ -32,12 +41,23 @@
 		],
     "commands": [
       {
-        "command": "audioToolkit.helloWorld",
-        "title": "Hello World"
+        "command": "audioToolkit.playOrStop",
+        "title": "Play / Stop"
+      },
+      {
+        "command": "audioToolkit.pauseOrResume",
+        "title": "Pause / Resume"
       },
       {
         "command": "audioToolkit.showHelloWorld",
         "title": "Hello World (React + Vite): Show"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "audioToolkit.playOrStop",
+        "key": "Space",
+        "when": "activeCustomEditorId == audioToolkit.editor"
       }
     ]
   },

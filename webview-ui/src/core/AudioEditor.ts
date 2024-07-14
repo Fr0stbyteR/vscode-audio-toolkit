@@ -33,13 +33,19 @@ export interface AudioEditorState {
     enabledChannels: boolean[];
     gain: number;
 }
-
+export interface DrawOptions {
+    width: number;
+    height: number;
+    verticalZoom: number;
+    verticalOffset: number;
+}
 
 class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     static async fromData(data: ArrayBuffer, context: BaseAudioContext) {
         const audioBuffer = await context.decodeAudioData(data);
         const operableAudioBuffer: OperableAudioBuffer = Object.setPrototypeOf(audioBuffer, OperableAudioBuffer.prototype);
-        const waveform = await Waveform.fromAudioBuffer(operableAudioBuffer);
+        const audioData = operableAudioBuffer.toArray(true);
+        const waveform = await Waveform.fromAudioData(audioData);
         const spectrogram = await Spectrogram.fromAudioBuffer(operableAudioBuffer);
         const audioEditor = new AudioEditor(operableAudioBuffer, waveform, spectrogram, context);
         await audioEditor.initPlayer();
@@ -91,12 +97,56 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         private _context: BaseAudioContext
     ) {
         super();
+        this.setState({
+            viewRange: [0, this.length],
+            enabledChannels: new Array(this.numberOfChannels).fill(true)
+        });
     }
     private async initPlayer() {
         this._player = await AudioPlayer.init(this);
     }
     setState(state: Partial<AudioEditorState>) {
         Object.assign(this.state, state);
+    }
+    zoomH(refIn: number, factor: number) { // factor = 1 as zoomIn, -1 as zoomOut
+        const { viewRange } = this.state;
+        const { length } = this;
+        const [viewStart, viewEnd] = viewRange;
+        const viewLength = viewEnd - viewStart;
+        const minRange = Math.min(length, 5);
+        const ref = Math.max(0, Math.min(length, Math.round(refIn)));
+        if (ref < viewStart || ref > viewEnd) {
+            const start = Math.max(0, Math.min(length - viewLength, Math.round(ref - viewLength / 2)));
+            const end = Math.max(viewLength, Math.min(length, Math.round(ref + viewLength / 2)));
+            const range: [number, number] = [start, end];
+            this.setState({ viewRange: range });
+            this.emit("viewRange", range);
+        } else if (factor < 0 || viewLength > minRange) {
+            const multiplier = 1.5 ** -factor;
+            const start = ref - (ref - viewStart) * multiplier;
+            const end = ref + (viewEnd - ref) * multiplier;
+            this.setViewRange([start, end]);
+        }
+    }
+    scrollH(speed: number) { // spped = 1 as one full viewRange
+        const { viewRange } = this.state;
+        const { length } = this;
+        const [viewStart, viewEnd] = viewRange;
+        const viewLength = viewEnd - viewStart;
+        const deltaSamples = viewLength * speed;
+        const start = Math.min(length - viewLength, viewStart + deltaSamples);
+        const end = Math.max(viewLength, viewEnd + deltaSamples);
+        this.setViewRange([start, end]);
+    }
+    setEnabledChannel(channel: number, enabled: boolean) {
+        const enabledChannels = this.state.enabledChannels.slice();
+        enabledChannels[channel] = enabled;
+        this.setState({ enabledChannels });
+        this.emit("enabledChannels", enabledChannels);
+    }
+    setLoop(loop: boolean) {
+        this.setState({ loop });
+        this.emit("loop", loop);
     }
     setCursor(cursorIn: number, fromPlayer?: boolean) {
         const shouldReplay = !fromPlayer && this.state.playing === "playing";

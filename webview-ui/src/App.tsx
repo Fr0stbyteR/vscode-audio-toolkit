@@ -1,4 +1,7 @@
 import "./App.css";
+import "@vscode/codicons/dist/codicon.css";
+import "@vscode/codicons/dist/codicon.ttf";
+import "@vscode/codicons/dist/codicon.svg";
 import { vscode } from "./utilities/vscode";
 import { VSCodeButton, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
 import { FunctionComponent, useEffect, useState } from "react";
