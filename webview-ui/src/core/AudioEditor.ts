@@ -6,6 +6,17 @@ import AudioPlayer from "./AudioPlayer";
 import { dbtoa } from "../utils";
 
 export type AudioPlayingState = "stopped" | "paused" | "playing";
+export type AudioUnit = "time" | "sample" | "measure";
+
+export interface AudioEditorConfiguration {
+    audioUnit: AudioUnit;
+    fftSize: number;
+    fftOverlap: number;
+    fftWindowFunction: string;
+    beatsPerMinute: number;
+    beatsPerMeasure: number;
+    division: number;
+}
 
 export interface AudioEditorEventMap {
     "viewRange": [number, number];
@@ -20,6 +31,7 @@ export interface AudioEditorEventMap {
     "uiResized": never;
     "setAudio": never;
     "ready": never;
+    "configuration": AudioEditorConfiguration;
 }
 
 export interface AudioEditorState {
@@ -41,13 +53,22 @@ export interface DrawOptions {
 }
 
 class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
-    static async fromData(data: ArrayBuffer, context: BaseAudioContext) {
+    static DEFAULT_CONFIGURATION: AudioEditorConfiguration = {
+        audioUnit: "time",
+        fftSize: 1024,
+        fftOverlap: 2,
+        fftWindowFunction: "blackmanHarris",
+        beatsPerMinute: 60,
+        beatsPerMeasure: 4,
+        division: 16
+    };
+    static async fromData(data: ArrayBuffer, context: BaseAudioContext, configuration: Partial<AudioEditorConfiguration> = {}) {
         const audioBuffer = await context.decodeAudioData(data);
         const operableAudioBuffer: OperableAudioBuffer = Object.setPrototypeOf(audioBuffer, OperableAudioBuffer.prototype);
         const audioData = operableAudioBuffer.toArray(true);
-        const waveform = await Waveform.fromAudioData(audioData);
+        const waveform = await Waveform.fromAudioData(audioData, audioBuffer.sampleRate);
         const spectrogram = await Spectrogram.fromAudioBuffer(operableAudioBuffer);
-        const audioEditor = new AudioEditor(operableAudioBuffer, waveform, spectrogram, context);
+        const audioEditor = new AudioEditor(operableAudioBuffer, waveform, spectrogram, context, { ...this.DEFAULT_CONFIGURATION, ...configuration });
         await audioEditor.initPlayer();
         return audioEditor;
     }
@@ -89,12 +110,16 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     get player() {
         return this._player;
     }
+    get configuration() {
+        return this._configuration;
+    }
     private _player: AudioPlayer | null = null;
     private constructor(
         private _audioBuffer: OperableAudioBuffer,
         private _waveform: Waveform,
         private _spectrogram: Spectrogram,
-        private _context: BaseAudioContext
+        private _context: BaseAudioContext,
+        private _configuration: AudioEditorConfiguration
     ) {
         super();
         this.setState({
@@ -107,6 +132,10 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     }
     setState(state: Partial<AudioEditorState>) {
         Object.assign(this.state, state);
+    }
+    setConfiguration(configuration: Partial<AudioEditorConfiguration>) {
+        this._configuration = { ...this._configuration, ...configuration };
+        this.emit("configuration", this._configuration);
     }
     zoomH(refIn: number, factor: number) { // factor = 1 as zoomIn, -1 as zoomOut
         const { viewRange } = this.state;
@@ -163,7 +192,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     emitSelRangeToPlay() {
         this.emit("selRangeToPlay", this.state.selRange);
     }
-    setSelRange(range: [number, number]) {
+    setSelRange(range: [number, number] | null) {
         if (!range) {
             this.setState({ selRange: null });
             this.emit("selRange", null);

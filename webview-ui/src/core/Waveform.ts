@@ -1,6 +1,6 @@
-import { dbtoa, normExp } from "../utils";
+import { convertSampleToUnit, dbtoa, normExp } from "../utils";
 import WaveformWorker from "../workers/WaveformWorker";
-import { AudioEditorState, DrawOptions } from "./AudioEditor";
+import { AudioEditorConfiguration, AudioEditorState, AudioUnit, DrawOptions } from "./AudioEditor";
 import OperableAudioBuffer from "./OperableAudioBuffer";
 
 export interface WaveformResizeOptions {
@@ -31,6 +31,10 @@ export interface WaveformPaintOptions {
     phosphorColor: string;
     separatorColor: string;
     cursorColor: string;
+    gridColor: string;
+    gridLabelColor: string;
+    paintGridLabels: boolean;
+    labelFont: string;
     fadePathColor: string;
     fadeInExp: number;
     fadeInTo: number;
@@ -41,12 +45,144 @@ export interface WaveformPaintOptions {
 
 const SharedArrayBuffer = globalThis.ArrayBuffer || globalThis.SharedArrayBuffer;
 
+export const getFactors = (n: number) => {
+    const factors = [1];
+    let i = 2;
+    while (i < Math.sqrt(n)) {
+        if (n % i === 0) factors.push(i, n / i);
+        i++;
+    }
+    return factors.sort((a, b) => a - b);
+};
+export const getRuler = (range: [number, number], unit: AudioUnit, { sampleRate = 48000, beatsPerMinute = 60, beatsPerMeasure = 4, division = 16 }) => {
+    const ruler: Record<number, string> = {};
+    const length = range[1] - range[0];
+    let coarse: number | undefined;
+    let refined: number | undefined;
+    if (unit === "sample") {
+        const steps = [1, 2, 5];
+        let mag = 1;
+        let step = 0;
+        do {
+            const grid = steps[step] * mag;
+            if (step + 1 < steps.length) {
+                step++;
+            } else {
+                step = 0;
+                mag *= 10;
+            }
+            if (!coarse && length / grid <= 10) coarse = grid;
+            if (!refined && length / grid <= 50) refined = grid;
+        } while (!coarse || !refined);
+    } else if (unit === "measure") {
+        const bps = beatsPerMinute / 60;
+        const samplesPerBeat = sampleRate / bps;
+        const divisionFactors = getFactors(division);
+        const beatsFactors = getFactors(beatsPerMeasure);
+        const measureFactors = [1, 2, 5];
+        let actualUnit: "division" | "beat" | "measure" = "division";
+        let mag = 1;
+        let step = 0;
+        do {
+            const grid = actualUnit === "division"
+                ? samplesPerBeat * divisionFactors[step] / division
+                : actualUnit === "beat"
+                    ? samplesPerBeat * beatsFactors[step]
+                    : samplesPerBeat * measureFactors[step] * mag * beatsPerMeasure;
+            if (actualUnit === "division") {
+                if (step + 1 < divisionFactors.length) {
+                    step++;
+                } else {
+                    actualUnit = "beat";
+                    step = 0;
+                }
+            } else if (actualUnit === "beat") {
+                if (step + 1 < beatsFactors.length) {
+                    step++;
+                } else {
+                    actualUnit = "measure";
+                    step = 0;
+                }
+            } else {
+                if (step + 1 < measureFactors.length) {
+                    step++;
+                } else {
+                    step = 0;
+                    mag *= 10;
+                }
+            }
+            if (!coarse && length / grid <= 10) coarse = grid;
+            if (!refined && length / grid <= 50) refined = grid;
+        } while (!coarse || !refined);
+    } else {
+        const msFactors = [1, 2, 5, 10, 20, 50, 100, 200, 500];
+        const sFactors = getFactors(60);
+        const minFactors = sFactors;
+        const hFactors = [1, 2, 5];
+        let actualUnit: "ms" | "s" | "min" | "h" = "ms";
+        let mag = 1;
+        let step = 0;
+        do {
+            const grid = actualUnit === "ms"
+                ? sampleRate * msFactors[step] / 1000
+                : actualUnit === "s"
+                    ? sampleRate * sFactors[step]
+                    : actualUnit === "min"
+                        ? sampleRate * minFactors[step] * 60
+                        : sampleRate * hFactors[step] * mag * 60;
+            if (actualUnit === "ms") {
+                if (step + 1 < msFactors.length) {
+                    step++;
+                } else {
+                    actualUnit = "s";
+                    step = 0;
+                }
+            } else if (actualUnit === "s") {
+                if (step + 1 < sFactors.length) {
+                    step++;
+                } else {
+                    actualUnit = "min";
+                    step = 0;
+                }
+            } else if (actualUnit === "min") {
+                if (step + 1 < minFactors.length) {
+                    step++;
+                } else {
+                    actualUnit = "h";
+                    step = 0;
+                }
+            } else {
+                if (step + 1 < hFactors.length) {
+                    step++;
+                } else {
+                    step = 0;
+                    mag *= 10;
+                }
+            }
+            if (!coarse && length / grid <= 10) coarse = grid;
+            if (!refined && length / grid <= 50) refined = grid;
+        } while (!coarse || !refined);
+    }
+    let m = ~~(range[0] / refined);
+    if (m * refined < range[0]) m++;
+    while (m * refined < range[1]) {
+        const t = m * refined;
+        if (t && t % coarse < 0.001 || coarse - t % coarse < 0.001) {
+            ruler[t] = unit === "sample" ? t.toString() : convertSampleToUnit(t, unit, { sampleRate, beatsPerMinute, beatsPerMeasure, division }).str.replace(/\.[0.]+$/, "");
+        } else {
+            ruler[t] = "";
+        }
+        m++;
+    }
+    return { ruler, coarse, refined };
+};
+
 class Waveform {
     static DEFAULT_RESIZE_FACTOR = 4;
     static DEFAULT_MIN_WIDTH = 4;
     
-    static async fromAudioData(audioData: Float32Array[]) {
-        const waveform = new Waveform(audioData);
+    static async fromAudioData(audioData: Float32Array[], sampleRate: number) {
+        const waveform = new Waveform(audioData, sampleRate);
         const resized = waveform.generateResized();
         waveform._dataSlices = [resized];
         return waveform;
@@ -60,7 +196,8 @@ class Waveform {
         return this.audioData.length;
     }
     constructor(
-        public audioData: Float32Array[]
+        public audioData: Float32Array[],
+        public sampleRate: number
     ) {}
 
     generateResized({ resizeFactor = Waveform.DEFAULT_RESIZE_FACTOR, minWidth = Waveform.DEFAULT_MIN_WIDTH }: Partial<WaveformResizeOptions> = {}) {
@@ -123,11 +260,115 @@ class Waveform {
             return waveformSliceData.resizedWaveforms.resizes.findLastIndex(({ samplesPerPixel }) => samplesPerPixel < targetSamplesPerPixel);
         });
     }
+
+    async paintVerticalRuler(
+        ctx: CanvasRenderingContext2D,
+        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 }: Partial<DrawOptions>,
+        { viewRange, audioUnit, beatsPerMeasure, beatsPerMinute, division }: Pick<AudioEditorState & AudioEditorConfiguration, "viewRange" | "audioUnit" | "beatsPerMeasure" | "beatsPerMinute" | "division">,
+        { phosphorColor = "rgb(67, 217, 150)", gridColor = "rgb(0, 53, 0)", gridLabelColor = "white", paintGridLabels = true, labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<WaveformPaintOptions, "phosphorColor" | "gridColor" | "gridLabelColor" | "paintGridLabels" | "labelFont">> = {}
+    ) {
+        const { sampleRate } = this
+        const { ruler } = getRuler(viewRange, audioUnit, { sampleRate, beatsPerMeasure, beatsPerMinute, division });
+        ctx.clearRect(0, 0, width, height);
+        const top = paintGridLabels ? 40 : 0;
+        const [viewStart, viewEnd] = viewRange;
+        const viewLength = viewEnd - viewStart;
+        ctx.strokeStyle = gridColor;
+        ctx.beginPath();
+        for (const sampleIn in ruler) {
+            const sample = +sampleIn;
+            const x = (sample - viewStart) / viewLength * width;
+            ctx.moveTo(x, top);
+            ctx.lineTo(x, height);
+        }
+        ctx.stroke();
+        if (!paintGridLabels) return;
+        ctx.strokeStyle = gridLabelColor;
+        ctx.fillStyle = phosphorColor;
+        ctx.font = `12px ${labelFont}`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "bottom";
+        ctx.fillText(audioUnit === "time" ? "hms" : audioUnit === "measure" ? `${beatsPerMinute} bpm` : "samps", 2, top - 14);
+        ctx.textAlign = "center";
+        ctx.beginPath();
+        for (const sampleIn in ruler) {
+            const text = ruler[sampleIn];
+            const sample = +sampleIn;
+            const x = (sample - viewStart) / viewLength * width;
+            const y = text ? top - 10 : top - 5;
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, top);
+            if (text) ctx.fillText(text, x, y - 4);
+        }
+        ctx.stroke();
+    }
+    async paintHorizontalRuler(
+        ctx: CanvasRenderingContext2D,
+        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 }: Partial<DrawOptions>,
+        _stateAndConfigurations: any,
+        { phosphorColor = "rgb(67, 217, 150)", gridColor = "rgb(0, 53, 0)", gridLabelColor = "white", paintGridLabels = true, labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<WaveformPaintOptions, "phosphorColor" | "gridColor" | "gridLabelColor" | "paintGridLabels" | "labelFont">> = {}
+    ) {
+        const channels = this.numberOfChannels;
+        const channelHeight = height / channels;
+
+        ctx.clearRect(0, 0, width, height);
+        const right = paintGridLabels ? 80 : 0;
+        const range = height > 250 ? [-3, -6, -12, -18] : [-3, -12];
+        ctx.strokeStyle = gridColor;
+        ctx.beginPath();
+        for (let i = 0; i < channels; i++) {
+            const center = (i + 0.5) * channelHeight;
+            ctx.moveTo(0, center);
+            ctx.lineTo(width - right, center);
+            let y: number;
+            for (let j = 0; j < range.length; j++) {
+                const a = dbtoa(range[j]);
+                y = center - a * channelHeight * 0.5;
+                ctx.moveTo(0, y);
+                ctx.lineTo(width - right, y);
+                y = center + a * channelHeight * 0.5;
+                ctx.moveTo(0, y);
+                ctx.lineTo(width - right, y);
+            }
+        }
+        ctx.stroke();
+        if (!paintGridLabels) return;
+        ctx.strokeStyle = gridLabelColor;
+        ctx.fillStyle = phosphorColor;
+        ctx.font = `12px ${labelFont}`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText("dB", width - right + 14, 10);
+        ctx.beginPath();
+        for (let i = 0; i < channels; i++) {
+            if (i !== 0) {
+                ctx.moveTo(width - right, i * channelHeight);
+                ctx.lineTo(width, i * channelHeight);
+            }
+            const center = (i + 0.5) * channelHeight;
+            ctx.moveTo(width - right, center);
+            ctx.lineTo(width - right + 10, center);
+            ctx.fillText("-∞", width - right + 14, center);
+            let y: number;
+            for (let db = height > 250 ? -1 : -3; db >= -18; db -= (height > 250 ? 1 : 3)) {
+                const a = dbtoa(db);
+                y = center - a * channelHeight * 0.5;
+                ctx.moveTo(width - right, y);
+                ctx.lineTo(width - right + (range.indexOf(db) === -1 ? 5 : 10), y);
+                if (range.indexOf(db) !== -1) ctx.fillText(db.toString(), width - right + 14, y);
+                y = center + a * channelHeight * 0.5;
+                ctx.moveTo(width - right, y);
+                ctx.lineTo(width - right + (range.indexOf(db) === -1 ? 5 : 10), y);
+                if (range.indexOf(db) !== -1) ctx.fillText(db.toString(), width - right + 14, y);
+            }
+        }
+        ctx.stroke();
+    }
     async paint(
         ctx: CanvasRenderingContext2D,
         { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 }: Partial<DrawOptions>,
         { cursor, selRange, viewRange }: Pick<AudioEditorState, "cursor" | "selRange" | "viewRange">,
-        { phosphorColor = "rgb(67, 217, 150)", separatorColor = "grey", cursorColor = "rgba(191, 0, 0)", fadePathColor = "yellow", fadeInExp = 1, fadeInTo, fadeOutExp = 1, fadeOutFrom, fade = 0 }: Partial<WaveformPaintOptions> = {}
+        { phosphorColor = "rgb(67, 217, 150)", separatorColor = "grey", cursorColor = "rgba(191, 0, 0)", fadePathColor = "yellow", fadeInExp = 1, fadeInTo, fadeOutExp = 1, fadeOutFrom, fade = 0 }: Partial<Pick<WaveformPaintOptions, "phosphorColor" | "separatorColor" | "cursorColor" | "fadePathColor" | "fadeInTo" | "fadeInExp" | "fadeOutFrom" | "fadeOutExp" | "fade">> = {}
     ) {
         ctx.clearRect(0, 0, width, height);
         
@@ -224,7 +465,7 @@ class Waveform {
                         if (x === 0) ctx.moveTo(x, y);
                         else ctx.lineTo(x, y);
                         if (minInStep !== maxInStep) {
-                            y = calcY(minInStep, i);
+                            y = calcY(minInStep, channel);
                             ctx.lineTo(x, y);
                         }
                         $$ += samplesPerPixel;

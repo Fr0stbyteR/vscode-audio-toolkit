@@ -5,7 +5,7 @@ import "@vscode/codicons/dist/codicon.svg";
 import { vscode } from "./utilities/vscode";
 import { VSCodeButton, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
 import { FunctionComponent, useEffect, useState } from "react";
-import AudioEditor from "./core/AudioEditor";
+import AudioEditor, { AudioEditorConfiguration } from "./core/AudioEditor";
 import { AudioEditorContext } from "./components/contexts";
 import AudioEditorContainer from "./components/AudioEditorContainer";
 
@@ -21,10 +21,10 @@ const App: FunctionComponent = () => {
     const [fileSize, setFileSize] = useState<number | null>(null);
     const [audioEditor, setAudioEditor] = useState<AudioEditor | null>(null);
     useEffect(() => {
-        const handleInitData = async (data: Uint8Array) => {
+        const handleInitData = async (data: Uint8Array, configuration: AudioEditorConfiguration) => {
             setFileSize(data.length);
             const audioContext = new AudioContext({ latencyHint: 0.0001 });
-            const audioEditor = await AudioEditor.fromData(data.buffer, audioContext);
+            const audioEditor = await AudioEditor.fromData(data.buffer, audioContext, configuration);
             setAudioEditor(audioEditor);
         };
         window.addEventListener("message", (e) => {
@@ -32,11 +32,20 @@ const App: FunctionComponent = () => {
             switch (type) {
                 case "init":
                     {
-                        const data: Uint8Array = body.value;
-                        handleInitData(data);
+                        const data = body.value as Uint8Array;
+                        const configuration = body.configuration as AudioEditorConfiguration;
+                        handleInitData(data, configuration);
+                        return;
                     }
-                case "update":
+                case "updateConfigurationFromHost":
                     {
+                        const { audioUnit, fftSize, fftOverlap, fftWindowFunction } = body as AudioEditorConfiguration;
+                        audioEditor?.setConfiguration({
+                            audioUnit,
+                            fftSize,
+                            fftOverlap,
+                            fftWindowFunction: `${fftWindowFunction.slice(0, 1).toLowerCase()}${fftWindowFunction.slice(1).replaceAll(/[-\s]/g, "")}`
+                        })
                         return;
                     }
                 case "getFileData":
@@ -49,9 +58,6 @@ const App: FunctionComponent = () => {
     }, []);
     return (
         <main>
-            <h1>Hello World!</h1>
-            <VSCodeButton onClick={handleHowdyClick}>Howdy!</VSCodeButton>
-            {fileSize ? <span>File Size1: {fileSize}</span> : null}
             {audioEditor ? (
                 <AudioEditorContext.Provider value={audioEditor}>
                     <AudioEditorContainer></AudioEditorContainer>

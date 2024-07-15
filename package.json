@@ -16,14 +16,65 @@
   "activationEvents": [],
   "browser": "./dist/web/extension.js",
   "contributes": {
-    "menus": {
-      "editor/title": [
-        {
-          "command": "audioToolkit.playOrStop",
-          "group": "navigation",
-          "when": "activeCustomEditorId == audioToolkit.editor"
+    "configuration": {
+      "title": "Audio Toolkit",
+      "properties": {
+        "audioToolkit.audioUnit": {
+          "type": "string",
+          "enum": ["time", "sample", "measure"],
+          "default": "time",
+          "description": "Unit to display"
+        },
+        "audioToolkit.fftSize": {
+          "type": "integer",
+          "enum": [64, 128, 256, 512, 1024, 2048, 4096, 16384, 32768],
+          "default": 1024,
+          "description": "Specifies the FFT size used for frequency domain analysis"
+        },
+        "audioToolkit.fftOverlap": {
+          "type": "integer",
+          "enum": [2, 4, 8, 16],
+          "default": 2,
+          "description": "Specifies the FFT overlaps used for frequency domain analysis"
+        },
+        "audioToolkit.fftWindowFunction": {
+          "type": "string",
+          "enum": [
+            "Rectangular",
+            "Bartlett",
+            "Bartlett-Hann",
+            "Blackman",
+            "Blackman-Harris",
+            "Blackman-Nuttall",
+            "Cosine",
+            "Exact Blackman",
+            "Flat Top",
+            "Hamming",
+            "Hann",
+            "Lanczoz",
+            "Nuttall",
+            "Triangular",
+            "Welch"
+          ],
+          "default": "Blackman",
+          "description": "Specifies the windowing function used for frequency domain analysis"
+        },
+        "audioToolkit.beatsPerMinute": {
+          "type": "number",
+          "default": 60,
+          "description": "BPM used when audioUnit == measure"
+        },
+        "audioToolkit.beatsPerMeasure": {
+          "type": "integer",
+          "default": 4,
+          "description": "Beats per measure information used when audioUnit == measure"
+        },
+        "audioToolkit.division": {
+          "type": "integer",
+          "default": 16,
+          "description": "Measure division information used when audioUnit == measure"
         }
-      ]
+      }
     },
 		"customEditors": [
 			{

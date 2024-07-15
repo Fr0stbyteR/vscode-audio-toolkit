@@ -1,6 +1,6 @@
 .audio-editor-container {
     & div.editor-map {
-        flex: 1 1 auto;
+        flex: 0 0 30px;
         position: relative;
         display: flex;
         flex-direction: row;
@@ -26,6 +26,7 @@
                 display: block;
                 height: 100%;
                 width: 0%;
+                background-color: "transparent";
                 backdrop-filter: invert(1) hue-rotate(180deg) saturate(0.5) opacity(0.8);
                 pointer-events: none;
             }
@@ -75,11 +76,11 @@
             flex: 0 0 auto;
             height: 100%;
             align-items: center;
-            padding-left: 4px;
             width: 80px;
 
             & > span {
                 align-self: center;
+                margin: auto;
             }
         }
     }

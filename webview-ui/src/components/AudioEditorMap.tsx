@@ -11,20 +11,6 @@ const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange,
     const audioEditor = useContext(AudioEditorContext)!;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const divViewRangeRef = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        audioEditor.on("cursor", paint);
-        // audioEditor.on("viewRange", paint);
-        // audioEditor.on("selRange", paint);
-        audioEditor.on("uiResized", paint);
-        paint();
-        return () => {
-            audioEditor.off("cursor", paint);
-            // audioEditor.off("viewRange", paint);
-            // audioEditor.off("selRange", paint);
-            audioEditor.off("uiResized", paint);
-        };
-    }, []);
-
     const paint = useCallback(() => {
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext("2d");
@@ -38,6 +24,11 @@ const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange,
         ctx.scale(ratio, ratio);
         audioEditor.waveform.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { cursor, viewRange: [0, audioEditor.length], selRange: null }, { cursorColor, phosphorColor });
     }, [cursor]);
+    useEffect(paint, [cursor, phosphorColor, cursorColor]);
+    useEffect(() => {
+        audioEditor.on("uiResized", paint);
+        return () => audioEditor.off("uiResized", paint);
+    }, []);
     const handleMoveMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!canvasRef.current || !divViewRangeRef.current) return;
         e.stopPropagation();
@@ -160,8 +151,8 @@ const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange,
             </div>
             <div className="editor-map-controls">
                 <span className="editor-map-select-all" >
-                    <VSCodeButton aria-label="View All" appearance="icon" onClick={handleClickSelectAll}>
-                        <span className="codicon codicon-check"></span>
+                    <VSCodeButton aria-label="View All" title="View All" appearance="icon" onClick={handleClickSelectAll}>
+                        <span className="codicon codicon-symbol-array"></span>
                     </VSCodeButton>
                 </span>
             </div>

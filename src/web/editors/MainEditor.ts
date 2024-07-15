@@ -249,6 +249,15 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
 				});
 			}
 		}));
+		
+		listeners.push(vscode.workspace.onDidChangeConfiguration((e) => {
+			if (e.affectsConfiguration("audioToolkit")) {
+				const webviewsForDocument = Array.from(this.webviews.get(document.uri));
+				webviewsForDocument.forEach((panel) => {
+					this.postMessage(panel, "updateConfigurationFromHost", vscode.workspace.getConfiguration("audioToolkit"));
+				});
+			}
+		}));
 
 		document.onDidDispose(() => disposeAll(listeners));
 
@@ -277,9 +286,11 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
     
                     const initMessage = {
                         value: document.documentData,
+						configuration: vscode.workspace.getConfiguration("audioToolkit"),
                         editable,
                     };
                     this.postMessage(webviewPanel, "init", initMessage);
+					this.postMessage(webviewPanel, "updateConfigurationFromHost", vscode.workspace.getConfiguration("audioToolkit"));
                     return;    
                 }
 			case "stroke":
