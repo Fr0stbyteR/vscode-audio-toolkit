@@ -1,34 +1,26 @@
 import "./AudioEditorMap.scss";
-import * as vscode from "vscode";
 import { FunctionComponent, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AudioEditorContext } from "./contexts";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
+import { AudioEditorState } from "../core/AudioEditor";
+import { WaveformPaintOptions } from "../core/Waveform";
 
-interface Props {
+interface Props extends Pick<AudioEditorState, "cursor" | "selRange" | "viewRange">, Partial<WaveformPaintOptions> {
 }
-const AudioEditorMap: FunctionComponent<Props> = () => {
+const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange, phosphorColor, cursorColor }) => {
     const audioEditor = useContext(AudioEditorContext)!;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const divViewRangeRef = useRef<HTMLDivElement>(null);
-    const [cursor, setCursor] = useState(audioEditor.state.cursor);
-    const [viewRange, setViewRange] = useState(audioEditor.state.viewRange);
-    const [selRange, setSelRange] = useState(audioEditor.state.selRange);
     useEffect(() => {
-        audioEditor.on("cursor", setCursor);
-        audioEditor.on("viewRange", setViewRange);
-        audioEditor.on("selRange", setSelRange);
         audioEditor.on("cursor", paint);
-        audioEditor.on("viewRange", paint);
-        audioEditor.on("selRange", paint);
+        // audioEditor.on("viewRange", paint);
+        // audioEditor.on("selRange", paint);
         audioEditor.on("uiResized", paint);
         paint();
         return () => {
-            audioEditor.off("cursor", setCursor);
-            audioEditor.off("viewRange", setViewRange);
-            audioEditor.off("selRange", setSelRange);
             audioEditor.off("cursor", paint);
-            audioEditor.off("viewRange", paint);
-            audioEditor.off("selRange", paint);
+            // audioEditor.off("viewRange", paint);
+            // audioEditor.off("selRange", paint);
             audioEditor.off("uiResized", paint);
         };
     }, []);
@@ -44,8 +36,8 @@ const AudioEditorMap: FunctionComponent<Props> = () => {
         if (ctx.canvas.width !== width) ctx.canvas.width = width;
         if (ctx.canvas.height !== height) ctx.canvas.height = height;
         ctx.scale(ratio, ratio);
-        audioEditor.waveform.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { cursor, viewRange, selRange });
-    }, []);
+        audioEditor.waveform.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { cursor, viewRange: [0, audioEditor.length], selRange: null }, { cursorColor, phosphorColor });
+    }, [cursor]);
     const handleMoveMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!canvasRef.current || !divViewRangeRef.current) return;
         e.stopPropagation();
@@ -57,6 +49,7 @@ const AudioEditorMap: FunctionComponent<Props> = () => {
         const { length } = audioEditor;
         const viewLength = viewRange[1] - viewRange[0];
         divViewRangeRef.current.style.cursor = "grabbing";
+        divViewRangeRef.current.classList.add("active");
         const handleMouseMove = (e: MouseEvent) => {
             e.stopPropagation();
             e.preventDefault();
@@ -71,13 +64,16 @@ const AudioEditorMap: FunctionComponent<Props> = () => {
         const handleMouseUp = (e: MouseEvent) => {
             e.stopPropagation();
             e.preventDefault();
-            if (divViewRangeRef.current) divViewRangeRef.current.style.cursor = "grab";
+            if (divViewRangeRef.current) {
+                divViewRangeRef.current.style.cursor = "grab";
+                divViewRangeRef.current.classList.remove("active");
+            }
             document.removeEventListener("mousemove", handleMouseMove);
             document.removeEventListener("mouseup", handleMouseUp);
         };
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
-    }, []);
+    }, [viewRange]);
     const handleResizeStartMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!divViewRangeRef.current) return;
         e.stopPropagation();
@@ -105,8 +101,8 @@ const AudioEditorMap: FunctionComponent<Props> = () => {
         };
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
-    }, []);
-    const handleResizeEndMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    }, [viewRange]);
+    const handleResizeEndMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!divViewRangeRef.current) return;
         e.stopPropagation();
         e.preventDefault();
@@ -133,7 +129,7 @@ const AudioEditorMap: FunctionComponent<Props> = () => {
         };
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
-    };
+    }, [viewRange]);
     const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
         if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
             audioEditor.scrollH(e.deltaX > 0 ? 0.01 : -0.01);
@@ -148,7 +144,7 @@ const AudioEditorMap: FunctionComponent<Props> = () => {
     const { length } = audioEditor;
     const [viewStart, viewEnd] = viewRange;
     const viewLeft = `${viewStart / length * 100}%`;
-    const viewWidth = `${(viewEnd - viewStart) / length * 100}%`;
+    const viewWidth = `calc(${(viewEnd - viewStart) / length * 100}% - 2px)`;
     const [selStart, selEnd] = selRange || [0, 0];
     const selLeft = `${selStart / length * 100}%`;
     const selWidth = `${(selEnd - selStart) / length * 100}%`;
