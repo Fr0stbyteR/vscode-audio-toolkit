@@ -1,0 +1,21 @@
+.time-input {
+    display: inline-block;
+    flex: 0 0 auto;
+    color: var(--vscode-list-highlightForeground);
+    font-family: var(--vscode-font-family);
+    cursor: ew-resize;
+    padding: 2px 4px;
+    border: transparent 1px solid;
+    border-radius: 2px;
+    user-select: none;
+    text-align: center;
+
+    &.editing {
+        border: 1px var(--vscode-input-border) solid;
+        outline: none;
+        user-select: auto;
+        background-color: var(--vscode-input-background);
+        color: var(--vscode-input-foreground);
+        cursor: text;
+    }
+}

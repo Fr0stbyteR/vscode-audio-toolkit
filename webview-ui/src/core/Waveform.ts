@@ -32,7 +32,8 @@ export interface WaveformPaintOptions {
     separatorColor: string;
     cursorColor: string;
     gridColor: string;
-    gridLabelColor: string;
+    gridRulerColor: string;
+    textColor: string;
     paintGridLabels: boolean;
     labelFont: string;
     fadePathColor: string;
@@ -265,7 +266,7 @@ class Waveform {
         ctx: CanvasRenderingContext2D,
         { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 }: Partial<DrawOptions>,
         { viewRange, audioUnit, beatsPerMeasure, beatsPerMinute, division }: Pick<AudioEditorState & AudioEditorConfiguration, "viewRange" | "audioUnit" | "beatsPerMeasure" | "beatsPerMinute" | "division">,
-        { phosphorColor = "rgb(67, 217, 150)", gridColor = "rgb(0, 53, 0)", gridLabelColor = "white", paintGridLabels = true, labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<WaveformPaintOptions, "phosphorColor" | "gridColor" | "gridLabelColor" | "paintGridLabels" | "labelFont">> = {}
+        { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", paintGridLabels = true, labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<WaveformPaintOptions, "gridColor" | "gridRulerColor" | "textColor" | "paintGridLabels" | "labelFont">> = {}
     ) {
         const { sampleRate } = this
         const { ruler } = getRuler(viewRange, audioUnit, { sampleRate, beatsPerMeasure, beatsPerMinute, division });
@@ -283,8 +284,8 @@ class Waveform {
         }
         ctx.stroke();
         if (!paintGridLabels) return;
-        ctx.strokeStyle = gridLabelColor;
-        ctx.fillStyle = phosphorColor;
+        ctx.strokeStyle = gridRulerColor;
+        ctx.fillStyle = textColor;
         ctx.font = `12px ${labelFont}`;
         ctx.textAlign = "left";
         ctx.textBaseline = "bottom";
@@ -306,7 +307,7 @@ class Waveform {
         ctx: CanvasRenderingContext2D,
         { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 }: Partial<DrawOptions>,
         _stateAndConfigurations: any,
-        { phosphorColor = "rgb(67, 217, 150)", gridColor = "rgb(0, 53, 0)", gridLabelColor = "white", paintGridLabels = true, labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<WaveformPaintOptions, "phosphorColor" | "gridColor" | "gridLabelColor" | "paintGridLabels" | "labelFont">> = {}
+        { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", paintGridLabels = true, labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<WaveformPaintOptions, "gridColor" | "gridRulerColor" | "textColor" | "paintGridLabels" | "labelFont">> = {}
     ) {
         const channels = this.numberOfChannels;
         const channelHeight = height / channels;
@@ -333,8 +334,8 @@ class Waveform {
         }
         ctx.stroke();
         if (!paintGridLabels) return;
-        ctx.strokeStyle = gridLabelColor;
-        ctx.fillStyle = phosphorColor;
+        ctx.strokeStyle = gridRulerColor;
+        ctx.fillStyle = textColor;
         ctx.font = `12px ${labelFont}`;
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
@@ -475,7 +476,7 @@ class Waveform {
                 } else {
                     prev = audioData[channel][$$ - 1] || 0;
                     prevX = ($$ - 0.5 - $drawFrom) * pixelsPerSample;
-                    prevY = calcY(prev, i);
+                    prevY = calcY(prev, channel);
                     ctx.moveTo(x, prevY);
                     while ($$ < endIndex && $$ < $drawTo) {
                         x = ($$ + 0.5 - $drawFrom) * pixelsPerSample;

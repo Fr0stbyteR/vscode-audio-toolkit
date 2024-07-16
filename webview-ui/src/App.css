@@ -17,3 +17,6 @@ main {
     align-items: flex-start;
     height: 100%;
 }
+main > vscode-progress-ring {
+    margin: auto;
+}

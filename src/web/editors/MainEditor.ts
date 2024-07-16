@@ -167,10 +167,13 @@ class AudioDocument extends Disposable implements vscode.CustomDocument {
 }
 
 class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  {
-	public static register(context: vscode.ExtensionContext): vscode.Disposable {
+	public static setStatusBarItem(item: vscode.StatusBarItem) {
+		this.statusBarItem = item;
+	}
+	public static register(context: vscode.ExtensionContext) {
 		const provider = new MainEditorProvider(context);
-		const providerRegistration = vscode.window.registerCustomEditorProvider(MainEditorProvider.viewType, provider);
-		const postMessageToActiveWebviewPanel = (type: string, body?: any) => {
+		const providerRegistration = vscode.window.registerCustomEditorProvider(MainEditorProvider.viewType, provider, { webviewOptions: { retainContextWhenHidden: true } });
+		const postMessageToActiveWebviewPanel = async (type: string, body?: any) => {
 			for (const uri of provider.documentUris) {
 				let found = false;
 				for (const webviewPanel of provider.webviews.get(uri)) {
@@ -185,18 +188,21 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
 				}
 			}
 		};
-		vscode.commands.registerCommand("audioToolkit.playOrStop", () => postMessageToActiveWebviewPanel("playOrStop"));
-		vscode.commands.registerCommand("audioToolkit.pauseOrResume", () => postMessageToActiveWebviewPanel("pauseOrResume"));
-		return providerRegistration;
+		const playOrStopCommandRegistration = vscode.commands.registerCommand("audioToolkit.playOrStop", () => postMessageToActiveWebviewPanel("playOrStop"));
+		const pauseOrResumeCommandRegistration = vscode.commands.registerCommand("audioToolkit.pauseOrResume", () => postMessageToActiveWebviewPanel("pauseOrResume"));
+		return [providerRegistration, playOrStopCommandRegistration, pauseOrResumeCommandRegistration];
 	}
 
 	private static readonly viewType = "audioToolkit.editor";
+
+	private static statusBarItem: vscode.StatusBarItem | null = null;
 
 	/**
 	 * Tracks all known webviews
 	 */
 	private readonly webviews = new WebviewCollection();
 	private readonly documentUris = new Set<vscode.Uri>();
+	private readonly sampleRateMap = new Map<vscode.Uri, number>();
 
 	constructor(
 		private readonly context: vscode.ExtensionContext
@@ -289,7 +295,13 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
 						configuration: vscode.workspace.getConfiguration("audioToolkit"),
                         editable,
                     };
-                    this.postMessage(webviewPanel, "init", initMessage);
+                    this.postMessageWithResponse<number>(webviewPanel, "init", initMessage).then((sr) => {
+						this.sampleRateMap.set(document.uri, sr);
+						if (MainEditorProvider.statusBarItem) {
+							MainEditorProvider.statusBarItem.show();
+							MainEditorProvider.statusBarItem.text = `${sr}Hz`;
+						}
+					});
 					this.postMessage(webviewPanel, "updateConfigurationFromHost", vscode.workspace.getConfiguration("audioToolkit"));
                     return;    
                 }
@@ -314,7 +326,7 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
 		this.webviews.add(document.uri, webviewPanel);
 		// Setup initial content for the webview
 		webviewPanel.webview.options = {
-			enableScripts: true,
+			enableScripts: true
 		};
 		webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
 
@@ -338,6 +350,19 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
 					});
 				}
                     */
+			}
+		});
+
+		webviewPanel.onDidDispose(() => MainEditorProvider.statusBarItem?.hide());
+		webviewPanel.onDidChangeViewState((e) => {
+			if (e.webviewPanel.active) {
+				const sr = this.sampleRateMap.get(document.uri);
+				if (MainEditorProvider.statusBarItem) {
+					MainEditorProvider.statusBarItem.show();
+					MainEditorProvider.statusBarItem.text = `${sr}Hz`;
+				}
+			} else {
+				MainEditorProvider.statusBarItem?.hide();
 			}
 		});
 		this.documentUris.add(document.uri);

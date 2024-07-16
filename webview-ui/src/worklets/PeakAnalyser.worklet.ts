@@ -160,7 +160,7 @@ class TemporalAnalyserProcessor extends AudioWorkletProxyProcessor<IPeakAnalyser
 
         // write peaks
         input.map(array => absMax(array)).forEach((v, i) => {
-            if (v > this.peakSinceLastGet[i]) this.peakSinceLastGet[i] = v;
+            if (!this.peakSinceLastGet[i] || v > this.peakSinceLastGet[i]) this.peakSinceLastGet[i] = v;
         });
         return true;
     }

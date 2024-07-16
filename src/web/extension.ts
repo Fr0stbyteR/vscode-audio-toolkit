@@ -31,8 +31,15 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(disposable);
 	*/
-	const disposable = MainEditorProvider.register(context);
-	context.subscriptions.push(disposable);
+	// const openConfigurationRegistration = vscode.commands.registerCommand("audioToolkit.openConfiguration", () => vscode.commands.executeCommand("workbench.action.openSettings", ""));
+	const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+	statusBarItem.hide();
+	statusBarItem.text = "Audio File N/A";
+	statusBarItem.command = { command: "workbench.action.openSettings", arguments: ["audioToolkit"], title: "Open AudioToolkit Settings" };
+
+	MainEditorProvider.setStatusBarItem(statusBarItem);
+	const mainEditorDisposables = MainEditorProvider.register(context);
+	context.subscriptions.push(statusBarItem, ...mainEditorDisposables);
 }
 
 // This method is called when your extension is deactivated

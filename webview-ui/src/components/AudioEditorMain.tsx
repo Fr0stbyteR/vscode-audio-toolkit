@@ -8,9 +8,10 @@ import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 interface Props extends Pick<AudioEditorState, "cursor" | "selRange" | "viewRange" | "enabledChannels">, Partial<WaveformPaintOptions> {
     configuration: AudioEditorConfiguration;
     monospaceFont: string;
+    windowSize: number[];
 }
 
-const AudioEditorMain: FunctionComponent<Props> = ({ cursor, viewRange, selRange, enabledChannels, phosphorColor, cursorColor, gridColor, gridLabelColor, monospaceFont, configuration: { audioUnit, beatsPerMinute, beatsPerMeasure, division } }) => {
+const AudioEditorMain: FunctionComponent<Props> = ({ cursor, viewRange, selRange, enabledChannels, phosphorColor, cursorColor, gridColor, gridRulerColor, textColor, monospaceFont, configuration: { audioUnit, beatsPerMinute, beatsPerMeasure, division }, windowSize }) => {
     const audioEditor = useContext(AudioEditorContext)!;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const canvasVerticalRulerRef = useRef<HTMLCanvasElement>(null);
@@ -41,8 +42,8 @@ const AudioEditorMain: FunctionComponent<Props> = ({ cursor, viewRange, selRange
         if (ctx.canvas.width !== width) ctx.canvas.width = width;
         if (ctx.canvas.height !== height) ctx.canvas.height = height;
         ctx.scale(ratio, ratio);
-        audioEditor.waveform.paintVerticalRuler(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange, audioUnit, beatsPerMeasure, beatsPerMinute, division }, { phosphorColor, gridColor, gridLabelColor, labelFont: monospaceFont, paintGridLabels: true });
-    }, [viewRange, audioUnit, beatsPerMeasure, beatsPerMinute, division, phosphorColor, gridColor, gridLabelColor, monospaceFont]);
+        audioEditor.waveform.paintVerticalRuler(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange, audioUnit, beatsPerMeasure, beatsPerMinute, division }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont, paintGridLabels: true });
+    }, [viewRange, audioUnit, beatsPerMeasure, beatsPerMinute, division, gridColor, gridRulerColor, textColor, monospaceFont]);
     const paintHorizontalRuler = useCallback(() => {
         const canvas = canvasHorizontalRulerRef.current;
         const ctx = canvas?.getContext("2d");
@@ -54,21 +55,11 @@ const AudioEditorMain: FunctionComponent<Props> = ({ cursor, viewRange, selRange
         if (ctx.canvas.width !== width) ctx.canvas.width = width;
         if (ctx.canvas.height !== height) ctx.canvas.height = height;
         ctx.scale(ratio, ratio);
-        audioEditor.waveform.paintHorizontalRuler(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, null, { phosphorColor, gridColor, gridLabelColor, labelFont: monospaceFont, paintGridLabels: true });
-    }, [phosphorColor, gridColor, gridLabelColor, monospaceFont]);
-    useEffect(paint, [cursor, viewRange, cursorColor, phosphorColor]);
-    useEffect(paintVerticalRuler, [viewRange, audioUnit, beatsPerMeasure, beatsPerMinute, division, phosphorColor, gridColor, gridLabelColor, monospaceFont]);
-    useEffect(paintHorizontalRuler, [phosphorColor, gridColor, gridLabelColor, monospaceFont]);
-    useEffect(() => {
-        audioEditor.on("uiResized", paint);
-        audioEditor.on("uiResized", paintVerticalRuler);
-        audioEditor.on("uiResized", paintHorizontalRuler);
-        return () => {
-            audioEditor.off("uiResized", paint);
-            audioEditor.off("uiResized", paintVerticalRuler);
-            audioEditor.off("uiResized", paintHorizontalRuler);
-        };
-    }, []);
+        audioEditor.waveform.paintHorizontalRuler(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, null, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont, paintGridLabels: true });
+    }, [gridColor, gridRulerColor,  textColor, monospaceFont]);
+    useEffect(paint, [windowSize, cursor, viewRange, cursorColor, phosphorColor]);
+    useEffect(paintVerticalRuler, [windowSize, viewRange, audioUnit, beatsPerMeasure, beatsPerMinute, division, gridColor, gridRulerColor, textColor, monospaceFont]);
+    useEffect(paintHorizontalRuler, [windowSize, gridColor, gridRulerColor, textColor, monospaceFont]);
     const handleCanvasMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         e.stopPropagation();
         e.preventDefault();

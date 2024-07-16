@@ -62,7 +62,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         beatsPerMeasure: 4,
         division: 16
     };
-    static async fromData(data: ArrayBuffer, context: BaseAudioContext, configuration: Partial<AudioEditorConfiguration> = {}) {
+    static async fromData(data: ArrayBuffer, context: AudioContext, configuration: Partial<AudioEditorConfiguration> = {}) {
         const audioBuffer = await context.decodeAudioData(data);
         const operableAudioBuffer: OperableAudioBuffer = Object.setPrototypeOf(audioBuffer, OperableAudioBuffer.prototype);
         const audioData = operableAudioBuffer.toArray(true);
@@ -118,7 +118,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         private _audioBuffer: OperableAudioBuffer,
         private _waveform: Waveform,
         private _spectrogram: Spectrogram,
-        private _context: BaseAudioContext,
+        private _context: AudioContext,
         private _configuration: AudioEditorConfiguration
     ) {
         super();

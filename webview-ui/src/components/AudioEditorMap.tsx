@@ -6,8 +6,9 @@ import { AudioEditorState } from "../core/AudioEditor";
 import { WaveformPaintOptions } from "../core/Waveform";
 
 interface Props extends Pick<AudioEditorState, "cursor" | "selRange" | "viewRange">, Partial<WaveformPaintOptions> {
+    windowSize: number[]
 }
-const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange, phosphorColor, cursorColor }) => {
+const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange, phosphorColor, cursorColor, windowSize }) => {
     const audioEditor = useContext(AudioEditorContext)!;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const divViewRangeRef = useRef<HTMLDivElement>(null);
@@ -24,11 +25,7 @@ const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange,
         ctx.scale(ratio, ratio);
         audioEditor.waveform.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { cursor, viewRange: [0, audioEditor.length], selRange: null }, { cursorColor, phosphorColor });
     }, [cursor]);
-    useEffect(paint, [cursor, phosphorColor, cursorColor]);
-    useEffect(() => {
-        audioEditor.on("uiResized", paint);
-        return () => audioEditor.off("uiResized", paint);
-    }, []);
+    useEffect(paint, [windowSize, cursor, phosphorColor, cursorColor]);
     const handleMoveMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!canvasRef.current || !divViewRangeRef.current) return;
         e.stopPropagation();

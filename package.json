@@ -26,18 +26,21 @@
           "description": "Unit to display"
         },
         "audioToolkit.fftSize": {
+          "title": "FFT Window Size",
           "type": "integer",
           "enum": [64, 128, 256, 512, 1024, 2048, 4096, 16384, 32768],
           "default": 1024,
           "description": "Specifies the FFT size used for frequency domain analysis"
         },
         "audioToolkit.fftOverlap": {
+          "title": "FFT Window Overlaps",
           "type": "integer",
           "enum": [2, 4, 8, 16],
           "default": 2,
           "description": "Specifies the FFT overlaps used for frequency domain analysis"
         },
         "audioToolkit.fftWindowFunction": {
+          "title": "FFT Window Function",
           "type": "string",
           "enum": [
             "Rectangular",

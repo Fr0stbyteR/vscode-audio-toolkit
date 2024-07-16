@@ -14,30 +14,43 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
     const [cursor, setCursor] = useState(audioEditor.state.cursor);
     const [viewRange, setViewRange] = useState(audioEditor.state.viewRange);
     const [selRange, setSelRange] = useState(audioEditor.state.selRange);
+    const [playing, setPlaying] = useState(audioEditor.state.playing);
+    const [loop, setLoop] = useState(audioEditor.state.loop);
     const [enabledChannels, setEnabledChannels] = useState(audioEditor.state.enabledChannels);
     const [configuration, setConfiguration] = useState(audioEditor.configuration);
-    const phosphorColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-textLink-foreground");
+    const [windowSize, setWindowSize] = useState([window.innerWidth, window.innerHeight]);
+    const phosphorColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-menu-selectionBackground");
     const cursorColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-minimap-findMatchHighlight");
     const gridColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-menu-separatorBackground");
-    const gridLabelColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-menu-foreground");
-    const monospaceFont = window.getComputedStyle(document.body).getPropertyValue("--monaco-monospace-font");
+    const gridRulerColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-menu-foreground");
+    const monospaceFont = window.getComputedStyle(document.body).getPropertyValue("--vscode-font-family");
+    const textColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-list-highlightForeground");
     const componentProps = {
         cursor,
         viewRange,
         selRange,
+        playing,
+        loop,
         enabledChannels,
         phosphorColor,
         cursorColor,
         configuration,
         gridColor,
-        gridLabelColor,
-        monospaceFont
+        gridRulerColor,
+        monospaceFont,
+        textColor,
+        windowSize
     };
-    const handleUiResized = () => audioEditor.emit("uiResized");
+    const handleUiResized = () => {
+        audioEditor.emit("uiResized");
+        setWindowSize([window.innerWidth, window.innerHeight]);
+    };
     useEffect(() => {
         audioEditor.on("cursor", setCursor);
         audioEditor.on("viewRange", setViewRange);
         audioEditor.on("selRange", setSelRange);
+        audioEditor.on("playing", setPlaying);
+        audioEditor.on("loop", setLoop);
         audioEditor.on("enabledChannels", setEnabledChannels);
         audioEditor.on("configuration", setConfiguration);
         window.addEventListener("resize", handleUiResized);
@@ -45,6 +58,8 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
             audioEditor.off("cursor", setCursor);
             audioEditor.off("viewRange", setViewRange);
             audioEditor.off("selRange", setSelRange);
+            audioEditor.off("playing", setPlaying);
+            audioEditor.off("loop", setLoop);
             audioEditor.off("enabledChannels", setEnabledChannels);
             audioEditor.off("configuration", setConfiguration);
             window.removeEventListener("resize", handleUiResized);
@@ -55,8 +70,8 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
             <div className="audio-editor-left-container">
                 <AudioEditorMap {...componentProps} />
                 <AudioEditorMain {...componentProps} />
-                <AudioEditorControls {...props} />
-                <AudioEditorMonitor {...props} />
+                <AudioEditorControls {...componentProps} />
+                <AudioEditorMonitor {...componentProps} />
             </div>
             <div className="audio-editor-right-container">
             </div>
