@@ -1,7 +1,7 @@
 import { convertSampleToUnit, dbtoa, normExp } from "../utils";
 import WaveformWorker from "../workers/WaveformWorker";
 import { AudioEditorConfiguration, AudioEditorState, AudioUnit, DrawOptions } from "./AudioEditor";
-import OperableAudioBuffer from "./OperableAudioBuffer";
+import WaveformProcessor from "./WaveformProcessor";
 
 export interface WaveformResizeOptions {
     resizeFactor: number;
@@ -43,8 +43,6 @@ export interface WaveformPaintOptions {
     fadeOutFrom: number;
     fade: number;
 }
-
-const SharedArrayBuffer = globalThis.ArrayBuffer || globalThis.SharedArrayBuffer;
 
 export const getFactors = (n: number) => {
     const factors = [1];
@@ -179,16 +177,14 @@ export const getRuler = (range: [number, number], unit: AudioUnit, { sampleRate 
 };
 
 class Waveform {
-    static DEFAULT_RESIZE_FACTOR = 4;
-    static DEFAULT_MIN_WIDTH = 4;
-    
     static async fromAudioData(audioData: Float32Array[], sampleRate: number) {
         const waveform = new Waveform(audioData, sampleRate);
-        const resized = waveform.generateResized();
+        const resized = await waveform._worker.generateResized(audioData);
         waveform._dataSlices = [resized];
         return waveform;
     }
 
+    private _worker = new WaveformWorker();
     private _dataSlices: WaveformSliceData[] = [];
     get length() {
         return this.audioData[0].length;
@@ -200,61 +196,6 @@ class Waveform {
         public audioData: Float32Array[],
         public sampleRate: number
     ) {}
-
-    generateResized({ resizeFactor = Waveform.DEFAULT_RESIZE_FACTOR, minWidth = Waveform.DEFAULT_MIN_WIDTH }: Partial<WaveformResizeOptions> = {}) {
-        const { length } = this;
-        const resizeOptions: WaveformResizeOptions = { resizeFactor, minWidth };
-        const resizes: ResizedWaveform[] = [];
-        const sizes: number[] = [];
-        const data: WaveformSliceData = {
-            startIndex: 0,
-            endIndex: length,
-            resizedWaveforms: {
-                resizes,
-                sizes,
-                resizeOptions
-            },
-        };
-        const offsetFromFrame = 0;
-        let prevW: number;
-        let w: number;
-        let prevMinData: Float32Array[];
-        let prevMaxData: Float32Array[];
-        let minData: Float32Array[];
-        let maxData: Float32Array[];
-        let $start: number;
-        let $end: number;
-        let subarray: number[];
-        for (let samplesPerPixel = resizeFactor; length / samplesPerPixel >= minWidth; samplesPerPixel *= resizeFactor) {
-            w = Math.ceil(length / samplesPerPixel);
-            minData = [];
-            maxData = [];
-            for (let channel = 0; channel < this.numberOfChannels; channel++) {
-                minData[channel] = new Float32Array(new SharedArrayBuffer(w * Float32Array.BYTES_PER_ELEMENT));
-                maxData[channel] = new Float32Array(new SharedArrayBuffer(w * Float32Array.BYTES_PER_ELEMENT));
-                for (let i = 0; i < w; i++) {
-                    if (samplesPerPixel === resizeFactor) {
-                        $start = i * resizeFactor;
-                        $end = Math.min((i + 1) * resizeFactor, length);
-                        subarray = this.audioData[channel].subarray($start, $end) as any;
-                        minData[channel][i] = Math.min.apply(Math, subarray);
-                        maxData[channel][i] = Math.max.apply(Math, subarray);
-                    } else {
-                        $start = i * resizeFactor;
-                        $end = Math.min((i + 1) * resizeFactor, prevW!);
-                        minData[channel][i] = Math.min.apply(Math, prevMinData![channel].subarray($start, $end) as any);
-                        maxData[channel][i] = Math.max.apply(Math, prevMaxData![channel].subarray($start, $end) as any);
-                    }
-                }
-            }
-            sizes.push(w);
-            resizes.push({ offsetFromFrame, samplesPerPixel, minData, maxData });
-            prevW = w;
-            prevMinData = minData;
-            prevMaxData = maxData;
-        }
-        return data;
-    }
 
     getBestResizes(targetSamplesPerPixel: number) {
         return this._dataSlices.map((waveformSliceData) => {
@@ -268,7 +209,7 @@ class Waveform {
         { viewRange, audioUnit, beatsPerMeasure, beatsPerMinute, division }: Pick<AudioEditorState & AudioEditorConfiguration, "viewRange" | "audioUnit" | "beatsPerMeasure" | "beatsPerMinute" | "division">,
         { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", paintGridLabels = true, labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<WaveformPaintOptions, "gridColor" | "gridRulerColor" | "textColor" | "paintGridLabels" | "labelFont">> = {}
     ) {
-        const { sampleRate } = this
+        const { sampleRate } = this;
         const { ruler } = getRuler(viewRange, audioUnit, { sampleRate, beatsPerMeasure, beatsPerMinute, division });
         ctx.clearRect(0, 0, width, height);
         const top = paintGridLabels ? 40 : 0;
@@ -549,143 +490,6 @@ class Waveform {
         ctx.moveTo(x, 0);
         ctx.lineTo(x, height);
         ctx.stroke();
-    }
-}
-
-export interface WaveformMinMaxData {
-    min: Float32Array;
-    max: Float32Array;
-}
-export interface WaveformStepData extends Array<WaveformMinMaxData> {
-    idx?: Int32Array;
-}
-export interface WaveformData {
-    [step: number]: WaveformStepData;
-}
-
-class Waveform1 {
-    static stepsFactor = 16;
-    static async fromAudioData(audioData: OperableAudioBuffer) {
-        const waveform = new Waveform1(audioData);
-        await waveform.generate();
-        return waveform;
-    }
-    [step: number]: WaveformStepData;
-    worker = new WaveformWorker();
-    get length() {
-        return this.audioBuffer.length;
-    }
-    get steps() {
-        return Object.keys(this).filter(v => +v).map(v => +v).sort((a, b) => a - b);
-    }
-    constructor(
-        public audioBuffer: OperableAudioBuffer
-    ) {}
-
-    async generate() {
-        const audioChannelData = this.audioBuffer.toArray(true);
-        const data = await this.worker.generate(audioChannelData, Waveform1.stepsFactor);
-        for (const key in data) {
-            this[key] = data[key];
-        }
-    }
-    generateEmpty(numberOfChannels: number, l: number) {
-        const { stepsFactor } = Waveform1;
-        for (let stepLength = stepsFactor; stepLength <= l / stepsFactor; stepLength *= stepsFactor) {
-            const stepData: WaveformStepData = [];
-            this[stepLength] = stepData;
-            const stepsCount = Math.ceil(l / stepLength);
-            const idxData = new Int32Array(stepsCount);
-            for (let i = 0; i < idxData.length; i++) {
-                idxData[i] = i * stepLength;
-            }
-            stepData.idx = idxData;
-            for (let c = 0; c < numberOfChannels; c++) {
-                const minData = new Float32Array(stepsCount);
-                const maxData = new Float32Array(stepsCount);
-                stepData[c] = { min: minData, max: maxData };
-            }
-        }
-    }
-    generateStep(stepLength: number) {
-        const { stepsFactor } = Waveform1;
-        const { audioBuffer: buffer } = this;
-        if (!this[stepLength]) this[stepLength] = [];
-        const l = buffer.length;
-        let maxInStep = 0;
-        let minInStep = 0;
-        if (stepLength === stepsFactor) { // recalculate from samples
-            const stepsCount = Math.ceil(l / stepLength);
-            const idxData = new Int32Array(stepsCount);
-            for (let i = 0; i < idxData.length; i++) {
-                idxData[i] = i * stepLength;
-            }
-            this[stepLength].idx = idxData;
-            for (let c = 0; c < buffer.numberOfChannels; c++) {
-                const minData = new Float32Array(stepsCount);
-                const maxData = new Float32Array(stepsCount);
-                const channel = buffer.getChannelData(c);
-                for (let i = 0; i < idxData.length; i++) {
-                    const $0 = idxData[i];
-                    const $1 = i === idxData.length - 1 ? l : idxData[i + 1];
-                    for (let j = $0; j < $1; j++) {
-                        const samp = channel[j];
-                        if (j === $0) {
-                            maxInStep = samp;
-                            minInStep = samp;
-                        } else {
-                            if (samp > maxInStep) maxInStep = samp;
-                            if (samp < minInStep) minInStep = samp;
-                        }
-                    }
-                    minData[i] = minInStep;
-                    maxData[i] = maxInStep;
-                }
-                this[stepLength][c] = { min: minData, max: maxData };
-            }
-        } else { // calculate from lower level
-            const prevIdx = this[stepLength / stepsFactor].idx!;
-            const stepsCount = Math.ceil(prevIdx.length / 16);
-            const idxData = new Int32Array(stepsCount);
-            for (let i = 0; i < idxData.length; i++) {
-                idxData[i] = prevIdx[i * stepsFactor];
-            }
-            this[stepLength].idx = idxData;
-            for (let c = 0; c < buffer.numberOfChannels; c++) {
-                const minData = new Float32Array(stepsCount);
-                const maxData = new Float32Array(stepsCount);
-                const { min: prevMin, max: prevMax } = this[stepLength / stepsFactor][c];
-                for (let i = 0; i < idxData.length; i++) {
-                    const $prev0 = i * stepsFactor;
-                    const $prev1 = i === idxData.length - 1 ? prevIdx.length : ((i + 1) * stepsFactor);
-                    for (let j = $prev0; j < $prev1; j++) {
-                        const sampMax = prevMax[j];
-                        const sampMin = prevMin[j];
-                        if (j === $prev0) {
-                            maxInStep = sampMax;
-                            minInStep = sampMin;
-                        } else {
-                            if (sampMax > maxInStep) maxInStep = sampMax;
-                            if (sampMin < minInStep) minInStep = sampMin;
-                        }
-                    }
-                    minData[i] = minInStep;
-                    maxData[i] = maxInStep;
-                }
-                this[stepLength][c] = { min: minData, max: maxData };
-            }
-        }
-        return this[stepLength];
-    }
-    /**
-     * Find an existing waveform with a precision (could be samples per pixel)
-     * returning a waveform that is sufficient to the precision.
-     * (step is the largest value smaller than the precision)
-     */
-    findStep(precision: number) {
-        const key = this.steps.reduce<number>((acc, cur) => (cur < precision && cur > (acc || 0) ? cur : acc), 0);
-        if (!key) return null;
-        return this[key];
     }
 }
 

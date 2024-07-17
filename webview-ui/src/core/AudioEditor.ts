@@ -67,7 +67,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         const operableAudioBuffer: OperableAudioBuffer = Object.setPrototypeOf(audioBuffer, OperableAudioBuffer.prototype);
         const audioData = operableAudioBuffer.toArray(true);
         const waveform = await Waveform.fromAudioData(audioData, audioBuffer.sampleRate);
-        const spectrogram = await Spectrogram.fromAudioBuffer(operableAudioBuffer);
+        const spectrogram = await Spectrogram.fromAudioData(audioData, audioBuffer.sampleRate, configuration);
         const audioEditor = new AudioEditor(operableAudioBuffer, waveform, spectrogram, context, { ...this.DEFAULT_CONFIGURATION, ...configuration });
         await audioEditor.initPlayer();
         return audioEditor;

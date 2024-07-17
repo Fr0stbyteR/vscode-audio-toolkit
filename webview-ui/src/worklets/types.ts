@@ -1,4 +1,4 @@
-import type { TypedMessagePort } from "../workers/types";
+import { TypedMessagePort } from "../workers/types";
 
 export * from "../workers/types";
 

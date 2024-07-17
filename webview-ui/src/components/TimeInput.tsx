@@ -34,7 +34,7 @@ const TimeInput: FunctionComponent<Props> = ({ audioUnit, beatsPerMeasure, beats
         };
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
-    }, [audioUnit, sampleRate, beatsPerMinute, samples, onChange, editing, dragged]);
+    }, [audioUnit, sampleRate, beatsPerMinute, samples, onChange, editing]);
     const handleClick = useCallback((e: React.MouseEvent<HTMLSpanElement>) => {
         if (editing) return;
         if (dragged) return;

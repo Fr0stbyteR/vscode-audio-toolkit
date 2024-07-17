@@ -1,5 +1,5 @@
-import { WaveformData } from "../core/Waveform";
+import { WaveformResizeOptions, WaveformSliceData } from "../core/Waveform";
 
 export interface IWaveformWorker {
-    generate(buffer: Float32Array[], stepsFactor?: number): WaveformData;
+    generateResized(audioData: Float32Array[], options?: Partial<WaveformResizeOptions>): WaveformSliceData;
 }

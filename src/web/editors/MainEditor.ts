@@ -400,7 +400,7 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
     Use a content security policy to only allow loading images from https or from our extension directory,
     and only allow scripts that have a specific nonce.
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src ${webview.cspSource}; font-src ${webview.cspSource}; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}' ${webview.cspSource} 'self'; worker-src 'self' blob:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' ${webview.cspSource} 'nonce-${nonce}'; img-src ${webview.cspSource}; font-src ${webview.cspSource}; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}' ${webview.cspSource} 'self'; worker-src 'self' blob:;">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 

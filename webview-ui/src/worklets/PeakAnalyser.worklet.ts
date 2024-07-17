@@ -90,12 +90,12 @@ class TemporalAnalyserProcessor extends AudioWorkletProxyProcessor<IPeakAnalyser
     }
     getPeak() {
         const peak = this.window.map(a => absMax(a, this.$read, this.windowSize));
-        this.peakSinceLastGet = [];
+        this.peakSinceLastGet = peak;
         return peak;
     }
     getPeakSinceLastGet() {
         const peak = this.peakSinceLastGet;
-        this.peakSinceLastGet = [];
+        this.getPeak();
         return peak;
     }
     destroy() {

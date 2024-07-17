@@ -24,8 +24,8 @@ const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange,
         if (ctx.canvas.height !== height) ctx.canvas.height = height;
         ctx.scale(ratio, ratio);
         audioEditor.waveform.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { cursor, viewRange: [0, audioEditor.length], selRange: null }, { cursorColor, phosphorColor });
-    }, [cursor]);
-    useEffect(paint, [windowSize, cursor, phosphorColor, cursorColor]);
+    }, [cursor, cursorColor, phosphorColor]);
+    useEffect(paint, [paint, windowSize, phosphorColor, cursorColor]);
     const handleMoveMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!canvasRef.current || !divViewRangeRef.current) return;
         e.stopPropagation();

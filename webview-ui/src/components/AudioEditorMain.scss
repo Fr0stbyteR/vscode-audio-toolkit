@@ -267,7 +267,12 @@
                     right: 0px;
 
                     & > vscode-button {
-                        padding: 4px 0px;
+                        border-bottom: 1px transparent solid;
+                        border-radius: 0px;
+        
+                        &.active {
+                            border-bottom: 1px var(--vscode-panelTitle-activeBorder) solid;
+                        }        
                     }
                 }
             }

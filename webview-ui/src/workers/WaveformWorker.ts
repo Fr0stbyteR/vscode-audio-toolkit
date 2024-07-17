@@ -4,5 +4,5 @@ import ProxyMain from "./ProxyMain";
 
 export default class WaveformWorker extends ProxyMain<{}, IWaveformWorker> {
     static Worker = Worker;
-    static fnNames: (keyof IWaveformWorker)[] = ["generate"];
+    static fnNames: (keyof IWaveformWorker)[] = ["generateResized"];
 }

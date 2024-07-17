@@ -29,7 +29,7 @@ const AudioEditorMain: FunctionComponent<Props> = ({ cursor, viewRange, selRange
         if (ctx.canvas.width !== width) ctx.canvas.width = width;
         if (ctx.canvas.height !== height) ctx.canvas.height = height;
         ctx.scale(ratio, ratio);
-        audioEditor.waveform.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { cursor, viewRange, selRange }, { cursorColor, phosphorColor });
+        audioEditor.waveform.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { cursor, viewRange, selRange: null }, { cursorColor, phosphorColor });
     }, [cursor, viewRange, cursorColor, phosphorColor]);
     const paintVerticalRuler = useCallback(() => {
         const canvas = canvasVerticalRulerRef.current;
@@ -57,9 +57,9 @@ const AudioEditorMain: FunctionComponent<Props> = ({ cursor, viewRange, selRange
         ctx.scale(ratio, ratio);
         audioEditor.waveform.paintHorizontalRuler(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, null, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont, paintGridLabels: true });
     }, [gridColor, gridRulerColor,  textColor, monospaceFont]);
-    useEffect(paint, [windowSize, cursor, viewRange, cursorColor, phosphorColor]);
-    useEffect(paintVerticalRuler, [windowSize, viewRange, audioUnit, beatsPerMeasure, beatsPerMinute, division, gridColor, gridRulerColor, textColor, monospaceFont]);
-    useEffect(paintHorizontalRuler, [windowSize, gridColor, gridRulerColor, textColor, monospaceFont]);
+    useEffect(paint, [paint, windowSize]);
+    useEffect(paintVerticalRuler, [paintVerticalRuler, windowSize]);
+    useEffect(paintHorizontalRuler, [paintHorizontalRuler, windowSize]);
     const handleCanvasMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         e.stopPropagation();
         e.preventDefault();
@@ -275,7 +275,7 @@ const AudioEditorMain: FunctionComponent<Props> = ({ cursor, viewRange, selRange
                         enabledChannels.map((enabled, i) => (
                             <div key={i} {...(enabled ? {} : { className: "disabled" })}>
                                 <span className="enable-channel">
-                                    <VSCodeButton aria-label={`Enable / Disable Channel ${i + 1}`} title={`Enable / Disable Channel ${i + 1}`} appearance={enabled ? "primary" : "secondary"} onClick={() => audioEditor.setEnabledChannel(i, !enabledChannels[i])}>
+                                    <VSCodeButton aria-label={`Enable / Disable Channel ${i + 1}`} title={`Enable / Disable Channel ${i + 1}`} className={enabled ? "active" : ""} appearance="icon" onClick={() => audioEditor.setEnabledChannel(i, !enabledChannels[i])}>
                                         <span>{i + 1}</span>
                                     </VSCodeButton>
                                 </span>

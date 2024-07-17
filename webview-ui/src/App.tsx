@@ -86,7 +86,7 @@ const App: FunctionComponent = () => {
             window.removeEventListener("message", handleMessage);
             window.removeEventListener("keydown", handleKeyDown);
         };
-    }, [audioEditor, ready]);
+    }, [handleMessage, handleKeyDown, ready]);
     return (
         <main>
             {audioEditor ? (

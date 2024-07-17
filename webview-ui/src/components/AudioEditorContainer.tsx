@@ -1,5 +1,5 @@
 import "./AudioEditorContainer.scss";
-import { FunctionComponent, useContext, useEffect, useState } from "react";
+import { FunctionComponent, useCallback, useContext, useEffect, useState } from "react";
 import AudioEditorMap from "./AudioEditorMap";
 import AudioEditorMain from "./AudioEditorMain";
 import AudioEditorControls from "./AudioEditorControls";
@@ -41,10 +41,10 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
         textColor,
         windowSize
     };
-    const handleUiResized = () => {
+    const handleUiResized = useCallback(() => {
         audioEditor.emit("uiResized");
         setWindowSize([window.innerWidth, window.innerHeight]);
-    };
+    }, []);
     useEffect(() => {
         audioEditor.on("cursor", setCursor);
         audioEditor.on("viewRange", setViewRange);

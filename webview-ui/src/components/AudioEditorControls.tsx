@@ -13,12 +13,9 @@ const AudioEditorControls: FunctionComponent<Props> = ({ cursor, playing, loop, 
     const audioEditor = useContext(AudioEditorContext)!;
     const handleCursorChanged = (cursor: number) => audioEditor.setCursor(cursor);
     const [cursorBeforePlay, setCursorBeforePlay] = useState(cursor);
-    const resumeAudioContext = () => {
-        if (audioEditor.context.state === "suspended") audioEditor.context.resume();
-    }
     const handleClickPlay = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
         e.currentTarget.blur();
-        resumeAudioContext();
+        if (audioEditor.context.state === "suspended") audioEditor.context.resume();
         if (playing === "playing") {
             audioEditor.setCursor(cursorBeforePlay);
             audioEditor.play();
