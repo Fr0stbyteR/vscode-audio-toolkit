@@ -4,13 +4,47 @@
     display: flex;
     flex-direction: column;
 
-    & > div.editor-main-canvases {
+    & > div.editor-main-playhead-container {
+        display: block;
+        position: absolute;
+        margin: 40px 80px 0px 0px;
+        height: calc(100% - 40px);
+        width: calc(100% - 80px);
+
+        &[hidden] {
+            display: none;
+        }
+        & > div.editor-main-playhead-handler {
+            display: block;
+            position: absolute;
+            width: 16px;
+            height: 12px;
+            background-color: var(--vscode-button-background);
+            border-radius: 0px 0px 8px 8px;
+            margin-top: -12px;
+            margin-left: -8px;
+            cursor: grab;
+            z-index: 1;
+        }
+    
+        & > div.editor-main-playhead {
+            display: block;
+            position: absolute;
+            width: 0px;
+            height: 100%;
+            border-right: 1px var(--vscode-minimap-findMatchHighlight) dashed;
+            z-index: 1;
+            pointer-events: none;
+        }
+    }
+
+    & > div.editor-main-waveform-container {
         display: inline-block;
         flex: 1 1 auto;
         position: relative;
         height: 100%;
 
-        & > .editor-main-canvas-background {
+        & > .editor-main-waveform-background {
             display: block;
             position: absolute;
             height: calc(100% - 40px);
@@ -19,7 +53,7 @@
             background-color: var(--vscode-panel-background);
         }
 
-        & > .editor-main-vertical-ruler-container {
+        & > .editor-main-waveform-vertical-ruler-container {
             display: block;
             position: absolute;
             height: 100%;
@@ -35,7 +69,7 @@
             }
         }
 
-        & > .editor-main-horizontal-ruler-container {
+        & > .editor-main-waveform-horizontal-ruler-container {
             display: block;
             position: absolute;
             height: calc(100% - 40px);
@@ -51,7 +85,7 @@
             }
         }
 
-        & > .editor-main-canvas-container {
+        & > .editor-main-waveform-canvas-container {
             display: block;
             position: absolute;
             height: calc(100% - 40px);
@@ -225,18 +259,6 @@
                     height: 100%;
                     cursor: ew-resize;
                 }
-            }
-
-            & > div.editor-main-cursor-handler {
-                display: block;
-                position: absolute;
-                width: 16px;
-                height: 12px;
-                background-color: var(--vscode-button-background);
-                border-radius: 0px 0px 8px 8px;
-                bottom: 0;
-                margin-left: -8px;
-                cursor: grab;
             }
         }
 

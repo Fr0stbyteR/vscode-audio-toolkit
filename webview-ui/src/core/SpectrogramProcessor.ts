@@ -12,7 +12,7 @@ class SpectrogramProcessor {
     static DEFAULT_MIN_PIXEL_WIDTH = 4;
     static DEFAULT_MIN_PIXEL_HEIGHT = 128;
     static generateResized(spectrogram: Float32Array[][], stftOptions: STFTOptions, { resizeFactor = this.DEFAULT_MIN_PIXEL_WIDTH, minWidth = this.DEFAULT_MIN_PIXEL_WIDTH, minHeight = this.DEFAULT_MIN_PIXEL_HEIGHT }: Partial<ResizeOptions> = {}) {
-        const SharedArrayBuffer = globalThis.ArrayBuffer || globalThis.SharedArrayBuffer;
+        const SharedArrayBuffer = globalThis.SharedArrayBuffer || globalThis.ArrayBuffer;
         const originalSize: [number, number] = [spectrogram[0].length, spectrogram[0][0].length];
         const [ow, oh] = originalSize;
         const channels = spectrogram.length;

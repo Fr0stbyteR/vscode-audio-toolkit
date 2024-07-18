@@ -29,8 +29,8 @@ const AudioEditorMain: FunctionComponent<Props> = ({ cursor, viewRange, selRange
         if (ctx.canvas.width !== width) ctx.canvas.width = width;
         if (ctx.canvas.height !== height) ctx.canvas.height = height;
         ctx.scale(ratio, ratio);
-        audioEditor.waveform.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { cursor, viewRange, selRange: null }, { cursorColor, phosphorColor });
-    }, [cursor, viewRange, cursorColor, phosphorColor]);
+        audioEditor.waveform.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange }, { cursorColor, phosphorColor });
+    }, [viewRange, cursorColor, phosphorColor]);
     const paintVerticalRuler = useCallback(() => {
         const canvas = canvasVerticalRulerRef.current;
         const ctx = canvas?.getContext("2d");
@@ -67,8 +67,8 @@ const AudioEditorMain: FunctionComponent<Props> = ({ cursor, viewRange, selRange
         const viewLength = viewEnd - viewStart;
         const origin = { x: e.clientX, y: e.clientY };
         const rect = e.currentTarget.getBoundingClientRect();
-        const cursor = viewStart + (e.clientX - rect.left) / rect.width * viewLength;
-        audioEditor.setCursor(cursor);
+        const playhead = viewStart + (e.clientX - rect.left) / rect.width * viewLength;
+        audioEditor.setCursor(playhead);
         audioEditor.setSelRange(null);
         const handleMouseMove = (e: MouseEvent) => {
             e.stopPropagation();
@@ -82,7 +82,7 @@ const AudioEditorMain: FunctionComponent<Props> = ({ cursor, viewRange, selRange
                 const [viewStart, viewEnd] = viewRange;
                 const viewLength = viewEnd - viewStart;
                 const to = viewStart + Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * viewLength;
-                audioEditor.setSelRange([cursor, to]);
+                audioEditor.setSelRange([playhead, to]);
             }
         };
         const handleMouseUp = (e: MouseEvent) => {
@@ -108,7 +108,7 @@ const AudioEditorMain: FunctionComponent<Props> = ({ cursor, viewRange, selRange
         const ref = viewStart + (origin.x - rect.left) / rect.width * viewLength;
         audioEditor.zoomH(ref, e.deltaY < 0 ? 1 : -1);
     }, [viewRange]);
-    const handleCursorHandlerMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const handlePlayheadHandlerMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!canvasRef.current) return;
         e.stopPropagation();
         e.preventDefault();
@@ -117,10 +117,10 @@ const AudioEditorMain: FunctionComponent<Props> = ({ cursor, viewRange, selRange
         if (currentTarget.classList.contains("editor-main-vertical-ruler-area")) {
             const [viewStart, viewEnd] = viewRange;
             const viewLength = viewEnd - viewStart;
-            const cursor = viewStart + (e.clientX - rect.left) / rect.width * viewLength;
-            audioEditor.setCursor(cursor);
+            const playhead = viewStart + (e.clientX - rect.left) / rect.width * viewLength;
+            audioEditor.setCursor(playhead);
         }
-        if (currentTarget.classList.contains("editor-main-cursor-handler")) currentTarget.style.cursor = "grabbing";
+        if (currentTarget.classList.contains("editor-main-playhead-handler")) currentTarget.style.cursor = "grabbing";
         const handleMouseMove = (e: MouseEvent) => {
             e.stopPropagation();
             e.preventDefault();
@@ -129,11 +129,11 @@ const AudioEditorMain: FunctionComponent<Props> = ({ cursor, viewRange, selRange
             else if (x < rect.left) audioEditor.scrollH((x - rect.left) / 1000);
             const [viewStart, viewEnd] = viewRange;
             const viewLength = viewEnd - viewStart;
-            const cursor = viewStart + (x - rect.left) / rect.width * viewLength;
-            audioEditor.setCursor(cursor);
+            const playhead = viewStart + (x - rect.left) / rect.width * viewLength;
+            audioEditor.setCursor(playhead);
         };
         const handleMouseUp = (e: MouseEvent) => {
-            if (currentTarget.classList.contains("editor-main-cursor-handler")) currentTarget.style.cursor = "";
+            if (currentTarget.classList.contains("editor-main-playhead-handler")) currentTarget.style.cursor = "";
             e.stopPropagation();
             e.preventDefault();
             document.removeEventListener("mousemove", handleMouseMove);
@@ -244,19 +244,23 @@ const AudioEditorMain: FunctionComponent<Props> = ({ cursor, viewRange, selRange
     const $selEnd = (selEnd - viewStart) / viewLength;
     const selLeft = `${$selStart * 100}%`;
     const selWidth = `${($selEnd - $selStart) * 100}%`;
-    const $cursor = (cursor - viewStart) / viewLength;
-    const cursorLeft = `${$cursor * 100}%`;
+    const $playhead = (cursor - viewStart) / viewLength;
+    const playheadLeft = `${$playhead * 100}%`;
     return (
         <div className="editor-main">
-            <div className="editor-main-canvases">
-                <div className="editor-main-canvas-background" />
-                <div className="editor-main-vertical-ruler-container">
+            <div className="editor-main-playhead-container" hidden={$playhead < 0 || $playhead > 1}>
+                <div className="editor-main-playhead-handler" style={{ left: playheadLeft }} onMouseDown={handlePlayheadHandlerMouseDown} />
+                <div className="editor-main-playhead" style={{ left: playheadLeft }}></div>
+            </div>
+            <div className="editor-main-waveform-container">
+                <div className="editor-main-waveform-background" />
+                <div className="editor-main-waveform-vertical-ruler-container">
                     <canvas ref={canvasVerticalRulerRef} />
                 </div>
-                <div className="editor-main-horizontal-ruler-container">
+                <div className="editor-main-waveform-horizontal-ruler-container">
                     <canvas ref={canvasHorizontalRulerRef} />
                 </div>
-                <div ref={divMainRef} className="editor-main-canvas-container" onMouseDown={handleCanvasMouseDown} onWheel={handleWheel}>
+                <div ref={divMainRef} className="editor-main-waveform-canvas-container" onMouseDown={handleCanvasMouseDown} onWheel={handleWheel}>
                     <canvas ref={canvasRef} />
                     <div className="editor-main-selrange" style={{ left: selLeft, width: selWidth }} hidden={!selRange}>
                         <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />
@@ -283,13 +287,12 @@ const AudioEditorMain: FunctionComponent<Props> = ({ cursor, viewRange, selRange
                         ))
                     }
                 </div>
-                <div className="editor-main-vertical-ruler-area" onMouseDown={handleCursorHandlerMouseDown}>
-                    <div className="editor-main-selrange-handler" ref={divSelRangeRef} style={{ left: selLeft, width: selWidth }} hidden={!selRange} >
+                <div className="editor-main-vertical-ruler-area" onMouseDown={handlePlayheadHandlerMouseDown}>
+                    <div className="editor-main-selrange-handler" ref={divSelRangeRef} style={{ left: selLeft, width: `calc(${selWidth} - 4px)` }} hidden={!selRange} >
                         <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />
                         <div className="editor-main-selrange-mover" onMouseDown={handleSelRangeMoveMouseDown} />
                         <div className="resize-handler resize-handler-e" onMouseDown={handleResizeEndMouseDown} />
                     </div>
-                    <div className="editor-main-cursor-handler" style={{ left: cursorLeft }} onMouseDown={handleCursorHandlerMouseDown} />
                 </div>
             </div>
         </div>

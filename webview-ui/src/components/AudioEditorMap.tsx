@@ -23,8 +23,8 @@ const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange,
         if (ctx.canvas.width !== width) ctx.canvas.width = width;
         if (ctx.canvas.height !== height) ctx.canvas.height = height;
         ctx.scale(ratio, ratio);
-        audioEditor.waveform.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { cursor, viewRange: [0, audioEditor.length], selRange: null }, { cursorColor, phosphorColor });
-    }, [cursor, cursorColor, phosphorColor]);
+        audioEditor.waveform.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange: [0, audioEditor.length] }, { cursorColor, phosphorColor });
+    }, [cursorColor, phosphorColor]);
     useEffect(paint, [paint, windowSize, phosphorColor, cursorColor]);
     const handleMoveMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!canvasRef.current || !divViewRangeRef.current) return;
@@ -136,10 +136,13 @@ const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange,
     const [selStart, selEnd] = selRange || [0, 0];
     const selLeft = `${selStart / length * 100}%`;
     const selWidth = `${(selEnd - selStart) / length * 100}%`;
+    const $playhead = (cursor - viewStart) / length;
+    const playheadLeft = `${$playhead * 100}%`;
     return (
         <div className="editor-map">
             <div className="editor-map-canvas-container" onWheel={handleWheel}>
                 <canvas ref={canvasRef} />
+                <div className="editor-map-playhead" style={{ left: playheadLeft }}></div>
                 <div className="editor-map-selrange" style={{ left: selLeft, width: selWidth }} />
                 <div className="editor-map-viewrange" ref={divViewRangeRef} style={{ left: viewLeft, width: viewWidth }} onMouseDown={handleMoveMouseDown}>
                     <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />

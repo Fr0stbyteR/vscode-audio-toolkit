@@ -5,7 +5,7 @@ class WaveformProcessor {
     static DEFAULT_MIN_WIDTH = 4;
     
     static generateResized(audioData: Float32Array[], { resizeFactor = this.DEFAULT_RESIZE_FACTOR, minWidth = this.DEFAULT_MIN_WIDTH }: Partial<WaveformResizeOptions> = {}) {
-        const SharedArrayBuffer = globalThis.ArrayBuffer || globalThis.SharedArrayBuffer;
+        const SharedArrayBuffer = globalThis.SharedArrayBuffer || globalThis.ArrayBuffer;
         const numberOfChannels = audioData.length;
         const length = audioData?.[0].length;
         const resizeOptions: WaveformResizeOptions = { resizeFactor, minWidth };

@@ -1,7 +1,6 @@
 import { convertSampleToUnit, dbtoa, normExp } from "../utils";
 import WaveformWorker from "../workers/WaveformWorker";
 import { AudioEditorConfiguration, AudioEditorState, AudioUnit, DrawOptions } from "./AudioEditor";
-import WaveformProcessor from "./WaveformProcessor";
 
 export interface WaveformResizeOptions {
     resizeFactor: number;
@@ -192,7 +191,7 @@ class Waveform {
     get numberOfChannels() {
         return this.audioData.length;
     }
-    constructor(
+    private constructor(
         public audioData: Float32Array[],
         public sampleRate: number
     ) {}
@@ -309,7 +308,7 @@ class Waveform {
     async paint(
         ctx: CanvasRenderingContext2D,
         { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 }: Partial<DrawOptions>,
-        { cursor, selRange, viewRange }: Pick<AudioEditorState, "cursor" | "selRange" | "viewRange">,
+        { viewRange }: Pick<AudioEditorState, "viewRange">,
         { phosphorColor = "rgb(67, 217, 150)", separatorColor = "grey", cursorColor = "rgba(191, 0, 0)", fadePathColor = "yellow", fadeInExp = 1, fadeInTo, fadeOutExp = 1, fadeOutFrom, fade = 0 }: Partial<Pick<WaveformPaintOptions, "phosphorColor" | "separatorColor" | "cursorColor" | "fadePathColor" | "fadeInTo" | "fadeInExp" | "fadeOutFrom" | "fadeOutExp" | "fade">> = {}
     ) {
         ctx.clearRect(0, 0, width, height);
@@ -388,6 +387,7 @@ class Waveform {
                         x = ($$ - $drawFrom) * pixelsPerSample;
                         minInStep = minData[channel][j];
                         maxInStep = maxData[channel][j];
+                        /*
                         fadeFactor = 1;
                         if (typeof fadeInTo === "number" && $$ < fadeInTo) {
                             fadeFactor = normExp(($$ - $drawFrom) / fadeInTo, fadeInExp);
@@ -403,6 +403,7 @@ class Waveform {
                             minInStep *= fadeFactor;
                             maxInStep *= fadeFactor;
                         }
+                        */
                         y = calcY(maxInStep, channel);
                         if (x === 0) ctx.moveTo(x, y);
                         else ctx.lineTo(x, y);
@@ -425,6 +426,7 @@ class Waveform {
                         subarray = audioData[channel].subarray($$, $next) as any;
                         minInStep = Math.min.apply(Math, subarray);
                         maxInStep = Math.max.apply(Math, subarray);
+                        /*
                         fadeFactor = 1;
                         if (typeof fadeInTo === "number" && $$ < fadeInTo) {
                             fadeFactor = normExp(($$ - $drawFrom) / fadeInTo, fadeInExp);
@@ -440,6 +442,7 @@ class Waveform {
                             minInStep *= fadeFactor;
                             maxInStep *= fadeFactor;
                         }
+                        */
                         y = calcY(maxInStep, channel);
                         ctx.lineTo(x, y);
                         if (minInStep !== maxInStep && pixelsPerSample <= 1) {
@@ -482,6 +485,7 @@ class Waveform {
             ctx.stroke();
         }
         // cursor
+        /*
         if (cursor < $drawFrom || cursor > $drawTo) return;
         ctx.strokeStyle = cursorColor;
         ctx.lineWidth = 1;
@@ -490,6 +494,7 @@ class Waveform {
         ctx.moveTo(x, 0);
         ctx.lineTo(x, height);
         ctx.stroke();
+        */
     }
 }
 

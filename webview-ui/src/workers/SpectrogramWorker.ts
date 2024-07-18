@@ -1,9 +1,9 @@
-import workerUrl from "./SpectrogramWorker.worker?worker&url";
+import Worker from "./SpectrogramWorker.worker?worker&inline";
 import{ ISpectrogramWorker, ISpectrogramWorkerWorker } from "./SpectrogramWorker.types";
 import ProxyMain from "./ProxyMain";
 
 export default class SpectrogramWorker extends ProxyMain<ISpectrogramWorker, ISpectrogramWorkerWorker> {
-    static workerUrl = workerUrl;
+    static Worker = Worker;
     static fnNames: (keyof ISpectrogramWorkerWorker)[] = ["init", "forward", "stft", "updateSpectrogramData", "generateResized", "inverse", "inverses"];
     handleUpdate: ((...msg: any[]) => any) | undefined;
     updateState(...msg: any[]): void {

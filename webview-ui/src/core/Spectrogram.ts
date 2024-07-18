@@ -77,6 +77,7 @@ class Spectrogram {
     static DB_DRAW_THRESHOLD = -100;
     static async fromAudioData(audioData: Float32Array[], sampleRate: number, { fftDrawThreshold = this.DB_DRAW_THRESHOLD, fftSize = 1024, fftOverlap = 2, fftWindowFunction = "blackmanHarris" }: Partial<STFTOptions> = {}) {
         const spectrogram = new Spectrogram(audioData, sampleRate);
+        await spectrogram._worker.init();
         const resized = await spectrogram._worker.generateResized(audioData, { fftSize, fftOverlap, fftWindowFunction, fftDrawThreshold });
         spectrogram._dataSlices = [resized];
         return spectrogram;
@@ -91,7 +92,7 @@ class Spectrogram {
     get numberOfChannels() {
         return this.audioData.length;
     }
-    constructor(
+    private constructor(
         public audioData: Float32Array[],
         public sampleRate: number
     ) {}

@@ -26,6 +26,7 @@ class STFTProcessor {
         return result;
     }
     static stft(FFT: new (size: number) => FFT, array: Float32Array, { fftSize, fftOverlap, fftWindowFunction, startIndex = 0, endIndex = array.length }: STFTOptions & Partial<{ startIndex: number; endIndex: number }>) {
+        const SharedArrayBuffer = globalThis.SharedArrayBuffer || globalThis.ArrayBuffer;
         const windowFunction = fftWindowFunction ? WindowFunction[fftWindowFunction as TWindowFunction] : null;
         const currentWindowEnergyFactor = fftWindowFunction ? windowEnergyFactor[fftWindowFunction as TWindowFunction] : 1;
         const { length } = array;
