@@ -34,6 +34,8 @@ const App: FunctionComponent = () => {
             case "init": {
                 const data = body.value as Uint8Array;
                 const configuration = body.configuration as AudioEditorConfiguration;
+                const { fftWindowFunction } = configuration;
+                configuration.fftWindowFunction = `${fftWindowFunction.slice(0, 1).toLowerCase()}${fftWindowFunction.slice(1).replaceAll(/[-\s]/g, "")}`
                 handleInitData(data, configuration, requestId);
                 window.focus();
                 return;

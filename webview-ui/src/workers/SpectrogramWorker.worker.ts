@@ -27,13 +27,18 @@ class SpectrogramWorkerWorker extends ProxyWorker<ISpectrogramWorkerWorker, ISpe
         return STFTProcessor.stft(this.FFT1D, array, options);
     }
     generateResized(array: Float32Array[], options: STFTOptions) {
+        const SharedArrayBuffer = globalThis.SharedArrayBuffer || globalThis.ArrayBuffer;
+        const { fftSize, fftOverlap } = options;
+        const hopSize = fftSize / fftOverlap;
         const startIndex = 0;
         const endIndex = array[0].length;
         const offsetFromFFTFrame = 0;
         const frequencyDomainData: FrequencyDomainChannelData[] = [];
         const spectrograms: Float32Array[][] = [];
         for (let channel = 0; channel < array.length; channel++) {
-            const { magnitudes, phases, spectrogram } = this.stft(array[channel], { ...options, startIndex, endIndex });
+            const paddedInput = new Float32Array(new SharedArrayBuffer((endIndex + hopSize * (fftOverlap - 1) * 2) * Float32Array.BYTES_PER_ELEMENT));
+            paddedInput.set(array[channel], hopSize * (fftOverlap - 1));
+            const { magnitudes, phases, spectrogram } = this.stft(paddedInput, { ...options, startIndex, endIndex });
             frequencyDomainData[channel] = { magnitudes, phases };
             spectrograms[channel] = spectrogram;
         }

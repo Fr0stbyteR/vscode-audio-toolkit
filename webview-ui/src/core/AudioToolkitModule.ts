@@ -23,5 +23,5 @@ export interface IAudioToolkitModule extends AudioEditorConfiguration {
 }
 
 export declare const AudioToolkitModule: {
-    fromAudioData(audioData: Float32Array[], sampleRate: number, options?: Partial<IAudioToolkitModule>): Promise<IAudioToolkitModule>;
+    fromAudioData(timedomainData: Float32Array[], frequencyDomainData: Float32Array[][], sampleRate: number, options?: Partial<IAudioToolkitModule>): Promise<IAudioToolkitModule>;
 };

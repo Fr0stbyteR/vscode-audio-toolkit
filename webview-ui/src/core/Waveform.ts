@@ -212,13 +212,14 @@ class Waveform {
         const { ruler } = getRuler(viewRange, audioUnit, { sampleRate, beatsPerMeasure, beatsPerMinute, division });
         ctx.clearRect(0, 0, width, height);
         const top = paintGridLabels ? 40 : 0;
-        const [viewStart, viewEnd] = viewRange;
-        const viewLength = viewEnd - viewStart;
+        const [$drawFrom, $drawTo] = viewRange;
+        const pixelsPerSample = width / ($drawTo - $drawFrom);
         ctx.strokeStyle = gridColor;
         ctx.beginPath();
-        for (const sampleIn in ruler) {
-            const sample = +sampleIn;
-            const x = (sample - viewStart) / viewLength * width;
+        let x: number;
+        let y: number;
+        for (const $str in ruler) {
+            x = (+$str - $drawFrom) * pixelsPerSample;
             ctx.moveTo(x, top);
             ctx.lineTo(x, height);
         }
@@ -232,11 +233,11 @@ class Waveform {
         ctx.fillText(audioUnit === "time" ? "hms" : audioUnit === "measure" ? `${beatsPerMinute} bpm` : "samps", 2, top - 14);
         ctx.textAlign = "center";
         ctx.beginPath();
-        for (const sampleIn in ruler) {
-            const text = ruler[sampleIn];
-            const sample = +sampleIn;
-            const x = (sample - viewStart) / viewLength * width;
-            const y = text ? top - 10 : top - 5;
+        let text: string;
+        for (const $str in ruler) {
+            text = ruler[$str];
+            x = (+$str - $drawFrom) * pixelsPerSample;
+            y = text ? top - 10 : top - 5;
             ctx.moveTo(x, y);
             ctx.lineTo(x, top);
             if (text) ctx.fillText(text, x, y - 4);
@@ -249,27 +250,30 @@ class Waveform {
         _stateAndConfigurations: any,
         { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", paintGridLabels = true, labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<WaveformPaintOptions, "gridColor" | "gridRulerColor" | "textColor" | "paintGridLabels" | "labelFont">> = {}
     ) {
-        const channels = this.numberOfChannels;
-        const channelHeight = height / channels;
+        const { numberOfChannels } = this;
+        const channelHeight = height / numberOfChannels;
 
         ctx.clearRect(0, 0, width, height);
         const right = paintGridLabels ? 80 : 0;
-        const range = height > 250 ? [-3, -6, -12, -18] : [-3, -12];
+        const range = channelHeight > 100 ? [-3, -6, -12, -18] : [-3, -12];
         ctx.strokeStyle = gridColor;
         ctx.beginPath();
-        for (let i = 0; i < channels; i++) {
-            const center = (i + 0.5) * channelHeight;
+        let center: number;
+        let a: number;
+        const x = width - right;
+        let y: number;
+        for (let i = 0; i < numberOfChannels; i++) {
+            center = (i + 0.5) * channelHeight;
             ctx.moveTo(0, center);
-            ctx.lineTo(width - right, center);
-            let y: number;
+            ctx.lineTo(x, center);
             for (let j = 0; j < range.length; j++) {
-                const a = dbtoa(range[j]);
+                a = dbtoa(range[j]);
                 y = center - a * channelHeight * 0.5;
                 ctx.moveTo(0, y);
-                ctx.lineTo(width - right, y);
+                ctx.lineTo(x, y);
                 y = center + a * channelHeight * 0.5;
                 ctx.moveTo(0, y);
-                ctx.lineTo(width - right, y);
+                ctx.lineTo(x, y);
             }
         }
         ctx.stroke();
@@ -279,28 +283,29 @@ class Waveform {
         ctx.font = `12px ${labelFont}`;
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
-        ctx.fillText("dB", width - right + 14, 10);
+        ctx.fillText("dB", x + 14, 10);
         ctx.beginPath();
-        for (let i = 0; i < channels; i++) {
+        let isCoarse: boolean;
+        for (let i = 0; i < numberOfChannels; i++) {
             if (i !== 0) {
-                ctx.moveTo(width - right, i * channelHeight);
+                ctx.moveTo(x, i * channelHeight);
                 ctx.lineTo(width, i * channelHeight);
             }
-            const center = (i + 0.5) * channelHeight;
-            ctx.moveTo(width - right, center);
-            ctx.lineTo(width - right + 10, center);
-            ctx.fillText("-∞", width - right + 14, center);
-            let y: number;
+            center = (i + 0.5) * channelHeight;
+            ctx.moveTo(x, center);
+            ctx.lineTo(x + 10, center);
+            ctx.fillText("-∞", x + 14, center);
             for (let db = height > 250 ? -1 : -3; db >= -18; db -= (height > 250 ? 1 : 3)) {
-                const a = dbtoa(db);
+                a = dbtoa(db);
                 y = center - a * channelHeight * 0.5;
-                ctx.moveTo(width - right, y);
-                ctx.lineTo(width - right + (range.indexOf(db) === -1 ? 5 : 10), y);
-                if (range.indexOf(db) !== -1) ctx.fillText(db.toString(), width - right + 14, y);
+                isCoarse = range.indexOf(db) !== -1;
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + (isCoarse ? 10 : 5), y);
+                if (isCoarse) ctx.fillText(db.toString(), x + 14, y);
                 y = center + a * channelHeight * 0.5;
-                ctx.moveTo(width - right, y);
-                ctx.lineTo(width - right + (range.indexOf(db) === -1 ? 5 : 10), y);
-                if (range.indexOf(db) !== -1) ctx.fillText(db.toString(), width - right + 14, y);
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + (isCoarse ? 10 : 5), y);
+                if (isCoarse) ctx.fillText(db.toString(), x + 14, y);
             }
         }
         ctx.stroke();
@@ -313,7 +318,7 @@ class Waveform {
     ) {
         ctx.clearRect(0, 0, width, height);
         
-        const { audioData, _dataSlices, numberOfChannels, length } = this;
+        const { audioData, _dataSlices, numberOfChannels } = this;
         const yMin = -verticalZoom;
         const yMax = verticalZoom;
         // Grids
@@ -461,6 +466,7 @@ class Waveform {
             ctx.stroke();
             ctx.restore();
         }
+        /*
         // fade paths
         ctx.strokeStyle = fadePathColor;
         ctx.lineWidth = 1;
@@ -485,7 +491,6 @@ class Waveform {
             ctx.stroke();
         }
         // cursor
-        /*
         if (cursor < $drawFrom || cursor > $drawTo) return;
         ctx.strokeStyle = cursorColor;
         ctx.lineWidth = 1;

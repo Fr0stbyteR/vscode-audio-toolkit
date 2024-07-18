@@ -215,7 +215,7 @@ class Spectrogram {
     async paint(
         ctx: CanvasRenderingContext2D,
         { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 }: Partial<DrawOptions>,
-        { cursor, selRange, viewRange }: Pick<AudioEditorState, "cursor" | "selRange" | "viewRange">,
+        { viewRange }: Pick<AudioEditorState, "viewRange">,
         { phosphorColor = "rgb(67, 217, 150)", separatorColor = "grey", cursorColor = "rgba(191, 0, 0)", fadePathColor = "yellow", fadeInExp = 1, fadeInTo, fadeOutExp = 1, fadeOutFrom, fade = 0 }: Partial<Pick<SpectrogramPaintOptions, "phosphorColor" | "separatorColor" | "cursorColor" | "fadePathColor" | "fadeInTo" | "fadeInExp" | "fadeOutFrom" | "fadeOutExp" | "fade">> = {}
     ) {
         const { numberOfChannels } = this;
@@ -261,6 +261,7 @@ class Spectrogram {
         }
         let x: number;
         // cursor
+        /*
         if (cursor < $drawFrom || cursor > $drawTo) return;
         ctx.strokeStyle = cursorColor;
         ctx.lineWidth = 1;
@@ -268,6 +269,74 @@ class Spectrogram {
         x = (cursor - $drawFrom) * pixelsPerSample;
         ctx.moveTo(x, 0);
         ctx.lineTo(x, height);
+        ctx.stroke();
+        */
+    }
+    async paintHorizontalRuler(
+        ctx: CanvasRenderingContext2D,
+        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 }: Partial<DrawOptions>,
+        _stateAndConfigurations: any,
+        { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", paintGridLabels = true, labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<SpectrogramPaintOptions, "gridColor" | "gridRulerColor" | "textColor" | "paintGridLabels" | "labelFont">> = {}
+    ) {
+        const { sampleRate, numberOfChannels } = this;
+        const halfSampleRate = sampleRate / 2;
+        const channelHeight = height / numberOfChannels;
+        let coarse: number | undefined;
+        let refined: number | undefined;
+        const steps = [1, 2, 5];
+        let mag = 100;
+        let step = 0;
+        do {
+            const grid = steps[step] * mag;
+            if (step + 1 < steps.length) {
+                step++;
+            } else {
+                step = 0;
+                mag *= 10;
+            }
+            if (!coarse && halfSampleRate / grid <= 5) coarse = grid;
+            if (!refined && halfSampleRate / grid <= 25) refined = grid;
+        } while (!coarse || !refined);
+    
+        ctx.clearRect(0, 0, width, height);
+        ctx.strokeStyle = gridColor;
+        ctx.beginPath();
+        const right = paintGridLabels ? 80 : 0;
+        const x = width - right;
+        let hz = coarse;
+        let y: number;
+        for (let channel = 0; channel < numberOfChannels; channel++) {
+            hz = coarse;
+            while (hz < halfSampleRate) {
+                y = (channel + 1 - hz / halfSampleRate) * channelHeight;
+                ctx.moveTo(0, y);
+                ctx.lineTo(x, y);
+                hz += coarse;
+            }
+        }
+        ctx.stroke();
+        if (!paintGridLabels) return;
+        ctx.strokeStyle = gridRulerColor;
+        ctx.fillStyle = textColor;
+        ctx.font = `12px ${labelFont}`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Hz", x + 14, 10);
+        ctx.beginPath();
+        for (let channel = 0; channel < numberOfChannels; channel++) {
+            if (channel !== 0) {
+                ctx.moveTo(x, channel * channelHeight);
+                ctx.lineTo(width, channel * channelHeight);
+            }
+            hz = refined;
+            while (hz <= halfSampleRate) {
+                y = (channel + 1 - hz / halfSampleRate) * channelHeight;
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + (hz % coarse === 0 ? 10 : 5), y);
+                if (hz % coarse === 0) ctx.fillText(hz.toString(), x + 14, y);
+                hz += refined;
+            }
+        }
         ctx.stroke();
     }
 }

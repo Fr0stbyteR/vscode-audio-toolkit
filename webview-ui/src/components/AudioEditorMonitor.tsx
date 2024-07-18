@@ -6,7 +6,7 @@ import { DataGridRowTypes } from "@vscode/webview-ui-toolkit";
 import TimeInput from "./TimeInput";
 import { AudioEditorConfiguration, AudioEditorState } from "../core/AudioEditor";
 import { WaveformPaintOptions } from "../core/Waveform";
-import { atodb } from "../utils";
+import { atodb, setCanvasToFullSize } from "../utils";
 
 interface Props extends Pick<AudioEditorState, "cursor" | "selRange" | "viewRange">, Pick<WaveformPaintOptions, "gridRulerColor" | "textColor"> {
     monospaceFont: string;
@@ -50,27 +50,17 @@ const AudioEditorMonitor: FunctionComponent<Props> = ({ cursor, selRange, viewRa
     const paint = useCallback(() => {
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext("2d");
-        if (!canvas || !ctx) {
-            return;
-        }
+        if (!canvas || !ctx) return;
         const bgColor = "rgb(40, 40, 40)";
         const coldColor = "rgb(12, 248, 100)";
         const warmColor = "rgb(195, 248, 100)";
         const hotColor = "rgb(255, 193, 10)";
         const overloadColor = "rgb(255, 10, 10)";
 
-        const ratio = window.devicePixelRatio || 1;
-        const rect = canvas.getBoundingClientRect();
-        const width = ~~(rect.width * ratio);
-        const height = ~~(rect.height * ratio);
-        if (ctx.canvas.width !== width) ctx.canvas.width = width;
-        if (ctx.canvas.height !== height) ctx.canvas.height = height;
-        ctx.scale(ratio, ratio);
+        const [width, height] = setCanvasToFullSize(canvas);
 
         ctx.clearRect(0, 0, width, height);
-        if (width <= 0 || height <= 0) {
-            return;
-        }
+        if (width <= 0 || height <= 0) return;
         const channels = values.length;
         const clipValue = 0;
         const bottom = 20;

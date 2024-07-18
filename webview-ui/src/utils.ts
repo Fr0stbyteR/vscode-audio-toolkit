@@ -154,3 +154,14 @@ export const hueToRgb = (p: number, q: number, t: number) => {
     if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
     return p;
 };
+
+export const setCanvasToFullSize = (canvas: HTMLCanvasElement) => {
+    const ratio = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const width = ~~(rect.width * ratio);
+    const height = ~~(rect.height * ratio);
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+    canvas.getContext("2d")?.scale(ratio, ratio);
+    return [width, height];
+};

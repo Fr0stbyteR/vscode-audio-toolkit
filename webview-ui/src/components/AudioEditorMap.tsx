@@ -4,6 +4,7 @@ import { AudioEditorContext } from "./contexts";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { AudioEditorState } from "../core/AudioEditor";
 import { WaveformPaintOptions } from "../core/Waveform";
+import { setCanvasToFullSize } from "../utils";
 
 interface Props extends Pick<AudioEditorState, "cursor" | "selRange" | "viewRange">, Partial<WaveformPaintOptions> {
     windowSize: number[]
@@ -16,13 +17,7 @@ const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange,
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
-        const ratio = window.devicePixelRatio || 1;
-        const rect = canvas.getBoundingClientRect();
-        const width = ~~(rect.width * ratio);
-        const height = ~~(rect.height * ratio);
-        if (ctx.canvas.width !== width) ctx.canvas.width = width;
-        if (ctx.canvas.height !== height) ctx.canvas.height = height;
-        ctx.scale(ratio, ratio);
+        const [width, height] = setCanvasToFullSize(canvas);
         audioEditor.waveform.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange: [0, audioEditor.length] }, { cursorColor, phosphorColor });
     }, [cursorColor, phosphorColor]);
     useEffect(paint, [paint, windowSize, phosphorColor, cursorColor]);
@@ -136,7 +131,7 @@ const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange,
     const [selStart, selEnd] = selRange || [0, 0];
     const selLeft = `${selStart / length * 100}%`;
     const selWidth = `${(selEnd - selStart) / length * 100}%`;
-    const $playhead = (cursor - viewStart) / length;
+    const $playhead = cursor / length;
     const playheadLeft = `${$playhead * 100}%`;
     return (
         <div className="editor-map">
