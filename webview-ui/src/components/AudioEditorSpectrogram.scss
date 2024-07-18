@@ -1,9 +1,8 @@
-.audio-editor-container div.editor-main > div.editor-main-spectrogram-container {
+.audio-editor-container div.editor-main div.editor-main-spectrogram-container {
     display: inline-block;
     flex: 1 1 auto;
     position: relative;
-    height: calc(100% - 10px);
-    margin-top: 10px;
+    min-height: 100px;
 
     & > .editor-main-spectrogram-background {
         display: block;

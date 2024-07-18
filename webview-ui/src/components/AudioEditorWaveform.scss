@@ -1,8 +1,8 @@
-.audio-editor-container div.editor-main > div.editor-main-waveform-container {
+.audio-editor-container div.editor-main div.editor-main-waveform-container {
     display: inline-block;
     flex: 1 1 auto;
     position: relative;
-    height: 100%;
+    min-height: 100px;
 
     & > .editor-main-waveform-background {
         display: block;

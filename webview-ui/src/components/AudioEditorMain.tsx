@@ -145,6 +145,33 @@ const AudioEditorMain: FunctionComponent<Props> = ({ cursor, viewRange, selRange
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
     }, [selRange, viewRange]);
+    const handleDividerMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const divider = e.currentTarget;
+        divider.classList.add("active");
+        const previousSibling = e.currentTarget.previousElementSibling as HTMLDivElement;
+        const origin = { x: e.clientX, y: e.clientY };
+        const rect = previousSibling.getBoundingClientRect();
+        const handleMouseMove = (e: MouseEvent) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (e.movementY) {
+                const y = e.clientY;
+                previousSibling.style.flex = `0 0 ${rect.height + (y - origin.y)}px`;
+                audioEditor.emit("uiResized");
+            }
+        };
+        const handleMouseUp = (e: MouseEvent) => {
+            e.stopPropagation();
+            e.preventDefault();
+            divider.classList.remove("active");
+            document.removeEventListener("mousemove", handleMouseMove);
+            document.removeEventListener("mouseup", handleMouseUp);
+        };
+        document.addEventListener("mousemove", handleMouseMove);
+        document.addEventListener("mouseup", handleMouseUp);
+    }, []);
     const [viewStart, viewEnd] = viewRange;
     const viewLength = viewEnd - viewStart;
     const [selStart, selEnd] = selRange || [0, 0];
@@ -156,17 +183,21 @@ const AudioEditorMain: FunctionComponent<Props> = ({ cursor, viewRange, selRange
     const playheadLeft = `${$playhead * 100}%`;
     return (
         <div className="editor-main">
-            <div className="editor-main-playhead-container" hidden={$playhead < 0 || $playhead > 1}>
-                <div className="editor-main-playhead-handler" style={{ left: playheadLeft }} onMouseDown={handlePlayheadHandlerMouseDown} />
-                <div className="editor-main-playhead" style={{ left: playheadLeft }}></div>
-            </div>
-            <AudioEditorWaveform {...{ selRange, viewRange, enabledChannels, ...commonProps }} />
-            <AudioEditorSpectrogram {...{ selRange, viewRange, enabledChannels, ...commonProps }} />
-            <div className="editor-main-vertical-ruler-area" ref={divVerticalRulerRef} onMouseDown={handlePlayheadHandlerMouseDown}>
-                <div className="editor-main-selrange-handler" ref={divSelRangeRef} style={{ left: selLeft, width: `calc(${selWidth} - 4px)` }} hidden={!selRange} >
-                    <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />
-                    <div className="editor-main-selrange-mover" onMouseDown={handleSelRangeMoveMouseDown} />
-                    <div className="resize-handler resize-handler-e" onMouseDown={handleResizeEndMouseDown} />
+            <div className="editor-main-flex">
+                <div className="editor-main-playhead-container" hidden={$playhead < 0 || $playhead > 1}>
+                    <div className="editor-main-playhead-handler" style={{ left: playheadLeft }} onMouseDown={handlePlayheadHandlerMouseDown} />
+                    <div className="editor-main-playhead" style={{ left: playheadLeft }}></div>
+                </div>
+                <AudioEditorWaveform {...{ selRange, viewRange, enabledChannels, ...commonProps }} />
+                <div className="editor-main-divider" onMouseDown={handleDividerMouseDown} />
+                <AudioEditorSpectrogram {...{ selRange, viewRange, enabledChannels, ...commonProps }} />
+                <div className="editor-main-divider" onMouseDown={handleDividerMouseDown} />
+                <div className="editor-main-vertical-ruler-area" ref={divVerticalRulerRef} onMouseDown={handlePlayheadHandlerMouseDown}>
+                    <div className="editor-main-selrange-handler" ref={divSelRangeRef} style={{ left: selLeft, width: `calc(${selWidth} - 4px)` }} hidden={!selRange} >
+                        <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />
+                        <div className="editor-main-selrange-mover" onMouseDown={handleSelRangeMoveMouseDown} />
+                        <div className="resize-handler resize-handler-e" onMouseDown={handleResizeEndMouseDown} />
+                    </div>
                 </div>
             </div>
         </div>

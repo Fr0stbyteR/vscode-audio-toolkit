@@ -41,8 +41,10 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
         textColor,
         windowSize
     };
-    const handleUiResized = useCallback(() => {
+    const handleWindowUiResized = useCallback(() => {
         audioEditor.emit("uiResized");
+    }, []);
+    const handleUiResized = useCallback(() => {
         setWindowSize([window.innerWidth, window.innerHeight]);
     }, []);
     useEffect(() => {
@@ -53,7 +55,8 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
         audioEditor.on("loop", setLoop);
         audioEditor.on("enabledChannels", setEnabledChannels);
         audioEditor.on("configuration", setConfiguration);
-        window.addEventListener("resize", handleUiResized);
+        audioEditor.on("uiResized", handleUiResized);
+        window.addEventListener("resize", handleWindowUiResized);
         return () => {
             audioEditor.off("cursor", setCursor);
             audioEditor.off("viewRange", setViewRange);
@@ -62,7 +65,8 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
             audioEditor.off("loop", setLoop);
             audioEditor.off("enabledChannels", setEnabledChannels);
             audioEditor.off("configuration", setConfiguration);
-            window.removeEventListener("resize", handleUiResized);
+            audioEditor.off("uiResized", handleUiResized);
+            window.removeEventListener("resize", handleWindowUiResized);
         };
     }, []);
     return (

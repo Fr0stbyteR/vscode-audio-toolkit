@@ -80,6 +80,12 @@ const AudioEditorSpectrogram: FunctionComponent<Props> = ({ viewRange, selRange,
         document.addEventListener("mouseup", handleMouseUp);
     }, [viewRange]);
     const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+        if (!e.deltaX && !e.deltaY) return;
+        let divMainFlexContainer = e.currentTarget.parentElement;
+        while (divMainFlexContainer && !divMainFlexContainer.classList.contains("editor-main-flex")) {
+            divMainFlexContainer = divMainFlexContainer.parentElement;
+        }
+        if (divMainFlexContainer && divMainFlexContainer.scrollHeight > divMainFlexContainer.clientHeight) return;
         e.stopPropagation();
         if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
             audioEditor.scrollH(e.deltaX > 0 ? 0.01 : -0.01);

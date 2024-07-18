@@ -49,9 +49,9 @@ class SpectrogramProcessor {
                     for (let frame = 0; frame < w; frame++) {
                         for (let bin = 0; bin < h; bin++) {
                             for (let i = 0; i < resizeFactor; i++) {
-                                pFrame = frame * Math.ceil(pw / w) + i;
+                                pFrame = pw === w ? frame : frame * Math.ceil(pw / w) + i;
                                 if (pFrame >= pw) break;
-                                pBin = bin * Math.ceil(ph / h) + i;
+                                pBin = ph === h ? bin : bin * Math.ceil(ph / h) + i;
                                 if (pBin >= ph) break;
                                 m = prevResizedData[channel][pFrame][pBin];
                                 if (i === 0 || m > resize.data[channel][frame][bin]) resize.data[channel][frame][bin] = m;
