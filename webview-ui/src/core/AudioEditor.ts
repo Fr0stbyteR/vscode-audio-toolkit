@@ -159,11 +159,12 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         }
     }
     scrollH(speed: number) { // spped = 1 as one full viewRange
+        if (!speed) return;
         const { viewRange } = this.state;
         const { length } = this;
         const [viewStart, viewEnd] = viewRange;
         const viewLength = viewEnd - viewStart;
-        const deltaSamples = viewLength * speed;
+        const deltaSamples = speed > 0 ? Math.max(1, viewLength * speed) : Math.min(-1, viewLength * speed);
         const start = Math.min(length - viewLength, viewStart + deltaSamples);
         const end = Math.max(viewLength, viewEnd + deltaSamples);
         this.setViewRange([start, end]);

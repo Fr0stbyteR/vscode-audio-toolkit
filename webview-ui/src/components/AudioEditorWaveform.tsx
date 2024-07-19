@@ -183,7 +183,7 @@ const AudioEditorWaveform: FunctionComponent<Props> = ({ viewRange, selRange, pl
                 */}
             </div>
             <div className="editor-main-playhead-container">
-                <div className="editor-main-playhead" style={{ left: playheadLeft }} />
+                {$playhead > 1 || $playhead < 0 ? null : <div className="editor-main-playhead" style={{ left: playheadLeft }} />}
             </div>
             <div className="editor-main-channel-enabler">
                 {

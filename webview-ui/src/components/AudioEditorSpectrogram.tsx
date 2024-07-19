@@ -176,7 +176,7 @@ const AudioEditorSpectrogram: FunctionComponent<Props> = ({ viewRange, selRange,
                 </div>
             </div>
             <div className="editor-main-playhead-container">
-                <div className="editor-main-playhead" style={{ left: playheadLeft }} />
+                {$playhead > 1 || $playhead < 0 ? null : <div className="editor-main-playhead" style={{ left: playheadLeft }} />}
             </div>
         </div>
     );
