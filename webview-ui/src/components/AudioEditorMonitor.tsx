@@ -8,16 +8,18 @@ import { AudioEditorConfiguration, AudioEditorState } from "../core/AudioEditor"
 import { WaveformPaintOptions } from "../core/Waveform";
 import { atodb, setCanvasToFullSize } from "../utils";
 
-interface Props extends Pick<AudioEditorState, "cursor" | "selRange" | "viewRange">, Pick<WaveformPaintOptions, "gridRulerColor" | "textColor"> {
+interface Props extends Pick<AudioEditorState, "cursor" | "selRange" | "viewRange">, Pick<WaveformPaintOptions, "gridRulerColor" | "gridColor" | "textColor"> {
     monospaceFont: string;
     configuration: AudioEditorConfiguration;
+    windowSize: number[];
 }
 
-const AudioEditorMonitor: FunctionComponent<Props> = ({ cursor, selRange, viewRange, gridRulerColor, textColor, monospaceFont, configuration }) => {
+const AudioEditorMonitor: FunctionComponent<Props> = ({ cursor, selRange, viewRange, gridRulerColor, gridColor, textColor, monospaceFont, configuration, windowSize }) => {
     const audioEditor = useContext(AudioEditorContext)!;
     const [values, setValues] = useState<number[]>([]);
     const [maxValues, setMaxValues] = useState<number[]>([]);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const canvasMeterRef = useRef<HTMLCanvasElement>(null);
+    const canvasGridRef = useRef<HTMLCanvasElement>(null);
     const maxValuesRef = useRef<number[]>([]);
     const rafRef = useRef(-1);
     const previousRafTimeRef = useRef(-1);
@@ -47,11 +49,33 @@ const AudioEditorMonitor: FunctionComponent<Props> = ({ cursor, selRange, viewRa
     const frameRate = 60;
     const min = -70;
     const max = 6;
-    const paint = useCallback(() => {
-        const canvas = canvasRef.current;
+    const paintGrid = useCallback(() => {
+        const canvas = canvasGridRef.current;
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
-        const bgColor = "rgb(40, 40, 40)";
+        const [width, height] = setCanvasToFullSize(canvas);
+        if (width <= 0 || height <= 0) return;
+        ctx.clearRect(0, 0, width, height);
+        ctx.strokeStyle = gridRulerColor;
+        ctx.fillStyle = textColor;
+        ctx.font = `12px ${monospaceFont}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.fillText("dB", 10, 6);
+        ctx.beginPath();
+        let x: number;
+        for (let db = -60; db <= 5; db += (width > 250 ? 1 : width > 100 ? 3 : 12)) {
+            x = (db - min) / (max - min) * width;
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, db % 6 === 0 ? 4 : 2);
+            if (db % (width > 250 ? 6 : width > 100 ? 12 : 36) === 0) ctx.fillText(db.toString(), x, 6);
+        }
+        ctx.stroke();
+    }, [windowSize, gridRulerColor, monospaceFont, textColor]);
+    const paint = useCallback(() => {
+        const canvas = canvasMeterRef.current;
+        const ctx = canvas?.getContext("2d");
+        if (!canvas || !ctx) return;
         const coldColor = "rgb(12, 248, 100)";
         const warmColor = "rgb(195, 248, 100)";
         const hotColor = "rgb(255, 193, 10)";
@@ -63,83 +87,67 @@ const AudioEditorMonitor: FunctionComponent<Props> = ({ cursor, selRange, viewRa
         if (width <= 0 || height <= 0) return;
         const channels = values.length;
         const clipValue = 0;
-        const bottom = 20;
-        const $height = (height - bottom - channels - 1) / channels;
-        ctx.fillStyle = bgColor;
+        const channelHeight = (height + 1) / channels - 1;
+        let x: number;
+        let y = 0;
+        let v: number;
+        let histMax: number;
+        ctx.fillStyle = gridColor;
+        for (let channel = 1; channel < channels; channel++) {
+            ctx.fillRect(0, channel * (channelHeight + 1) - 1, width, 1);
+        }
         if (min >= clipValue || clipValue >= max) {
             const fgColor = min >= clipValue ? overloadColor : coldColor;
-            let $top = 0;
-            values.forEach((v) => {
-                if (v < max) ctx.fillRect(0, $top, width, $height);
-                $top += $height + 1;
-            });
-            $top = 0;
             ctx.fillStyle = fgColor;
-            values.forEach((v, i) => {
-                const distance = Math.max(0, Math.min(1, (v - min) / (max - min)));
-                if (distance > 0) ctx.fillRect(0, $top, distance * width, $height);
-                const histMax = maxValues[i];
+            for (let channel = 0; channel < channels; channel++) {
+                v = values[channel];
+                x = Math.max(0, Math.min(1, (v - min) / (max - min))) * width;
+                if (x > 0) ctx.fillRect(0, y, x, channelHeight);
+                histMax = maxValues[channel];
                 if (typeof histMax === "number" && histMax > v) {
-                    const histDistance = Math.max(0, Math.min(1, (histMax - min) / (max - min)));
-                    ctx.fillRect(Math.min(width - 1, histDistance * width), $top, 1, $height);
+                    x = Math.max(0, Math.min(1, (histMax - min) / (max - min))) * width;
+                    ctx.fillRect(Math.min(width - 1, x), y, 1, channelHeight);
                 }
-                $top += $height + 1;
-            });
+                y += channelHeight + 1;
+            }
         } else {
-            const clipDistance = Math.max(0, Math.min(1, (clipValue - min) / (max - min)));
-            const clip = width - clipDistance * width;
-            const hotStop = width - clip;
+            const clipX = Math.max(0, Math.min(1, (clipValue - min) / (max - min))) * width;
+            const clipWidth = width - clipX;
+            const hotStop = width - clipWidth;
             const warmStop = hotStop - 1;
             const gradient = ctx.createLinearGradient(0, 0, width, 0);
             gradient.addColorStop(0, coldColor);
             gradient.addColorStop(warmStop / width, warmColor);
             gradient.addColorStop(hotStop / width, hotColor);
             gradient.addColorStop(1, overloadColor);
-            let $top = 0;
-            values.forEach((v) => {
-                if (v < clipValue) ctx.fillRect(0, $top, warmStop, $height);
-                if (v < max) ctx.fillRect(hotStop, $top, clip, $height);
-                $top += $height + 1;
-            });
-            $top = 0;
+            ctx.fillRect(warmStop, 0, 1, height);
             ctx.fillStyle = gradient;
-            values.forEach((v, i) => {
-                const distance = Math.max(0, Math.min(1, (v - min) / (max - min)));
-                if (distance > 0) ctx.fillRect(0, $top, Math.min(warmStop, distance * width), $height);
-                if (distance > clipDistance) ctx.fillRect(hotStop, $top, Math.min(clip, (distance - clipDistance) * width), $height);
-                const histMax = maxValues[i];
+            x = 0;
+            y = 0;
+            for (let channel = 0; channel < channels; channel++) {
+                v = values[channel];
+                x = Math.max(0, Math.min(1, (v - min) / (max - min))) * width;
+                if (x > 0) ctx.fillRect(0, y, Math.min(warmStop, x), channelHeight);
+                if (x > clipX) ctx.fillRect(hotStop, y, Math.min(clipWidth, x - clipX), channelHeight);
+                histMax = maxValues[channel];
                 if (typeof histMax === "number" && histMax > v) {
-                    const histDistance = Math.max(0, Math.min(1, (histMax - min) / (max - min)));
-                    if (histDistance <= clipDistance) ctx.fillRect(histDistance * width, $top, 1, $height);
-                    else ctx.fillRect(Math.min(width - 1, histDistance * width), $top, 1, $height);
+                    x = Math.max(0, Math.min(1, (histMax - min) / (max - min)));
+                    if (x <= clipX) ctx.fillRect(x, y, 1, channelHeight);
+                    else ctx.fillRect(Math.min(width - 1, x), y, 1, channelHeight);
                 }
-                $top += $height + 1;
-            });
-            ctx.strokeStyle = gridRulerColor;
-            ctx.fillStyle = textColor;
-            ctx.font = `12px ${monospaceFont}`;
-            ctx.textAlign = "center";
-            ctx.textBaseline = "top";
-            ctx.fillText("dB", 10, height - bottom + 6);
-            ctx.beginPath();
-            for (let db = -60; db <= 5; db += (width > 250 ? 1 : width > 100 ? 3 : 12)) {
-                const x = (db - min) / (max - min) * width;
-                ctx.moveTo(x, height - bottom - 2);
-                ctx.lineTo(x, height - bottom + (db % 6 === 0 ? 4 : 2));
-                if (db % (width > 250 ? 6 : width > 100 ? 12 : 36) === 0) ctx.fillText(db.toString(), x, height - bottom + 6);
+                y += channelHeight + 1;
             }
-            ctx.stroke();
         }
         // if (audioEditor.state.playing === "playing") schedulePaint();
         // rafRef.current = requestAnimationFrame(scheduleUpdate);
-    }, [values, maxValues, gridRulerColor, textColor, monospaceFont]);
+    }, [windowSize, values, maxValues, gridColor]);
     const scheduleUpdate = useCallback(async (time: number) => {
         if (time - previousRafTimeRef.current < 1000 / frameRate) {
             rafRef.current = requestAnimationFrame(scheduleUpdate);
             return;
         }
-        const absMax = await audioEditor.player?.peakAnalyserNode.getPeakSinceLastGet() ?? new Array(audioEditor.numberOfChannels).fill(0);
-        const values = absMax.length ? absMax.map(atodb) : [min];
+        const absMax = await audioEditor.player?.peakAnalyserNode.getPeakSinceLastGet();
+        const values = absMax?.length ? absMax.map(atodb) : new Array(audioEditor.numberOfChannels).fill(min) as number[];
         const maxTimeoutCallback = () => {
             maxTimerRef.current = -1;
             maxValuesRef.current = [];
@@ -161,6 +169,7 @@ const AudioEditorMonitor: FunctionComponent<Props> = ({ cursor, selRange, viewRa
         return () => cancelAnimationFrame(rafRef.current);
     }, []);
     useEffect(paint, [paint]);
+    useEffect(paintGrid, [paintGrid]);
     const selRowSamples = [selRange?.[0] ?? cursor, selRange?.[1] ?? cursor, selRange ? selRange[1] - selRange[0] : 0];
     const selRowOnChanges = [handleChangeSelRangeStart, handleChangeSelRangeEnd, handleChangeSelRangeDuration];
     const viewRowSamples = [...viewRange, viewRange[1] - viewRange[0]];
@@ -168,7 +177,8 @@ const AudioEditorMonitor: FunctionComponent<Props> = ({ cursor, selRange, viewRa
     return (
         <div className="editor-monitor">
             <div className="editor-monitor-meter-container">
-                <canvas ref={canvasRef} />
+                <canvas ref={canvasMeterRef} />
+                <canvas ref={canvasGridRef} />
             </div>
             <div className="editor-monitor-ranges">
                 <VSCodeDataGrid>
