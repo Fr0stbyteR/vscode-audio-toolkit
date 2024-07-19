@@ -1,19 +1,13 @@
-
 import "./AudioEditorWaveform.scss";
 import { FunctionComponent, useCallback, useContext, useEffect, useRef } from "react";
-import { AudioEditorConfiguration, AudioEditorState } from "../core/AudioEditor";
-import { WaveformPaintOptions } from "../core/Waveform";
 import { AudioEditorContext } from "./contexts";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { setCanvasToFullSize } from "../utils";
+import { VisualizationOptions } from "../core/AudioToolkitModule";
 
-interface Props extends Pick<AudioEditorState, "selRange" | "viewRange" | "enabledChannels">, Partial<WaveformPaintOptions> {
-    configuration: AudioEditorConfiguration;
-    monospaceFont: string;
-    windowSize: number[];
-}
+interface Props extends Omit<VisualizationOptions<any>, "module" | "moduleIndex"> {}
 
-const AudioEditorWaveform: FunctionComponent<Props> = ({ viewRange, selRange, enabledChannels, phosphorColor, cursorColor, gridColor, gridRulerColor, textColor, monospaceFont, configuration: { audioUnit, beatsPerMinute, beatsPerMeasure, division }, windowSize }) => {
+const AudioEditorWaveform: FunctionComponent<Props> = ({ viewRange, selRange, playhead, enabledChannels, phosphorColor, playheadColor, gridColor, gridRulerColor, textColor, monospaceFont, configuration: { audioUnit, beatsPerMinute, beatsPerMeasure, division }, rerenderTimestamp }) => {
     const audioEditor = useContext(AudioEditorContext)!;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const canvasVerticalRulerRef = useRef<HTMLCanvasElement>(null);
@@ -25,25 +19,25 @@ const AudioEditorWaveform: FunctionComponent<Props> = ({ viewRange, selRange, en
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        audioEditor.waveform.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange }, { cursorColor, phosphorColor });
-    }, [viewRange, cursorColor, phosphorColor]);
+        audioEditor.waveform.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange }, { playheadColor, phosphorColor });
+    }, [audioEditor, viewRange, playheadColor, phosphorColor]);
     const paintVerticalRuler = useCallback(() => {
         const canvas = canvasVerticalRulerRef.current;
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        audioEditor.waveform.paintVerticalRuler(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange, audioUnit, beatsPerMeasure, beatsPerMinute, division }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont, paintGridLabels: true });
-    }, [viewRange, audioUnit, beatsPerMeasure, beatsPerMinute, division, gridColor, gridRulerColor, textColor, monospaceFont]);
+        audioEditor.waveform.paintVerticalRuler(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange, audioUnit, beatsPerMeasure, beatsPerMinute, division }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont, paintGridLabels: false });
+    }, [audioEditor, viewRange, audioUnit, beatsPerMeasure, beatsPerMinute, division, gridColor, gridRulerColor, textColor, monospaceFont]);
     const paintHorizontalRuler = useCallback(() => {
         const canvas = canvasHorizontalRulerRef.current;
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
         audioEditor.waveform.paintHorizontalRuler(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, null, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont, paintGridLabels: true });
-    }, [gridColor, gridRulerColor,  textColor, monospaceFont]);
-    useEffect(paint, [paint, windowSize]);
-    useEffect(paintVerticalRuler, [paintVerticalRuler, windowSize]);
-    useEffect(paintHorizontalRuler, [paintHorizontalRuler, windowSize]);
+    }, [audioEditor, gridColor, gridRulerColor, textColor, monospaceFont]);
+    useEffect(paint, [paint, rerenderTimestamp]);
+    useEffect(paintVerticalRuler, [paintVerticalRuler, rerenderTimestamp]);
+    useEffect(paintHorizontalRuler, [paintHorizontalRuler, rerenderTimestamp]);
     const handleCanvasMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         e.stopPropagation();
         e.preventDefault();
@@ -52,7 +46,7 @@ const AudioEditorWaveform: FunctionComponent<Props> = ({ viewRange, selRange, en
         const origin = { x: e.clientX, y: e.clientY };
         const rect = e.currentTarget.getBoundingClientRect();
         const playhead = viewStart + (e.clientX - rect.left) / rect.width * viewLength;
-        audioEditor.setCursor(playhead);
+        audioEditor.setPlayhead(playhead);
         audioEditor.setSelRange(null);
         const handleMouseMove = (e: MouseEvent) => {
             e.stopPropagation();
@@ -78,7 +72,7 @@ const AudioEditorWaveform: FunctionComponent<Props> = ({ viewRange, selRange, en
         };
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
-    }, [viewRange]);
+    }, [audioEditor, viewRange]);
     const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
         if (!e.deltaX && !e.deltaY) return;
         let divMainFlexContainer = e.currentTarget.parentElement;
@@ -97,7 +91,7 @@ const AudioEditorWaveform: FunctionComponent<Props> = ({ viewRange, selRange, en
         const rect = e.currentTarget.getBoundingClientRect();
         const ref = viewStart + (origin.x - rect.left) / rect.width * viewLength;
         audioEditor.zoomH(ref, e.deltaY < 0 ? 1 : -1);
-    }, [viewRange]);
+    }, [audioEditor, viewRange]);
     const handleResizeStartMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!canvasRef.current || !selRange) return;
         e.stopPropagation();
@@ -126,7 +120,7 @@ const AudioEditorWaveform: FunctionComponent<Props> = ({ viewRange, selRange, en
         };
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
-    }, [selRange, viewRange]);
+    }, [audioEditor, selRange, viewRange]);
     const handleResizeEndMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!canvasRef.current || !selRange) return;
         e.stopPropagation();
@@ -155,7 +149,7 @@ const AudioEditorWaveform: FunctionComponent<Props> = ({ viewRange, selRange, en
         };
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
-    }, [selRange, viewRange]);
+    }, [audioEditor, selRange, viewRange]);
     const [viewStart, viewEnd] = viewRange;
     const viewLength = viewEnd - viewStart;
     const [selStart, selEnd] = selRange || [0, 0];
@@ -163,6 +157,8 @@ const AudioEditorWaveform: FunctionComponent<Props> = ({ viewRange, selRange, en
     const $selEnd = (selEnd - viewStart) / viewLength;
     const selLeft = `${$selStart * 100}%`;
     const selWidth = `${($selEnd - $selStart) * 100}%`;
+    const $playhead = (playhead - viewStart) / viewLength;
+    const playheadLeft = `${$playhead * 100}%`;
     return (
         <div className="editor-main-waveform-container">
             <div className="editor-main-waveform-background" />
@@ -185,6 +181,9 @@ const AudioEditorWaveform: FunctionComponent<Props> = ({ viewRange, selRange, en
                     {selRange ? <div title={this.strings.gain} className="editor-main-fade-handler" style={{ left: `${Math.max(10, Math.min(90, $selStart * 100))}%` }}><Icon name="adjust" inverted size="small" /><GainInputUI unit="dB" gain={this.state.fade || 0} onAdjust={this.handleFadeAdjust} onChange={this.handleFadeChange} /></div> : undefined}
                 </div>
                 */}
+            </div>
+            <div className="editor-main-playhead-container">
+                <div className="editor-main-playhead" style={{ left: playheadLeft }} />
             </div>
             <div className="editor-main-channel-enabler">
                 {

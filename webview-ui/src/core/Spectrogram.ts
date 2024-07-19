@@ -58,7 +58,7 @@ export interface SpectrogramSliceData {
 export interface SpectrogramPaintOptions {
     phosphorColor: string;
     separatorColor: string;
-    cursorColor: string;
+    playheadColor: string;
     gridColor: string;
     gridRulerColor: string;
     textColor: string;
@@ -216,7 +216,7 @@ class Spectrogram {
         ctx: CanvasRenderingContext2D,
         { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 }: Partial<DrawOptions>,
         { viewRange }: Pick<AudioEditorState, "viewRange">,
-        { phosphorColor = "rgb(67, 217, 150)", separatorColor = "grey", cursorColor = "rgba(191, 0, 0)", fadePathColor = "yellow", fadeInExp = 1, fadeInTo, fadeOutExp = 1, fadeOutFrom, fade = 0 }: Partial<Pick<SpectrogramPaintOptions, "phosphorColor" | "separatorColor" | "cursorColor" | "fadePathColor" | "fadeInTo" | "fadeInExp" | "fadeOutFrom" | "fadeOutExp" | "fade">> = {}
+        { phosphorColor = "rgb(67, 217, 150)", separatorColor = "grey", playheadColor = "rgba(191, 0, 0)", fadePathColor = "yellow", fadeInExp = 1, fadeInTo, fadeOutExp = 1, fadeOutFrom, fade = 0 }: Partial<Pick<SpectrogramPaintOptions, "phosphorColor" | "separatorColor" | "playheadColor" | "fadePathColor" | "fadeInTo" | "fadeInExp" | "fadeOutFrom" | "fadeOutExp" | "fade">> = {}
     ) {
         const { numberOfChannels } = this;
 

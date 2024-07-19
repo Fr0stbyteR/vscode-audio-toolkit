@@ -114,12 +114,12 @@ export default class AudioPlayer {
     };
     updateCursor() {
         if (!this.bufferSourceNode) return;
-        this.editor.setCursor(this.getCurrentSample(), true);
+        this.editor.setPlayhead(this.getCurrentSample(), true);
         this.scheduleUpdateCursor();
     }
     private constructor(editor: AudioEditor) {
         const { state } = editor;
-        const { enabledChannels, selRange, cursor, gain } = state;
+        const { enabledChannels, selRange, playhead, gain } = state;
         this.editor = editor;
         this.playing = false;
         // this.monitoring = false;
@@ -132,7 +132,7 @@ export default class AudioPlayer {
         this.postFxGainNode.gain.value = dbtoa(gain);
         this.currentChannels = enabledChannels;
         this.currentTime = this.context.currentTime;
-        this.currentSample = selRange ? selRange[0] : cursor;
+        this.currentSample = selRange ? selRange[0] : playhead;
         // this.destination.channelInterpretation = "discrete";
         this.editor.on("loop", this.handleLoopChanged);
         this.editor.on("selRangeToPlay", this.handleSelRangeChanged);
@@ -167,16 +167,16 @@ export default class AudioPlayer {
     play() {
         this.stop();
         const audio = this.editor;
-        const { cursor, selRange, enabledChannels, gain, loop } = this.editor.state;
+        const { playhead, selRange, enabledChannels, gain, loop } = this.editor.state;
         const { sampleRate, numberOfChannels, audioBuffer } = audio;
-        const offset = (selRange ? selRange[0] : cursor) / sampleRate;
+        const offset = (selRange ? selRange[0] : playhead) / sampleRate;
         const duration = selRange ? (selRange[1] - selRange[0]) / sampleRate : undefined;
         const bufferSourceNode = this.context.createBufferSource();
         bufferSourceNode.channelCountMode = "explicit";
         bufferSourceNode.channelInterpretation = "discrete";
         bufferSourceNode.channelCount = numberOfChannels;
         this.currentTime = this.context.currentTime;
-        this.currentSample = selRange ? selRange[0] : cursor;
+        this.currentSample = selRange ? selRange[0] : playhead;
         this.currentChannels = enabledChannels.slice();
         this.bufferSourceNode = bufferSourceNode;
         this.splitterNode = this.context.createChannelSplitter(numberOfChannels);

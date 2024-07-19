@@ -8,13 +8,16 @@ import { AudioEditorConfiguration, AudioEditorState } from "../core/AudioEditor"
 import { WaveformPaintOptions } from "../core/Waveform";
 import { atodb, setCanvasToFullSize } from "../utils";
 
-interface Props extends Pick<AudioEditorState, "cursor" | "selRange" | "viewRange">, Pick<WaveformPaintOptions, "gridRulerColor" | "gridColor" | "textColor"> {
+interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRange">, Pick<WaveformPaintOptions, "gridRulerColor" | "gridColor" | "textColor"> {
     monospaceFont: string;
     configuration: AudioEditorConfiguration;
     windowSize: number[];
 }
 
-const AudioEditorMonitor: FunctionComponent<Props> = ({ cursor, selRange, viewRange, gridRulerColor, gridColor, textColor, monospaceFont, configuration, windowSize }) => {
+const MIN_DB = -70;
+const MAX_DB = 6;
+
+const AudioEditorMonitor: FunctionComponent<Props> = ({ playhead, selRange, viewRange, gridRulerColor, gridColor, textColor, monospaceFont, configuration, windowSize }) => {
     const audioEditor = useContext(AudioEditorContext)!;
     const [values, setValues] = useState<number[]>([]);
     const [maxValues, setMaxValues] = useState<number[]>([]);
@@ -27,28 +30,26 @@ const AudioEditorMonitor: FunctionComponent<Props> = ({ cursor, selRange, viewRa
     const { sampleRate } = audioEditor;
     const handleChangeSelRangeStart = useCallback((samples: number) => {
         if (selRange) audioEditor.setSelRange([samples, selRange[1]]);
-        else audioEditor.setCursor(samples);
-    }, [selRange]);
+        else audioEditor.setPlayhead(samples);
+    }, [audioEditor, selRange]);
     const handleChangeSelRangeEnd = useCallback((samples: number) => {
         if (selRange) audioEditor.setSelRange([selRange[0], samples]);
-        else audioEditor.setSelRange([cursor, samples]);
-    }, [cursor, selRange]);
+        else audioEditor.setSelRange([playhead, samples]);
+    }, [audioEditor, playhead, selRange]);
     const handleChangeSelRangeDuration = useCallback((samples: number) => {
         if (selRange) audioEditor.setSelRange([selRange[0], selRange[0] + samples]);
-        else audioEditor.setSelRange([cursor, cursor + samples]);
-    }, [cursor, selRange]);
+        else audioEditor.setSelRange([playhead, playhead + samples]);
+    }, [audioEditor, playhead, selRange]);
     const handleChangeViewRangeStart = useCallback((samples: number) => {
         audioEditor.setViewRange([samples, viewRange[1]]);
-    }, [viewRange]);
+    }, [audioEditor, viewRange]);
     const handleChangeViewRangeEnd = useCallback((samples: number) => {
         audioEditor.setViewRange([viewRange[0], samples]);
-    }, [viewRange]);
+    }, [audioEditor, viewRange]);
     const handleChangeViewRangeDuration = useCallback((samples: number) => {
         audioEditor.setViewRange([viewRange[0], viewRange[0] + samples]);
-    }, [viewRange]);
+    }, [audioEditor, viewRange]);
     const frameRate = 60;
-    const min = -70;
-    const max = 6;
     const paintGrid = useCallback(() => {
         const canvas = canvasGridRef.current;
         const ctx = canvas?.getContext("2d");
@@ -65,13 +66,13 @@ const AudioEditorMonitor: FunctionComponent<Props> = ({ cursor, selRange, viewRa
         ctx.beginPath();
         let x: number;
         for (let db = -60; db <= 5; db += (width > 250 ? 1 : width > 100 ? 3 : 12)) {
-            x = (db - min) / (max - min) * width;
+            x = (db - MIN_DB) / (MAX_DB - MIN_DB) * width;
             ctx.moveTo(x, 0);
             ctx.lineTo(x, db % 6 === 0 ? 4 : 2);
             if (db % (width > 250 ? 6 : width > 100 ? 12 : 36) === 0) ctx.fillText(db.toString(), x, 6);
         }
         ctx.stroke();
-    }, [windowSize, gridRulerColor, monospaceFont, textColor]);
+    }, [gridRulerColor, monospaceFont, textColor]);
     const paint = useCallback(() => {
         const canvas = canvasMeterRef.current;
         const ctx = canvas?.getContext("2d");
@@ -96,22 +97,22 @@ const AudioEditorMonitor: FunctionComponent<Props> = ({ cursor, selRange, viewRa
         for (let channel = 1; channel < channels; channel++) {
             ctx.fillRect(0, channel * (channelHeight + 1) - 1, width, 1);
         }
-        if (min >= clipValue || clipValue >= max) {
-            const fgColor = min >= clipValue ? overloadColor : coldColor;
+        if (MIN_DB >= clipValue || clipValue >= MAX_DB) {
+            const fgColor = MIN_DB >= clipValue ? overloadColor : coldColor;
             ctx.fillStyle = fgColor;
             for (let channel = 0; channel < channels; channel++) {
                 v = values[channel];
-                x = Math.max(0, Math.min(1, (v - min) / (max - min))) * width;
+                x = Math.max(0, Math.min(1, (v - MIN_DB) / (MAX_DB - MIN_DB))) * width;
                 if (x > 0) ctx.fillRect(0, y, x, channelHeight);
                 histMax = maxValues[channel];
                 if (typeof histMax === "number" && histMax > v) {
-                    x = Math.max(0, Math.min(1, (histMax - min) / (max - min))) * width;
+                    x = Math.max(0, Math.min(1, (histMax - MIN_DB) / (MAX_DB - MIN_DB))) * width;
                     ctx.fillRect(Math.min(width - 1, x), y, 1, channelHeight);
                 }
                 y += channelHeight + 1;
             }
         } else {
-            const clipX = Math.max(0, Math.min(1, (clipValue - min) / (max - min))) * width;
+            const clipX = Math.max(0, Math.min(1, (clipValue - MIN_DB) / (MAX_DB - MIN_DB))) * width;
             const clipWidth = width - clipX;
             const hotStop = width - clipWidth;
             const warmStop = hotStop - 1;
@@ -126,12 +127,12 @@ const AudioEditorMonitor: FunctionComponent<Props> = ({ cursor, selRange, viewRa
             y = 0;
             for (let channel = 0; channel < channels; channel++) {
                 v = values[channel];
-                x = Math.max(0, Math.min(1, (v - min) / (max - min))) * width;
+                x = Math.max(0, Math.min(1, (v - MIN_DB) / (MAX_DB - MIN_DB))) * width;
                 if (x > 0) ctx.fillRect(0, y, Math.min(warmStop, x), channelHeight);
                 if (x > clipX) ctx.fillRect(hotStop, y, Math.min(clipWidth, x - clipX), channelHeight);
                 histMax = maxValues[channel];
                 if (typeof histMax === "number" && histMax > v) {
-                    x = Math.max(0, Math.min(1, (histMax - min) / (max - min)));
+                    x = Math.max(0, Math.min(1, (histMax - MIN_DB) / (MAX_DB - MIN_DB)));
                     if (x <= clipX) ctx.fillRect(x, y, 1, channelHeight);
                     else ctx.fillRect(Math.min(width - 1, x), y, 1, channelHeight);
                 }
@@ -140,14 +141,14 @@ const AudioEditorMonitor: FunctionComponent<Props> = ({ cursor, selRange, viewRa
         }
         // if (audioEditor.state.playing === "playing") schedulePaint();
         // rafRef.current = requestAnimationFrame(scheduleUpdate);
-    }, [windowSize, values, maxValues, gridColor]);
+    }, [values, maxValues, gridColor]);
     const scheduleUpdate = useCallback(async (time: number) => {
         if (time - previousRafTimeRef.current < 1000 / frameRate) {
             rafRef.current = requestAnimationFrame(scheduleUpdate);
             return;
         }
         const absMax = await audioEditor.player?.peakAnalyserNode.getPeakSinceLastGet();
-        const values = absMax?.length ? absMax.map(atodb) : new Array(audioEditor.numberOfChannels).fill(min) as number[];
+        const values = absMax?.length ? absMax.map(atodb) : new Array(audioEditor.numberOfChannels).fill(MIN_DB) as number[];
         const maxTimeoutCallback = () => {
             maxTimerRef.current = -1;
             maxValuesRef.current = [];
@@ -163,14 +164,14 @@ const AudioEditorMonitor: FunctionComponent<Props> = ({ cursor, selRange, viewRa
         }
         setValues(values); 
         rafRef.current = requestAnimationFrame(scheduleUpdate);
-    }, []);
+    }, [audioEditor]);
     useEffect(() => {
         rafRef.current = requestAnimationFrame(scheduleUpdate);
         return () => cancelAnimationFrame(rafRef.current);
-    }, []);
-    useEffect(paint, [paint]);
-    useEffect(paintGrid, [paintGrid]);
-    const selRowSamples = [selRange?.[0] ?? cursor, selRange?.[1] ?? cursor, selRange ? selRange[1] - selRange[0] : 0];
+    }, [scheduleUpdate]);
+    useEffect(paint, [paint, windowSize]);
+    useEffect(paintGrid, [paintGrid, windowSize]);
+    const selRowSamples = [selRange?.[0] ?? playhead, selRange?.[1] ?? playhead, selRange ? selRange[1] - selRange[0] : 0];
     const selRowOnChanges = [handleChangeSelRangeStart, handleChangeSelRangeEnd, handleChangeSelRangeDuration];
     const viewRowSamples = [...viewRange, viewRange[1] - viewRange[0]];
     const viewRowOnChanges = [handleChangeViewRangeStart, handleChangeViewRangeEnd, handleChangeViewRangeDuration];

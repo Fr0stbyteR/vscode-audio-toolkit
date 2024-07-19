@@ -5,39 +5,39 @@ import { AudioEditorConfiguration, AudioEditorState } from "../core/AudioEditor"
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import TimeInput from "./TimeInput";
 
-interface Props extends Pick<AudioEditorState, "playing" | "cursor" | "loop"> {
+interface Props extends Pick<AudioEditorState, "playing" | "playhead" | "loop"> {
     configuration: AudioEditorConfiguration;
 }
 
-const AudioEditorControls: FunctionComponent<Props> = ({ cursor, playing, loop, configuration }) => {
+const AudioEditorControls: FunctionComponent<Props> = ({ playhead, playing, loop, configuration }) => {
     const audioEditor = useContext(AudioEditorContext)!;
-    const handleCursorChanged = (cursor: number) => audioEditor.setCursor(cursor);
-    const [cursorBeforePlay, setCursorBeforePlay] = useState(cursor);
+    const handlePlayheadChanged = (playhead: number) => audioEditor.setPlayhead(playhead);
+    const [playheadBeforePlay, setPlayheadBeforePlay] = useState(playhead);
     const handleClickPlay = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
         e.currentTarget.blur();
         if (audioEditor.context.state === "suspended") audioEditor.context.resume();
         if (playing === "playing") {
-            audioEditor.setCursor(cursorBeforePlay);
+            audioEditor.setPlayhead(playheadBeforePlay);
             audioEditor.play();
         } else {
-            setCursorBeforePlay(cursor);
+            setPlayheadBeforePlay(playhead);
             if (playing === "paused") audioEditor.resume();
             else audioEditor.play();
         }
-    }, [cursor, playing, cursorBeforePlay]);
+    }, [audioEditor, playing, playheadBeforePlay, playhead]);
     const handleClickStop = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
         e.currentTarget.blur();
         audioEditor.stop();
-    }, []);
+    }, [audioEditor]);
     const handleClickPause = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
         e.currentTarget.blur();
         if (playing === "paused") audioEditor.resume();
         else audioEditor.pause();
-    }, [playing]);
+    }, [audioEditor, playing]);
     const handleClickLoop = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
         e.currentTarget.blur();
         audioEditor.setLoop(!loop);
-    }, [loop]);
+    }, [audioEditor, loop]);
     const { sampleRate } = audioEditor;
     return (
         <div className="editor-main-controls">
@@ -57,7 +57,7 @@ const AudioEditorControls: FunctionComponent<Props> = ({ cursor, playing, loop, 
                     </VSCodeButton>
                 </span>
             </span>
-            <TimeInput samples={cursor} sampleRate={sampleRate} {...configuration} onChange={handleCursorChanged} />
+            <TimeInput samples={playhead} sampleRate={sampleRate} {...configuration} onChange={handlePlayheadChanged} />
         </div>
     );
 };

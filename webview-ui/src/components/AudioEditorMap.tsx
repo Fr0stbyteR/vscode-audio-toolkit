@@ -6,10 +6,10 @@ import { AudioEditorState } from "../core/AudioEditor";
 import { WaveformPaintOptions } from "../core/Waveform";
 import { setCanvasToFullSize } from "../utils";
 
-interface Props extends Pick<AudioEditorState, "cursor" | "selRange" | "viewRange">, Partial<WaveformPaintOptions> {
+interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRange">, Partial<WaveformPaintOptions> {
     windowSize: number[]
 }
-const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange, phosphorColor, cursorColor, windowSize }) => {
+const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRange, phosphorColor, playheadColor, windowSize }) => {
     const audioEditor = useContext(AudioEditorContext)!;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const divViewRangeRef = useRef<HTMLDivElement>(null);
@@ -18,9 +18,9 @@ const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange,
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        audioEditor.waveform.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange: [0, audioEditor.length] }, { cursorColor, phosphorColor });
-    }, [cursorColor, phosphorColor]);
-    useEffect(paint, [paint, windowSize, phosphorColor, cursorColor]);
+        audioEditor.waveform.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange: [0, audioEditor.length] }, { playheadColor, phosphorColor });
+    }, [audioEditor, playheadColor, phosphorColor]);
+    useEffect(paint, [paint, windowSize, phosphorColor, playheadColor]);
     const handleMoveMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!canvasRef.current || !divViewRangeRef.current) return;
         e.stopPropagation();
@@ -56,7 +56,7 @@ const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange,
         };
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
-    }, [viewRange]);
+    }, [audioEditor, viewRange]);
     const handleResizeStartMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!divViewRangeRef.current) return;
         e.stopPropagation();
@@ -84,7 +84,7 @@ const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange,
         };
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
-    }, [viewRange]);
+    }, [audioEditor, viewRange]);
     const handleResizeEndMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!divViewRangeRef.current) return;
         e.stopPropagation();
@@ -112,8 +112,9 @@ const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange,
         };
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
-    }, [viewRange]);
+    }, [audioEditor, viewRange]);
     const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+        if (!e.deltaX && !e.deltaY) return;
         if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
             audioEditor.scrollH(e.deltaX > 0 ? 0.01 : -0.01);
             return;
@@ -122,8 +123,8 @@ const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange,
         const rect = e.currentTarget.getBoundingClientRect();
         const ref = (origin.x - rect.left) / rect.width * audioEditor.length;
         audioEditor.zoomH(ref, e.deltaY < 0 ? 1 : -1);
-    }, []);
-    const handleClickSelectAll = useCallback(() => audioEditor.setViewRangeToAll(), []);
+    }, [audioEditor]);
+    const handleClickSelectAll = useCallback(() => audioEditor.setViewRangeToAll(), [audioEditor]);
     const { length } = audioEditor;
     const [viewStart, viewEnd] = viewRange;
     const viewLeft = `${viewStart / length * 100}%`;
@@ -131,7 +132,7 @@ const AudioEditorMap: FunctionComponent<Props> = ({ cursor, viewRange, selRange,
     const [selStart, selEnd] = selRange || [0, 0];
     const selLeft = `${selStart / length * 100}%`;
     const selWidth = `${(selEnd - selStart) / length * 100}%`;
-    const $playhead = cursor / length;
+    const $playhead = playhead / length;
     const playheadLeft = `${$playhead * 100}%`;
     return (
         <div className="editor-map">

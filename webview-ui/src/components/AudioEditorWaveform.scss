@@ -7,10 +7,27 @@
     & > .editor-main-waveform-background {
         display: block;
         position: absolute;
-        height: calc(100% - 40px);
+        height: 100%;
         width: calc(100% - 80px);
-        margin: 40px 80px 0px 0px;
+        margin: 0px 80px 0px 0px;
         background-color: var(--vscode-panel-background);
+    }
+
+    & > div.editor-main-playhead-container {
+        display: block;
+        position: absolute;
+        margin: 0px 80px 0px 0px;
+        pointer-events: none;
+        width: calc(100% - 80px);
+        height: 100%;
+
+        & > div.editor-main-playhead {
+            display: block;
+            position: absolute;
+            width: 0px;
+            height: 100%;
+            border-right: 1px var(--vscode-minimap-findMatchHighlight) dashed;
+        }
     }
 
     & > .editor-main-waveform-vertical-ruler-container {
@@ -32,9 +49,8 @@
     & > .editor-main-waveform-horizontal-ruler-container {
         display: block;
         position: absolute;
-        height: calc(100% - 40px);
+        height: 100%;
         width: 100%;
-        margin: 40px 0px 0px 0px;
         pointer-events: none;
 
         & > canvas {
@@ -48,10 +64,10 @@
     & > .editor-main-waveform-canvas-container {
         display: block;
         position: absolute;
-        height: calc(100% - 40px);
+        height: 100%;
         width: calc(100% - 80px);
         cursor: text;
-        margin: 40px 80px 0px 0px;
+        margin: 0px 80px 0px 0px;
         overflow: hidden;
 
         & > canvas {
@@ -167,9 +183,8 @@
         display: flex;
         flex-direction: column;
         position: absolute;
-        height: calc(100% - 40px);
+        height: 100%;
         width: 100%;
-        margin: 40px 0px 0px 0px;
         pointer-events: none;
 
         & > div {

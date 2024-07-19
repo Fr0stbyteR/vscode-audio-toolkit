@@ -11,7 +11,7 @@ interface Props {
 
 const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
     const audioEditor = useContext(AudioEditorContext)!;
-    const [cursor, setCursor] = useState(audioEditor.state.cursor);
+    const [playhead, setPlayhead] = useState(audioEditor.state.playhead);
     const [viewRange, setViewRange] = useState(audioEditor.state.viewRange);
     const [selRange, setSelRange] = useState(audioEditor.state.selRange);
     const [playing, setPlaying] = useState(audioEditor.state.playing);
@@ -20,35 +20,37 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
     const [configuration, setConfiguration] = useState(audioEditor.configuration);
     const [windowSize, setWindowSize] = useState([window.innerWidth, window.innerHeight]);
     const phosphorColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-menu-selectionBackground");
-    const cursorColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-minimap-findMatchHighlight");
+    const playheadColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-minimap-findMatchHighlight");
     const gridColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-menu-separatorBackground");
     const gridRulerColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-menu-foreground");
     const monospaceFont = window.getComputedStyle(document.body).getPropertyValue("--vscode-font-family");
     const textColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-list-highlightForeground");
     const componentProps = {
-        cursor,
+        playhead,
         viewRange,
         selRange,
         playing,
         loop,
         enabledChannels,
         phosphorColor,
-        cursorColor,
+        playheadColor,
         configuration,
         gridColor,
         gridRulerColor,
+        labelFont: monospaceFont,
+        separatorColor: gridColor,
         monospaceFont,
         textColor,
         windowSize
     };
     const handleWindowUiResized = useCallback(() => {
         audioEditor.emit("uiResized");
-    }, []);
+    }, [audioEditor]);
     const handleUiResized = useCallback(() => {
         setWindowSize([window.innerWidth, window.innerHeight]);
     }, []);
     useEffect(() => {
-        audioEditor.on("cursor", setCursor);
+        audioEditor.on("playhead", setPlayhead);
         audioEditor.on("viewRange", setViewRange);
         audioEditor.on("selRange", setSelRange);
         audioEditor.on("playing", setPlaying);
@@ -58,7 +60,7 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
         audioEditor.on("uiResized", handleUiResized);
         window.addEventListener("resize", handleWindowUiResized);
         return () => {
-            audioEditor.off("cursor", setCursor);
+            audioEditor.off("playhead", setPlayhead);
             audioEditor.off("viewRange", setViewRange);
             audioEditor.off("selRange", setSelRange);
             audioEditor.off("playing", setPlaying);
@@ -68,7 +70,7 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
             audioEditor.off("uiResized", handleUiResized);
             window.removeEventListener("resize", handleWindowUiResized);
         };
-    }, []);
+    }, [audioEditor, handleUiResized, handleWindowUiResized]);
     return (
         <div className="audio-editor-container">
             <div className="audio-editor-left-container">

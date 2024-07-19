@@ -22,7 +22,7 @@ export interface AudioEditorEventMap {
     "viewRange": [number, number];
     "selRange": [number, number] | null;
     "selRangeToPlay": [number, number] | null;
-    "cursor": number;
+    "playhead": number;
     "enabledChannels": boolean[];
     "playing": AudioPlayingState;
     "monitoring": boolean;
@@ -39,7 +39,7 @@ export interface AudioEditorState {
     monitoring: boolean;
     recording: boolean;
     loop: boolean;
-    cursor: number;
+    playhead: number;
     selRange: [number, number] | null;
     viewRange: [number, number];
     enabledChannels: boolean[];
@@ -78,7 +78,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         monitoring: false,
         loop: true,
         recording: false,
-        cursor: 0,
+        playhead: 0,
         selRange: null,
         viewRange: [0, 0],
         enabledChannels: [],
@@ -178,13 +178,13 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         this.setState({ loop });
         this.emit("loop", loop);
     }
-    setCursor(cursorIn: number, fromPlayer?: boolean) {
+    setPlayhead(playheadIn: number, fromPlayer?: boolean) {
         const shouldReplay = !fromPlayer && this.state.playing === "playing";
         if (shouldReplay) this.stop();
         const { length } = this;
-        const cursor = Math.max(0, Math.min(length, Math.round(cursorIn)));
-        this.setState({ cursor });
-        this.emit("cursor", cursor);
+        const playhead = Math.max(0, Math.min(length, Math.round(playheadIn)));
+        this.setState({ playhead });
+        this.emit("playhead", playhead);
         if (shouldReplay) this.play();
     }
     async selectAll() {
@@ -210,9 +210,9 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
             return;
         }
         const selRange: [number, number] = [start, end];
-        this.setState({ selRange, cursor: start });
+        this.setState({ selRange, playhead: start });
         this.emit("selRange", selRange);
-        this.emit("cursor", start);
+        this.emit("playhead", start);
     }
     setSelRangeToAll() {
         const { length } = this;
@@ -267,11 +267,11 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         const { playing, monitoring } = this.state;
         if (monitoring || playing === "playing") this.player!.postFxGainNode.gain.setTargetAtTime(dbtoa(gain), this.context.currentTime, 0.01);
     }
-    handlePlayerEnded(cursor: number) {
+    handlePlayerEnded(playhead: number) {
         const playing: AudioPlayingState = "stopped";
         this.setState({ playing });
         this.emit("playing", playing);
-        this.setCursor(cursor);
+        this.setPlayhead(playhead);
     };
 }
 

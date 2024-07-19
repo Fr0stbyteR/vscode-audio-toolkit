@@ -2,7 +2,7 @@ import "./App.css";
 import "@vscode/codicons/dist/codicon.css";
 import "@vscode/codicons/dist/codicon.ttf";
 import "@vscode/codicons/dist/codicon.svg";
-import { vscode } from "./utilities/vscode";
+import { vscode } from "./vscode";
 import { VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
 import { FunctionComponent, useCallback, useEffect, useState } from "react";
 import AudioEditor, { AudioEditorConfiguration } from "./core/AudioEditor";
