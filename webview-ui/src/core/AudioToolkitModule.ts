@@ -13,7 +13,7 @@ export interface VisualizationStyleOptions {
     monospaceFont: string;
 }
 
-export interface VisualizationOptions<T extends IAudioToolkitModule> extends VisualizationStyleOptions, Pick<AudioEditorState, "playhead" | "selRange" | "viewRange" | "enabledChannels"> {
+export interface VisualizationOptions<T extends AudioToolkitModule> extends VisualizationStyleOptions, Pick<AudioEditorState, "playhead" | "selRange" | "viewRange" | "enabledChannels"> {
     module: T;
     moduleIndex: number;
     configuration: AudioEditorConfiguration;
@@ -21,16 +21,17 @@ export interface VisualizationOptions<T extends IAudioToolkitModule> extends Vis
     onSaveState: (moduleIndex: number, state: any) => Promise<void>;
 }
 
-export interface IAudioToolkitModule {
+export interface AudioToolkitModule {
     Component: React.FunctionComponent<VisualizationOptions<this>>;
 }
 
-export interface IAudioToolkitModule extends AudioEditorConfiguration {
+export interface AudioToolkitModule extends AudioEditorConfiguration {
     [key: string]: any;
 }
 
 export declare const AudioToolkitModule: {
-    NAME: string;
+    MODULE_ID: string;
+    MODULE_NAME: string;
     INITIAL_STATE: any;
-    fromAudioData(timedomainData: Float32Array[], frequencyDomainData: Float32Array[][], sampleRate: number, options?: Partial<IAudioToolkitModule>): Promise<IAudioToolkitModule>;
+    fromAudioData(timedomainData: Float32Array[], frequencyDomainData: Float32Array[][], sampleRate: number, options?: Partial<AudioToolkitModule>): Promise<AudioToolkitModule>;
 };

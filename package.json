@@ -9,10 +9,10 @@
   "categories": [
     "Other"
   ],
-	"extensionKind": [
-		"ui",
-		"workspace"
-	],
+  "extensionKind": [
+    "ui",
+    "workspace"
+  ],
   "activationEvents": [],
   "browser": "./dist/web/extension.js",
   "contributes": {
@@ -21,21 +21,40 @@
       "properties": {
         "audioToolkit.audioUnit": {
           "type": "string",
-          "enum": ["time", "sample", "measure"],
+          "enum": [
+            "time",
+            "sample",
+            "measure"
+          ],
           "default": "time",
           "description": "Unit to display"
         },
         "audioToolkit.fftSize": {
           "title": "FFT Window Size",
           "type": "integer",
-          "enum": [64, 128, 256, 512, 1024, 2048, 4096, 16384, 32768],
+          "enum": [
+            64,
+            128,
+            256,
+            512,
+            1024,
+            2048,
+            4096,
+            16384,
+            32768
+          ],
           "default": 1024,
           "description": "Specifies the FFT size used for frequency domain analysis"
         },
         "audioToolkit.fftOverlap": {
           "title": "FFT Window Overlaps",
           "type": "integer",
-          "enum": [2, 4, 8, 16],
+          "enum": [
+            2,
+            4,
+            8,
+            16
+          ],
           "default": 2,
           "description": "Specifies the FFT overlaps used for frequency domain analysis"
         },
@@ -79,20 +98,20 @@
         }
       }
     },
-		"customEditors": [
-			{
-				"viewType": "audioToolkit.editor",
-				"displayName": "Audio Toolkit Editor",
-				"selector": [
-					{
-						"filenamePattern": "*.wav"
-					},
-					{
-						"filenamePattern": "*.mp3"
-					}
-				]
-			}
-		],
+    "customEditors": [
+      {
+        "viewType": "audioToolkit.editor",
+        "displayName": "Audio Toolkit Editor",
+        "selector": [
+          {
+            "filenamePattern": "*.wav"
+          },
+          {
+            "filenamePattern": "*.mp3"
+          }
+        ]
+      }
+    ],
     "commands": [
       {
         "command": "audioToolkit.playOrStop",
@@ -138,6 +157,7 @@
     "@types/assert": "^1.5.10",
     "@types/node": "^20.14.10",
     "@types/vscode": "^1.91.0",
+    "@types/vscode-webview": "^1.57.5",
     "@typescript-eslint/eslint-plugin": "^7.14.1",
     "@typescript-eslint/parser": "^7.11.0",
     "@vscode/test-web": "^0.0.55",

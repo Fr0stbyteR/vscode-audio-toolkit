@@ -1,5 +1,7 @@
 import * as vscode from "vscode";
 import { getNonce, getUri, Disposable, WebviewCollection, disposeAll } from "../utils";
+import VSCodeHostProxy from "../proxies/VSCodeHostProxy";
+import { AudioEditorConfiguration, IVSCodeAudioEditorHost, IVSCodeAudioEditorWebview } from "../proxies/VSCodeAudioEditor.types";
 
 /**
  * Define the type of edits used in paw draw files.
@@ -166,6 +168,42 @@ class AudioDocument extends Disposable implements vscode.CustomDocument {
 	}
 }
 
+
+
+class AudioEditorHost extends VSCodeHostProxy<AudioDocument, IVSCodeAudioEditorHost, IVSCodeAudioEditorWebview> {
+	static fnNames: (keyof IVSCodeAudioEditorWebview)[] = ["init", "pauseOrResume", "playOrStop", "updateConfigurationFromHost"];
+	constructor(
+		private provider: MainEditorProvider,
+		private statusBarItem: vscode.StatusBarItem | null,
+        public webviewPanel: vscode.WebviewPanel,
+        public document: AudioDocument,
+        disposables: vscode.Disposable[]
+	) {
+		super(webviewPanel, document, disposables);
+	}
+	ready() {
+		const { document, webviewPanel, statusBarItem, provider } = this;
+		const editable = vscode.workspace.fs.isWritableFileSystem(document.uri.scheme);
+
+		const isInWorkspace = document.uri.fsPath !== vscode.workspace.asRelativePath(document.uri);
+
+		const configuration = vscode.workspace.getConfiguration("audioToolkit") as unknown as AudioEditorConfiguration;
+		const initMessage = {
+			data: isInWorkspace ? undefined : document.documentData,
+			uri: webviewPanel.webview.asWebviewUri(document.uri).toString(),
+			editable,
+		};
+		this.init(initMessage, configuration).then((sr) => {
+			provider.sampleRateMap.set(document.uri, sr);
+			if (statusBarItem) {
+				statusBarItem.show();
+				statusBarItem.text = `${sr}Hz`;
+			}
+		});
+		// this.updateConfigurationFromHost(configuration);
+	}
+}
+
 class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  {
 	public static setStatusBarItem(item: vscode.StatusBarItem) {
 		this.statusBarItem = item;
@@ -195,14 +233,15 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
 
 	private static readonly viewType = "audioToolkit.editor";
 
-	private static statusBarItem: vscode.StatusBarItem | null = null;
+	public static statusBarItem: vscode.StatusBarItem | null = null;
 
 	/**
 	 * Tracks all known webviews
 	 */
 	private readonly webviews = new WebviewCollection();
 	private readonly documentUris = new Set<vscode.Uri>();
-	private readonly sampleRateMap = new Map<vscode.Uri, number>();
+	public readonly sampleRateMap = new Map<vscode.Uri, number>();
+	private readonly proxies = new Map<vscode.WebviewPanel, AudioEditorHost>();
 
 	constructor(
 		private readonly context: vscode.ExtensionContext
@@ -327,36 +366,20 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
     public async resolveCustomEditor(document: AudioDocument, webviewPanel: vscode.WebviewPanel, token: vscode.CancellationToken) {
 		// Add the webview to our internal set of active webviews
 		this.webviews.add(document.uri, webviewPanel);
+		const disposables: vscode.Disposable[] = [];
+		const proxy = new AudioEditorHost(this, MainEditorProvider.statusBarItem, webviewPanel, document, disposables);
+		this.proxies.set(webviewPanel, proxy);
 		// Setup initial content for the webview
 		webviewPanel.webview.options = {
 			enableScripts: true
 		};
 		webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
 
-		webviewPanel.webview.onDidReceiveMessage(e => this.onMessage(webviewPanel, document, e));
-
-		// Wait for the webview to be properly ready before we init
-		webviewPanel.webview.onDidReceiveMessage(e => {
-			if (e.type === "ready") {
-                /*
-				if (document.uri.scheme === "untitled") {
-					this.postMessage(webviewPanel, "init", {
-						untitled: true,
-						editable: true,
-					});
-				} else {
-					const editable = vscode.workspace.fs.isWritableFileSystem(document.uri.scheme);
-
-					this.postMessage(webviewPanel, "init", {
-						value: document.documentData,
-						editable,
-					});
-				}
-                    */
-			}
+		webviewPanel.onDidDispose(() => {
+			disposeAll(disposables);
+			this.proxies.delete(webviewPanel);
+			MainEditorProvider.statusBarItem?.hide();
 		});
-
-		webviewPanel.onDidDispose(() => MainEditorProvider.statusBarItem?.hide());
 		webviewPanel.onDidChangeViewState((e) => {
 			if (e.webviewPanel.active) {
 				const sr = this.sampleRateMap.get(document.uri);

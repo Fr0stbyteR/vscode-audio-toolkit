@@ -4,19 +4,14 @@ import Waveform from "./Waveform";
 import Spectrogram from "./Spectrogram";
 import AudioPlayer from "./AudioPlayer";
 import { dbtoa } from "../utils";
+import { AudioEditorConfiguration, AudioUnit } from "../../../src/web/proxies/VSCodeAudioEditor.types";
+
+export type {
+    AudioEditorConfiguration,
+    AudioUnit
+};
 
 export type AudioPlayingState = "stopped" | "paused" | "playing";
-export type AudioUnit = "time" | "sample" | "measure";
-
-export interface AudioEditorConfiguration {
-    audioUnit: AudioUnit;
-    fftSize: number;
-    fftOverlap: number;
-    fftWindowFunction: string;
-    beatsPerMinute: number;
-    beatsPerMeasure: number;
-    division: number;
-}
 
 export interface AudioEditorEventMap {
     "viewRange": [number, number];

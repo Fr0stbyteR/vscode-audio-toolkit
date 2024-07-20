@@ -5,7 +5,6 @@ import { AudioEditorContext } from "./contexts";
 import AudioEditorWaveform from "./AudioEditorWaveform";
 import AudioEditorSpectrogram from "./AudioEditorSpectrogram";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
-import { vscode } from "../vscode";
 import { VisualizationOptions, VisualizationStyleOptions, VisualizersState } from "../core/AudioToolkitModule";
 import { getRuler, setCanvasToFullSize } from "../utils";
 
@@ -25,7 +24,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
     const divSelRangeRef = useRef<HTMLDivElement>(null);
     const divVerticalRulerRef = useRef<HTMLDivElement>(null);
     const canvasVerticalRulerRef = useRef<HTMLCanvasElement>(null);
-    const [visualizersState, setVisualizersState] = useState<VisualizersState>(vscode.getState() as VisualizersState || [{ name: "Waveform", visible: true, state: null }, { name: "Spectrogram", visible: true, state: null }]);
+    const [visualizersState, setVisualizersState] = useState<VisualizersState>(/*vscode.getState() as VisualizersState ||*/ [{ name: "Waveform", visible: true, state: null }, { name: "Spectrogram", visible: true, state: null }]);
     const [rerenderTimestamp, setRerenderTimestamp] = useState(performance.now());
     const handlePlayheadHandlerMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!divVerticalRulerRef.current) return;
@@ -267,7 +266,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
         setVisualizersState((prevState) => {
             prevState[moduleIndex] = { ...prevState[moduleIndex], state };
             const nextState = prevState.slice();
-            vscode.setState<VisualizersState>(nextState);
+            // vscode.setState<VisualizersState>(nextState);
             return nextState;
         });
     }, []);
@@ -303,7 +302,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
         ctx.stroke();
     }, [audioEditor, audioUnit, beatsPerMeasure, beatsPerMinute, division, gridRulerColor, labelFont, textColor, viewRange]);
     useEffect(() => setRerenderTimestamp(performance.now()), [windowSize, visualizersState]);
-    useEffect(() => void vscode.setState(visualizersState), [visualizersState]);
+    // useEffect(() => void vscode.setState(visualizersState), [visualizersState]);
     useEffect(paintVerticalRuler, [paintVerticalRuler]);
 
     const [viewStart, viewEnd] = viewRange;
