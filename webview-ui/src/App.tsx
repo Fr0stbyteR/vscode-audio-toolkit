@@ -9,14 +9,6 @@ import AudioEditor, { AudioEditorConfiguration } from "./core/AudioEditor";
 import { AudioEditorContext } from "./components/contexts";
 import AudioEditorContainer from "./components/AudioEditorContainer";
 
-
-const handleHowdyClick = () => {
-    vscode.postMessage({
-        type: "hello",
-        text: "Hey there partner! 🤠",
-    });
-};
-
 const App: FunctionComponent = () => {
     const [fileSize, setFileSize] = useState<number | null>(null);
     const [audioEditor, setAudioEditor] = useState<AudioEditor | null>(null);

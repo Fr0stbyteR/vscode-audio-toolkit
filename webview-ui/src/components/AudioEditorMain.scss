@@ -34,12 +34,41 @@
             }
         }
         
+        & div.editor-main-divider {
+            width: 100%;
+            flex: 0 0 0px;
+            padding: 0px 0px;
+            transition: all 0s;
+            background-color: transparent;
+            background-clip: content-box;
+    
+            &.active {
+                transition: all .1s ease-out 0s;
+                flex: 0 0 6px;
+                height: 6px;
+                padding: 2px 0px;
+                background-color: var(--vscode-sash-hoverBorder);
+            }
+        }
+
         & > div.editor-main-visualizer-container {
             display: flex;
             flex: 1 1 auto;
             flex-direction: column;
             position: relative;
             min-height: 100px;
+            transition: transform 0s;
+
+            &.dragging {
+                position: absolute;
+                opacity: 75%;
+                transform: scale(0.25, 0.25);
+                transform-origin: left top;
+                z-index: 1;
+                transition: transform .1s, opacity .1s;
+                border: 20px var(--vscode-menu-separatorBackground) solid;
+                border-radius: 40px;
+            }
 
             & > div.editor-main-visualizer-component {
                 display: flex;
@@ -71,6 +100,10 @@
                     overflow: hidden;
                     text-overflow: ellipsis;
                 }
+
+                & > .editor-main-visualizer-container-mover {
+                    cursor: grab;
+                }
             }
             &.collapse {
                 display: block;
@@ -99,21 +132,24 @@
                     }
                 }
             }
-            & > div.editor-main-divider {
+            &:not(.collapse) > div.editor-main-divider {
                 cursor: ns-resize;
-                width: 100%;
                 flex: 0 0 2px;
                 padding: 4px 0px;
                 transition: all 0s;
                 background-color: var(--vscode-menu-separatorBackground);
                 background-clip: content-box;
-                z-index: 1;
         
                 &:hover, &.active {
-                    transition: all .1s ease-out .5s;
                     flex: 0 0 6px;
                     padding: 2px 0px;
                     background-color: var(--vscode-sash-hoverBorder);
+                }
+                &:hover {
+                    transition: all .1s ease-out .5s;
+                }
+                &.active {
+                    transition: all .1s ease-out 0s;
                 }
             }    
         }

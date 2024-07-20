@@ -6,15 +6,19 @@ import AudioEditorWaveform from "./AudioEditorWaveform";
 import AudioEditorSpectrogram from "./AudioEditorSpectrogram";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { vscode } from "../vscode";
-import { VisualizationStyleOptions, VisualizersState } from "../core/AudioToolkitModule";
+import { VisualizationOptions, VisualizationStyleOptions, VisualizersState } from "../core/AudioToolkitModule";
 import { getRuler, setCanvasToFullSize } from "../utils";
 
 interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRange" | "enabledChannels">, VisualizationStyleOptions {
     configuration: AudioEditorConfiguration;
-    monospaceFont: string;
     windowSize: number[];
 }
 
+const visualizersMap: Record<string, FunctionComponent<VisualizationOptions<any>>> = {
+    "Waveform": AudioEditorWaveform,
+    "Spectrogram": AudioEditorSpectrogram 
+};
+ 
 const AudioEditorMain: FunctionComponent<Props> = (props) => {
     const { playhead, viewRange, selRange, windowSize, gridRulerColor, textColor, labelFont, configuration: { audioUnit, beatsPerMeasure, beatsPerMinute, division } } = props;
     const audioEditor = useContext(AudioEditorContext)!;
@@ -194,6 +198,71 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
             return state.slice();
         });
     }, []);
+    const handleMouseDownMoveVisualizer = useCallback((e: React.MouseEvent<HTMLElement>, visualizerIndex: number) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const { currentTarget } = e;
+        const container = currentTarget.parentElement!.parentElement!;
+        const parent = container.parentElement!;
+        const parentRect = parent.getBoundingClientRect();
+        const originalHeight = container.style.height;
+        container.style.width = "100%";
+        container.style.height = `${container.clientHeight}px`;
+        container.style.left = `${e.clientX - parentRect.y}px`;
+        container.style.top = `${e.clientY - parentRect.x}px`;
+        container.classList.add("dragging");
+        parent.style.cursor = "grabbing";
+        const dividers = [...parent.getElementsByClassName("editor-main-divider")];
+        dividers.splice(visualizerIndex + 1, 1);
+        let moveToIndex = visualizerIndex;
+        dividers[visualizerIndex].classList.add("active");
+        setRerenderTimestamp(performance.now());
+        const handleMouseMove = (e: MouseEvent) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (!e.movementY) return;
+            const dividersY = dividers.map(d => d.getBoundingClientRect().y);
+            let prevY: number;
+            let y: number;;
+            let nextY: number;
+            for (let i = 0; i < dividers.length; i++) {
+                y = dividersY[i];
+                prevY = dividersY[i - 1] ?? 0;
+                nextY = dividersY[i + 1] ?? Infinity;
+                if (e.clientY >= y - (y - prevY) * 0.5 && e.clientY < y + (nextY - y) * 0.5) {
+                    moveToIndex = i;
+                    dividers[i].classList.add("active");
+                } else {
+                    dividers[i].classList.remove("active");
+                }
+            }
+            container.style.left = `${e.clientX - parentRect.y}px`;
+            container.style.top = `${e.clientY - parentRect.x}px`;
+        };
+        const handleMouseUp = (e: MouseEvent) => {
+            e.stopPropagation();
+            e.preventDefault();
+            dividers.forEach(d => d.classList.remove("active"));
+            container.style.width = "initial";
+            container.style.height = originalHeight;
+            container.style.left = "initial";
+            container.style.top = "initial";
+            container.classList.remove("dragging");
+            parent.style.cursor = "";
+            if (visualizerIndex !== moveToIndex) {
+                setVisualizersState((state) => {
+                    const [vs] = state.splice(visualizerIndex, 1);
+                    state.splice(moveToIndex, 0, vs);
+                    return state.slice();
+                });
+            }
+            setRerenderTimestamp(performance.now());
+            document.removeEventListener("mousemove", handleMouseMove);
+            document.removeEventListener("mouseup", handleMouseUp);
+        };
+        document.addEventListener("mousemove", handleMouseMove);
+        document.addEventListener("mouseup", handleMouseUp);
+    }, []);
     const onSaveState = useCallback(async (moduleIndex: number, state: any) => {
         setVisualizersState((prevState) => {
             prevState[moduleIndex] = { ...prevState[moduleIndex], state };
@@ -262,21 +331,25 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                         <div className="resize-handler resize-handler-e" onMouseDown={handleResizeEndMouseDown} />
                     </div>
                 </div>
-                {[
-                    { Component: AudioEditorWaveform, name: "Waveform", visible: visualizersState[0].visible },
-                    { Component: AudioEditorSpectrogram, name: "Spectrogram", visible: visualizersState[1].visible }
-                ].map(({ Component, name, visible }, i) => (
-                    <div key={i} className={`editor-main-visualizer-container${visible ? "" : " collapse"}`} style={{ flex: typeof visible === "number" ? `0 0 ${visible}px` : visible ? "1 1 auto" : "0 0 auto" }}>
-                        <div className="editor-main-visualizer-label">
-                            <VSCodeButton appearance="icon" title={visible ? "Collapse" : "Expand"} tabIndex={-1} onClick={() => handleClickCollapseVisualizer(i)}>
-                                <span className={`codicon codicon-chevron-${visible ? "down" : "right"}`}></span>
-                            </VSCodeButton>
-                            <span>{name}</span>
+                <div className="editor-main-divider" />
+                {visualizersState.map(({ name, visible }, i) => {
+                    const Component = visualizersMap[name];
+                    return (
+                        <div key={i} className={`editor-main-visualizer-container${visible ? "" : " collapse"}`} style={{ flex: typeof visible === "number" ? `0 0 ${visible}px` : visible ? "1 1 auto" : "0 0 auto" }}>
+                            <div className="editor-main-visualizer-label">
+                                <VSCodeButton appearance="icon" title={visible ? "Collapse" : "Expand"} tabIndex={-1} onClick={() => handleClickCollapseVisualizer(i)}>
+                                    <span className={`codicon codicon-chevron-${visible ? "down" : "right"}`}></span>
+                                </VSCodeButton>
+                                <VSCodeButton className="editor-main-visualizer-container-mover" appearance="icon" title="Move" tabIndex={-1} onMouseDown={(e) => handleMouseDownMoveVisualizer(e, i)}>
+                                    <span className="codicon codicon-move"></span>
+                                </VSCodeButton>
+                                <span>{name}</span>
+                            </div>
+                            {visible ? <div className="editor-main-visualizer-component"><Component module={null} moduleIndex={i} {...moduleCommonProps} /></div> : undefined}
+                            <div className="editor-main-divider" onMouseDown={visible ? (e) => handleDividerMouseDown(e, i) : undefined} />
                         </div>
-                        {visible ? <div className="editor-main-visualizer-component"><Component {...moduleCommonProps} /></div> : undefined}
-                        {visible ? <div className="editor-main-divider" onMouseDown={(e) => handleDividerMouseDown(e, i)} /> : undefined}
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
