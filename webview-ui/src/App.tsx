@@ -10,13 +10,18 @@ import { AudioEditorContext } from "./components/contexts";
 import AudioEditorContainer from "./components/AudioEditorContainer";
 
 const App: FunctionComponent = () => {
-    const [fileSize, setFileSize] = useState<number | null>(null);
     const [audioEditor, setAudioEditor] = useState<AudioEditor | null>(null);
     const [ready, setReady] = useState(false);
-    const handleInitData = async (data: Uint8Array, configuration: AudioEditorConfiguration, requestId: number) => {
-        setFileSize(data.length);
+    const handleInitData = async (dataOrUri: Uint8Array | string, configuration: AudioEditorConfiguration, requestId: number) => {
+        let arrayBuffer: ArrayBuffer;
+        if (typeof dataOrUri === "string") {
+            const response = await fetch(dataOrUri);
+            arrayBuffer = await response.arrayBuffer();
+        } else {
+            arrayBuffer = dataOrUri.buffer;
+        }
         const audioContext = new AudioContext({ latencyHint: 0.0001 });
-        const audioEditor = await AudioEditor.fromData(data.buffer, audioContext, configuration);
+        const audioEditor = await AudioEditor.fromData(arrayBuffer, audioContext, configuration);
         setAudioEditor(audioEditor);
         vscode.postMessage({ type: "response", requestId, body: audioEditor.sampleRate });
     };
@@ -24,11 +29,12 @@ const App: FunctionComponent = () => {
         const { type, body, requestId } = e.data;
         switch (type) {
             case "init": {
-                const data = body.value as Uint8Array;
+                const data = body.data as Uint8Array;
+                const uri = body.uri as string;
                 const configuration = body.configuration as AudioEditorConfiguration;
                 const { fftWindowFunction } = configuration;
                 configuration.fftWindowFunction = `${fftWindowFunction.slice(0, 1).toLowerCase()}${fftWindowFunction.slice(1).replaceAll(/[-\s]/g, "")}`;
-                handleInitData(data, configuration, requestId);
+                handleInitData(data || uri, configuration, requestId);
                 window.focus();
                 return;
             }

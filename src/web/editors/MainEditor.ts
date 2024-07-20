@@ -289,9 +289,12 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
 			case "ready":
                 {
                     const editable = vscode.workspace.fs.isWritableFileSystem(document.uri.scheme);
+
+					const isInWorkspace = document.uri.fsPath !== vscode.workspace.asRelativePath(document.uri);
     
                     const initMessage = {
-                        value: document.documentData,
+                        data: isInWorkspace ? undefined : document.documentData,
+						uri: webviewPanel.webview.asWebviewUri(document.uri).toString(),
 						configuration: vscode.workspace.getConfiguration("audioToolkit"),
                         editable,
                     };
