@@ -165,16 +165,16 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
         e.preventDefault();
         const divider = e.currentTarget;
         divider.classList.add("active");
-        const parent = e.currentTarget.parentElement! as HTMLDivElement;
+        const container = e.currentTarget.previousElementSibling! as HTMLDivElement;
         const origin = { x: e.clientX, y: e.clientY };
-        const rect = parent.getBoundingClientRect();
+        const rect = container.getBoundingClientRect();
         const handleMouseMove = (e: MouseEvent) => {
             e.stopPropagation();
             e.preventDefault();
             if (e.movementY) {
                 const y = e.clientY;
                 const height = rect.height + (y - origin.y);
-                parent.style.flex = `0 0 ${height}px`;
+                container.style.flex = `0 0 ${height}px`;
                 setVisualizersState((state) => {
                     state[visualizerIndex] = { ...state[visualizerIndex], visible: height };
                     return state.slice();
@@ -333,7 +333,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                 <div className="editor-main-divider" />
                 {visualizersState.map(({ name, visible }, i) => {
                     const Component = visualizersMap[name];
-                    return (
+                    return (<>
                         <div key={i} className={`editor-main-visualizer-container${visible ? "" : " collapse"}`} style={{ flex: typeof visible === "number" ? `0 0 ${visible}px` : visible ? "1 1 auto" : "0 0 auto" }}>
                             <div className="editor-main-visualizer-label">
                                 <VSCodeButton appearance="icon" title={visible ? "Collapse" : "Expand"} tabIndex={-1} onClick={() => handleClickCollapseVisualizer(i)}>
@@ -345,9 +345,9 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                                 <span>{name}</span>
                             </div>
                             {visible ? <div className="editor-main-visualizer-component"><Component module={null} moduleIndex={i} {...moduleCommonProps} /></div> : undefined}
-                            <div className="editor-main-divider" onMouseDown={visible ? (e) => handleDividerMouseDown(e, i) : undefined} />
                         </div>
-                    );
+                        <div className={`editor-main-divider${visible ? " draggable" : ""}`} onMouseDown={visible ? (e) => handleDividerMouseDown(e, i) : undefined} />
+                    </>);
                 })}
             </div>
         </div>

@@ -52,12 +52,12 @@ const AudioEditorWaveform: FunctionComponent<Props> = ({ viewRange, selRange, pl
             e.stopPropagation();
             e.preventDefault();
             const x = e.clientX;
-            if (x > rect.right) audioEditor.scrollH((x - rect.right) / 1000);
-            else if (x < rect.left) audioEditor.scrollH((x - rect.left) / 1000);
             if (x === origin.x) {
                 audioEditor.setSelRange(null);
             } else {
-                const [viewStart, viewEnd] = viewRange;
+                if (x > rect.right) audioEditor.scrollH((x - rect.right) / 1000);
+                else if (x < rect.left) audioEditor.scrollH((x - rect.left) / 1000);
+                const [viewStart, viewEnd] = audioEditor.state.viewRange;
                 const viewLength = viewEnd - viewStart;
                 const to = viewStart + Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * viewLength;
                 audioEditor.setSelRange([playhead, to]);
@@ -105,7 +105,7 @@ const AudioEditorWaveform: FunctionComponent<Props> = ({ viewRange, selRange, pl
                 const x = e.clientX;
                 if (x > rect.right) audioEditor.scrollH((x - rect.right) / 1000);
                 else if (x < rect.left) audioEditor.scrollH((x - rect.left) / 1000);
-                const [viewStart, viewEnd] = viewRange;
+                const [viewStart, viewEnd] = audioEditor.state.viewRange;
                 const viewLength = viewEnd - viewStart;
                 const start = viewStart + (x - rect.left) / rect.width * viewLength;
                 audioEditor.setSelRange([start, end]);
@@ -120,7 +120,7 @@ const AudioEditorWaveform: FunctionComponent<Props> = ({ viewRange, selRange, pl
         };
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
-    }, [audioEditor, selRange, viewRange]);
+    }, [audioEditor, selRange]);
     const handleResizeEndMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!canvasRef.current || !selRange) return;
         e.stopPropagation();
@@ -134,7 +134,7 @@ const AudioEditorWaveform: FunctionComponent<Props> = ({ viewRange, selRange, pl
                 const x = e.clientX;
                 if (x > rect.right) audioEditor.scrollH((x - rect.right) / 1000);
                 else if (x < rect.left) audioEditor.scrollH((x - rect.left) / 1000);
-                const [viewStart, viewEnd] = viewRange;
+                const [viewStart, viewEnd] = audioEditor.state.viewRange;
                 const viewLength = viewEnd - viewStart;
                 const end = viewStart + (x - rect.left) / rect.width * viewLength;
                 audioEditor.setSelRange([start, end]);
@@ -149,7 +149,7 @@ const AudioEditorWaveform: FunctionComponent<Props> = ({ viewRange, selRange, pl
         };
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
-    }, [audioEditor, selRange, viewRange]);
+    }, [audioEditor, selRange]);
     const [viewStart, viewEnd] = viewRange;
     const viewLength = viewEnd - viewStart;
     const [selStart, selEnd] = selRange || [0, 0];

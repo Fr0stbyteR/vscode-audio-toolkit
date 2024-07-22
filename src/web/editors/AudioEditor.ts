@@ -208,26 +208,30 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
 	public static setStatusBarItem(item: vscode.StatusBarItem) {
 		this.statusBarItem = item;
 	}
+	public static getActiveWebviewPanel(provider: MainEditorProvider) {
+		for (const uri of provider.documentUris) {
+			for (const webviewPanel of provider.webviews.get(uri)) {
+				if (webviewPanel.active) {
+					return webviewPanel;
+				}
+			}
+		}
+	}
 	public static register(context: vscode.ExtensionContext) {
 		const provider = new MainEditorProvider(context);
 		const providerRegistration = vscode.window.registerCustomEditorProvider(MainEditorProvider.viewType, provider, { webviewOptions: { retainContextWhenHidden: true } });
-		const postMessageToActiveWebviewPanel = async (type: string, body?: any) => {
-			for (const uri of provider.documentUris) {
-				let found = false;
-				for (const webviewPanel of provider.webviews.get(uri)) {
-					if (webviewPanel.active) {
-						provider.postMessage(webviewPanel, type, body || null);
-						found = true;
-						break;
-					}
-				}
-				if (found) {
-					break;
-				}
+		const playOrStopCommandRegistration = vscode.commands.registerCommand("audioToolkit.playOrStop", () => {
+			const panel = this.getActiveWebviewPanel(provider);
+			if (panel) {
+				provider.proxies.get(panel)?.playOrStop();
 			}
-		};
-		const playOrStopCommandRegistration = vscode.commands.registerCommand("audioToolkit.playOrStop", () => postMessageToActiveWebviewPanel("playOrStop"));
-		const pauseOrResumeCommandRegistration = vscode.commands.registerCommand("audioToolkit.pauseOrResume", () => postMessageToActiveWebviewPanel("pauseOrResume"));
+		});
+		const pauseOrResumeCommandRegistration = vscode.commands.registerCommand("audioToolkit.pauseOrResume", () => {
+			const panel = this.getActiveWebviewPanel(provider);
+			if (panel) {
+				provider.proxies.get(panel)?.pauseOrResume();
+			}
+		});
 		return [providerRegistration, playOrStopCommandRegistration, pauseOrResumeCommandRegistration];
 	}
 
@@ -285,6 +289,7 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
 			});
 		}));
 
+		/*
 		listeners.push(document.onDidChangeContent(e => {
 			// Update all webviews when the document changes
 			for (const webviewPanel of this.webviews.get(document.uri)) {
@@ -294,12 +299,13 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
 				});
 			}
 		}));
+		*/
 		
 		listeners.push(vscode.workspace.onDidChangeConfiguration((e) => {
 			if (e.affectsConfiguration("audioToolkit")) {
 				const webviewsForDocument = Array.from(this.webviews.get(document.uri));
 				webviewsForDocument.forEach((panel) => {
-					this.postMessage(panel, "updateConfigurationFromHost", vscode.workspace.getConfiguration("audioToolkit"));
+					this.proxies.get(panel)?.updateConfigurationFromHost(vscode.workspace.getConfiguration("audioToolkit") as unknown as AudioEditorConfiguration);
 				});
 			}
 		}));
@@ -325,28 +331,6 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
 
 	private onMessage(webviewPanel: vscode.WebviewPanel, document: AudioDocument, message: any) {
 		switch (message.type) {
-			case "ready":
-                {
-                    const editable = vscode.workspace.fs.isWritableFileSystem(document.uri.scheme);
-
-					const isInWorkspace = document.uri.fsPath !== vscode.workspace.asRelativePath(document.uri);
-    
-                    const initMessage = {
-                        data: isInWorkspace ? undefined : document.documentData,
-						uri: webviewPanel.webview.asWebviewUri(document.uri).toString(),
-						configuration: vscode.workspace.getConfiguration("audioToolkit"),
-                        editable,
-                    };
-                    this.postMessageWithResponse<number>(webviewPanel, "init", initMessage).then((sr) => {
-						this.sampleRateMap.set(document.uri, sr);
-						if (MainEditorProvider.statusBarItem) {
-							MainEditorProvider.statusBarItem.show();
-							MainEditorProvider.statusBarItem.text = `${sr}Hz`;
-						}
-					});
-					this.postMessage(webviewPanel, "updateConfigurationFromHost", vscode.workspace.getConfiguration("audioToolkit"));
-                    return;    
-                }
 			case "stroke":
 				document.makeEdit(message as AudioEdit);
 				return;
