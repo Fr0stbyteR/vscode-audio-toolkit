@@ -1,4 +1,7 @@
 .audio-editor-container {
+    --visualizer-right-spacing: 80px;
+    --visualizer-configuration-spacing: 200px;
+
     display: flex;
     position: relative;
     flex-direction: row;
@@ -16,5 +19,4 @@
             margin-bottom: 6px;
         }
     }
-
 }

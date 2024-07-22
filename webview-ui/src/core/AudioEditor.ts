@@ -1,10 +1,12 @@
 import TypedEventEmitter from "@shren/typed-event-emitter";
 import OperableAudioBuffer from "./OperableAudioBuffer";
-import Waveform from "./Waveform";
-import Spectrogram from "./Spectrogram";
+import Waveform from "../modules/waveform/Waveform";
 import AudioPlayer from "./AudioPlayer";
 import { dbtoa } from "../utils";
 import { AudioEditorConfiguration, AudioUnit } from "../../../src/web/proxies/VSCodeAudioEditor.types";
+import { AudioToolkitModule, FrequencyDomainChannelData, ModulesState } from "./AudioToolkitModule";
+import STFTWorker from "../workers/STFTWorker";
+import Spectrogram from "../modules/spectrogram/Spectrogram";
 
 export type {
     AudioEditorConfiguration,
@@ -27,6 +29,7 @@ export interface AudioEditorEventMap {
     "setAudio": never;
     "ready": never;
     "configuration": AudioEditorConfiguration;
+    "modulesState": ModulesState;
 }
 
 export interface AudioEditorState {
@@ -57,15 +60,21 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         beatsPerMeasure: 4,
         division: 16
     };
-    static async fromData(data: ArrayBuffer, context: AudioContext, configuration: Partial<AudioEditorConfiguration> = {}) {
+    static DEFAULT_MODULES_STATE: ModulesState = [
+        { id: "waveform", name: "Map", visible: true, state: undefined },
+        { id: "waveform", name: "Waveform", visible: true, state: undefined },
+        { id: "spectrogram", name: "Spectrogram", visible: true, state: undefined }
+    ];
+    static async fromData(data: ArrayBuffer, context: AudioContext, configuration: Partial<AudioEditorConfiguration> = {}, modulesState = this.DEFAULT_MODULES_STATE) {
         const audioBuffer = await context.decodeAudioData(data);
         const operableAudioBuffer: OperableAudioBuffer = Object.setPrototypeOf(audioBuffer, OperableAudioBuffer.prototype);
-        const audioData = operableAudioBuffer.toArray(true);
-        const $waveform = Waveform.fromAudioData(audioData, audioBuffer.sampleRate);
-        const $spectrogram = Spectrogram.fromAudioData(audioData, audioBuffer.sampleRate, configuration);
-        const [waveform, spectrogram] = await Promise.all([$waveform, $spectrogram]);
-        const audioEditor = new AudioEditor(operableAudioBuffer, waveform, spectrogram, context, { ...this.DEFAULT_CONFIGURATION, ...configuration });
+        const timeDomainData = operableAudioBuffer.toArray(true);
+        const stftWorker = new STFTWorker();
+        await stftWorker.init();
+        const frequencyDomainData = await Promise.all(timeDomainData.map(tdd => stftWorker.stft(tdd, { ...this.DEFAULT_CONFIGURATION, ...configuration })));
+        const audioEditor = new AudioEditor(operableAudioBuffer, timeDomainData, frequencyDomainData, context, { ...this.DEFAULT_CONFIGURATION, ...configuration });
         await audioEditor.initPlayer();
+        await audioEditor.initModules(modulesState);
         return audioEditor;
     }
     readonly state: AudioEditorState = {
@@ -94,12 +103,6 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     get audioBuffer() {
         return this._audioBuffer;
     }
-    get waveform() {
-        return this._waveform;
-    }
-    get spectrogram() {
-        return this._spectrogram;
-    }
     get context() {
         return this._context;
     }
@@ -109,11 +112,23 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     get configuration() {
         return this._configuration;
     }
+    get modulesState() {
+        return this._modulesState;
+    }
+    get modulesInstance() {
+        return this._modulesInstance;
+    }
     private _player: AudioPlayer | null = null;
+    private _modulesState: ModulesState = [];
+    private _modulesInstance: AudioToolkitModule[] = [];
+    public modulesMap: Record<string, typeof AudioToolkitModule> = {
+        [Waveform.MODULE_ID]: Waveform,
+        [Spectrogram.MODULE_ID]: Spectrogram
+    };
     private constructor(
         private _audioBuffer: OperableAudioBuffer,
-        private _waveform: Waveform,
-        private _spectrogram: Spectrogram,
+        private _timeDomainData: Float32Array[],
+        private _frequencyDomainData: FrequencyDomainChannelData[],
         private _context: AudioContext,
         private _configuration: AudioEditorConfiguration
     ) {
@@ -126,12 +141,53 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     private async initPlayer() {
         this._player = await AudioPlayer.init(this);
     }
+    async initModules(initialtates: ModulesState) {
+        for (let i = 0; i < initialtates.length; i++) {
+            const { id, name, state } = initialtates[i];
+            await this.addModule(id, state, name);
+        }
+    }
     setState(state: Partial<AudioEditorState>) {
         Object.assign(this.state, state);
     }
     setConfiguration(configuration: Partial<AudioEditorConfiguration>) {
         this._configuration = { ...this._configuration, ...configuration };
         this.emit("configuration", this._configuration);
+    }
+    setModuleState(index: number, state: ModulesState) {
+        this._modulesState[index] = { ...this._modulesState[index], state };
+        this._modulesState = [...this._modulesState];
+        this.emit("modulesState", this._modulesState);
+    }
+    setModuleVisible(index: number, visible: boolean | number) {
+        this._modulesState[index] = { ...this._modulesState[index], visible };
+        this._modulesState = [...this._modulesState];
+        this.emit("modulesState", this._modulesState);
+    }
+    async addModule(id: string, initialState: any, name?: string) {
+        const Constructor = this.modulesMap[id];
+        if (!Constructor) throw new Error(`Module ${id} not found.`);
+        const sharableData = this._modulesInstance.find(i => i.moduleId === id)?.getSharableData();
+        const instance = await Constructor.fromAudioData(this._timeDomainData, this._frequencyDomainData, this.sampleRate, this.configuration, initialState, sharableData);
+        this._modulesInstance = [...this._modulesInstance, instance];
+        this._modulesState = [...this._modulesState, { id, name: name ?? Constructor.MODULE_NAME, visible: true, state: instance.getState() }];
+        this.emit("modulesState", this._modulesState);
+    }
+    removeModule(index: number) {
+        this._modulesState.splice(index, 1);
+        this._modulesState = this._modulesState.slice();
+        this._modulesInstance.splice(index, 1);
+        this._modulesInstance = this._modulesInstance.slice();
+        this.emit("modulesState", this._modulesState);
+    }
+    moveModule(fromIndex: number, toIndex: number) {
+        const [ms] = this._modulesState.splice(fromIndex, 1);
+        this._modulesState.splice(toIndex, 0, ms);
+        this._modulesState = this._modulesState.slice();
+        const [mi] = this._modulesInstance.splice(fromIndex, 1);
+        this._modulesInstance.splice(toIndex, 0, mi);
+        this._modulesInstance = this._modulesInstance.slice();
+        this.emit("modulesState", this._modulesState);
     }
     zoomH(refIn: number, factor: number) { // factor = 1 as zoomIn, -1 as zoomOut
         const { viewRange } = this.state;

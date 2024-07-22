@@ -80,14 +80,28 @@
 
     & > .editor-map-controls {
         display: flex;
-        flex: 0 0 auto;
+        flex: 0 0 var(--visualizer-right-spacing);
         height: 100%;
         align-items: center;
-        width: 80px;
 
         & > span {
-            align-self: center;
-            margin: auto;
+            margin: 1px;
+
+            &:first-child {
+                margin-left: auto;
+            }
+            & vscode-button {
+                border-bottom: 1px transparent solid;
+                border-radius: 0px;
+
+                &.active {
+                    border-bottom: 1px var(--vscode-panelTitle-activeBorder) solid;
+                }
+            }
         }
+    }
+    
+    &.configuring > .editor-map-controls {
+        flex: 0 0 calc(var(--visualizer-right-spacing) + var(--visualizer-configuration-spacing));
     }
 }

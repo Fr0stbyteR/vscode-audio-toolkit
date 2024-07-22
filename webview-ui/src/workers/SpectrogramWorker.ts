@@ -4,7 +4,7 @@ import ProxyMain from "./ProxyMain";
 
 export default class SpectrogramWorker extends ProxyMain<ISpectrogramWorker, ISpectrogramWorkerWorker> {
     static Worker = Worker;
-    static fnNames: (keyof ISpectrogramWorkerWorker)[] = ["init", "forward", "stft", "updateSpectrogramData", "generateResized", "inverse", "inverses"];
+    static fnNames: (keyof ISpectrogramWorkerWorker)[] = ["generateResized"];
     handleUpdate: ((...msg: any[]) => any) | undefined;
     updateState(...msg: any[]): void {
         this.handleUpdate?.(...msg);

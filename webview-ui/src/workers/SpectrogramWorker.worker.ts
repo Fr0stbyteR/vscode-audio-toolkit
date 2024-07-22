@@ -1,45 +1,35 @@
-import { instantiateFFTWModule, FFTWModule, FFTW } from "@shren/fftw-js/dist/esm-bundle";
+
 import ProxyWorker from "./ProxyWorker";
 import { ISpectrogramWorker, ISpectrogramWorkerWorker } from "./SpectrogramWorker.types";
-import SpectrogramImageProcessor from "../core/SpectrogramProcessor";
-import STFTProcessor, { STFTOptions } from "../core/STFTProcessor";
-import { FrequencyDomainChannelData, SpectrogramSliceData } from "../core/Spectrogram";
+import SpectrogramImageProcessor from "../modules/spectrogram/SpectrogramProcessor";
+import { STFTOptions } from "../core/STFTProcessor";
+import { SpectrogramSliceData } from "../modules/spectrogram/Spectrogram";
+import { FrequencyDomainChannelData } from "../core/AudioToolkitModule";
+import { atodb } from "../utils";
 
 class SpectrogramWorkerWorker extends ProxyWorker<ISpectrogramWorkerWorker, ISpectrogramWorker> implements ISpectrogramWorkerWorker {
     static fnNames: (keyof ISpectrogramWorker)[] = ["updateState"];
-    fftwModule!: FFTWModule;
-    fftw!: FFTW;
-    private get FFT1D() {
-        return this.fftw.r2r.FFT1D;
-    }
-    async init(): Promise<true> {
-        this.fftwModule = await instantiateFFTWModule();
-        this.fftw = new FFTW(this.fftwModule);
-        return true;
-    }
-    forward(array: Float32Array) {
-        return STFTProcessor.forward(this.FFT1D, array);
-    }
-    inverse(array: Float32Array) {
-        return STFTProcessor.inverse(this.FFT1D, array);
-    }
-    stft(array: Float32Array, options: STFTOptions & Partial<{ startIndex: number; endIndex: number }>) {
-        return STFTProcessor.stft(this.FFT1D, array, options);
-    }
-    generateResized(array: Float32Array[], options: STFTOptions) {
+    generateResized(frequencyDomainData: FrequencyDomainChannelData[], options: STFTOptions & { startIndex: number; endIndex: number }) {
         const SharedArrayBuffer = globalThis.SharedArrayBuffer || globalThis.ArrayBuffer;
-        const { fftSize, fftOverlap } = options;
-        const hopSize = fftSize / fftOverlap;
-        const startIndex = 0;
-        const endIndex = array[0].length;
-        const offsetFromFFTFrame = 0;
-        const frequencyDomainData: FrequencyDomainChannelData[] = [];
+        const { fftSize, fftOverlap, startIndex, endIndex } = options;
+        const hopSize = ~~(fftSize / fftOverlap);
+        const spectrogramFrames = Math.ceil((endIndex - startIndex) / hopSize);
+        const bins = fftSize / 2 + 1;
         const spectrograms: Float32Array[][] = [];
-        for (let channel = 0; channel < array.length; channel++) {
-            const paddedInput = new Float32Array(new SharedArrayBuffer((endIndex + hopSize * (fftOverlap - 1) * 2) * Float32Array.BYTES_PER_ELEMENT));
-            paddedInput.set(array[channel], hopSize * (fftOverlap - 1));
-            const { magnitudes, phases, spectrogram } = this.stft(paddedInput, { ...options, startIndex, endIndex });
-            frequencyDomainData[channel] = { magnitudes, phases };
+        const offsetFromFFTFrame = 0;
+        let m: number;
+        for (let channel = 0; channel < frequencyDomainData.length; channel++) {
+            const { magnitudes } = frequencyDomainData[channel];
+            const spectrogram = new Array(spectrogramFrames).fill(null).map(() => new Float32Array(new SharedArrayBuffer(bins * Float32Array.BYTES_PER_ELEMENT)));
+            for (let frame = 0; frame < spectrogramFrames; frame++) {
+                for (let bin = 0; bin < bins; bin++) {
+                    m = 0;
+                    for (let overlap = 0; overlap < fftOverlap; overlap++) {
+                        m += magnitudes[frame + overlap][bin];
+                    }
+                    spectrogram[frame][bin] = atodb(m / fftOverlap);
+                }
+            }
             spectrograms[channel] = spectrogram;
         }
         const resizedSpectrograms = SpectrogramImageProcessor.generateResized(spectrograms, options);

@@ -9,7 +9,6 @@ export interface STFTOptions {
     fftSize: number;
     fftOverlap: number;
     fftWindowFunction: string;
-    fftDrawThreshold: number;
 }
 
 class STFTProcessor {
@@ -33,14 +32,12 @@ class STFTProcessor {
         const fft = new FFT(fftSize);
         const hopSize = ~~(fftSize / fftOverlap);
         const bins = fftSize / 2 + 1;
-        const spectrogramFrames = Math.ceil((endIndex - startIndex) / hopSize);
         const fftStartIndex = startIndex + hopSize - fftSize;
         const fftFrames = Math.ceil((endIndex - fftStartIndex - hopSize + fftSize) / hopSize);
         // const fftEndIndex = fftStartIndex + fftFrames * hopSize;
 
         const magnitudes: Float32Array[] = new Array(fftFrames).fill(null).map(() => new Float32Array(new SharedArrayBuffer(bins * Float32Array.BYTES_PER_ELEMENT)));
         const phases: Float32Array[] = new Array(fftFrames).fill(null).map(() => new Float32Array(new SharedArrayBuffer(bins * Float32Array.BYTES_PER_ELEMENT)));
-        const spectrogram: Float32Array[] = new Array(spectrogramFrames).fill(null).map(() => new Float32Array(new SharedArrayBuffer(bins * Float32Array.BYTES_PER_ELEMENT)));
         let $start = fftStartIndex;
         let $end = $start + fftSize;
         let real: number;
@@ -77,17 +74,7 @@ class STFTProcessor {
         }
         fft.dispose();
 
-        let m: number;
-        for (let frame = 0; frame < spectrogramFrames; frame++) {
-            for (let bin = 0; bin < bins; bin++) {
-                m = 0;
-                for (let overlap = 0; overlap < fftOverlap; overlap++) {
-                    m += magnitudes[frame + overlap][bin];
-                }
-                spectrogram[frame][bin] = atodb(m / fftOverlap);
-            }
-        }
-        return { magnitudes, phases, spectrogram };
+        return { magnitudes, phases };
     }
 }
 

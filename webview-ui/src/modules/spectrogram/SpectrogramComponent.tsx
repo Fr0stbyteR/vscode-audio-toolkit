@@ -1,13 +1,12 @@
 
-import "./AudioEditorSpectrogram.scss";
+import "./SpectrogramComponent.scss";
 import { FunctionComponent, useCallback, useContext, useEffect, useRef } from "react";
-import { AudioEditorContext } from "./contexts";
-import { setCanvasToFullSize } from "../utils";
-import { VisualizationOptions } from "../core/AudioToolkitModule";
+import { AudioEditorContext } from "../../components/contexts";
+import { setCanvasToFullSize } from "../../utils";
+import { VisualizationOptions } from "../../core/AudioToolkitModule";
+import Spectrogram from "./Spectrogram";
 
-interface Props extends Omit<VisualizationOptions<any>, "module" | "moduleIndex"> {}
-
-const AudioEditorSpectrogram: FunctionComponent<Props> = ({ viewRange, selRange, playhead, phosphorColor, playheadColor, gridColor, gridRulerColor, textColor, monospaceFont, configuration: { audioUnit, beatsPerMinute, beatsPerMeasure, division }, rerenderTimestamp }) => {
+const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>> = ({ module, viewRange, selRange, playhead, phosphorColor, playheadColor, gridColor, gridRulerColor, textColor, monospaceFont, configuration, rerenderTimestamp }) => {
     const audioEditor = useContext(AudioEditorContext)!;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const canvasVerticalRulerRef = useRef<HTMLCanvasElement>(null);
@@ -18,22 +17,22 @@ const AudioEditorSpectrogram: FunctionComponent<Props> = ({ viewRange, selRange,
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        audioEditor.spectrogram.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange }, { playheadColor, phosphorColor });
-    }, [audioEditor, viewRange, playheadColor, phosphorColor]);
+        module.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange }, { playheadColor, phosphorColor });
+    }, [module, viewRange, playheadColor, phosphorColor]);
     const paintVerticalRuler = useCallback(() => {
         const canvas = canvasVerticalRulerRef.current;
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        audioEditor.waveform.paintVerticalRuler(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange, audioUnit, beatsPerMeasure, beatsPerMinute, division }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont, paintGridLabels: false });
-    }, [audioEditor, viewRange, audioUnit, beatsPerMeasure, beatsPerMinute, division, gridColor, gridRulerColor, textColor, monospaceFont]);
+        module.paintVerticalRuler(ctx, { width, height, verticalZoom: 1, verticalOffset: 0, gridLabels: false }, { viewRange, configuration }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
+    }, [module, viewRange, configuration, gridColor, gridRulerColor, textColor, monospaceFont]);
     const paintHorizontalRuler = useCallback(() => {
         const canvas = canvasHorizontalRulerRef.current;
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        audioEditor.spectrogram.paintHorizontalRuler(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, null, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont, paintGridLabels: true });
-    }, [audioEditor, gridColor, gridRulerColor,  textColor, monospaceFont]);
+        module.paintHorizontalRuler(ctx, { width, height, verticalZoom: 1, verticalOffset: 0, gridLabels: true }, null, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
+    }, [module, gridColor, gridRulerColor,  textColor, monospaceFont]);
     useEffect(paint, [paint, rerenderTimestamp]);
     useEffect(paintVerticalRuler, [paintVerticalRuler, rerenderTimestamp]);
     useEffect(paintHorizontalRuler, [paintHorizontalRuler, rerenderTimestamp]);
@@ -79,6 +78,7 @@ const AudioEditorSpectrogram: FunctionComponent<Props> = ({ viewRange, selRange,
             divMainFlexContainer = divMainFlexContainer.parentElement;
         }
         if (divMainFlexContainer && divMainFlexContainer.scrollHeight > divMainFlexContainer.clientHeight) return;
+
         e.stopPropagation();
         if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
             audioEditor.scrollH(e.deltaX > 0 ? 0.01 : -0.01);
@@ -158,27 +158,28 @@ const AudioEditorSpectrogram: FunctionComponent<Props> = ({ viewRange, selRange,
     const $playhead = (playhead - viewStart) / viewLength;
     const playheadLeft = `${$playhead * 100}%`;
     const selWidth = `${($selEnd - $selStart) * 100}%`;
-    return (
-        <div className="editor-main-spectrogram-container">
-            <div className="editor-main-spectrogram-background" />
-            <div className="editor-main-spectrogram-vertical-ruler-container">
+    return (<>
+        <div className="visualizer-component-container spectrogram-container">
+            <div className="spectrogram-background" />
+            <div className="spectrogram-vertical-ruler-container">
                 <canvas ref={canvasVerticalRulerRef} />
             </div>
-            <div className="editor-main-spectrogram-horizontal-ruler-container">
+            <div className="spectrogram-horizontal-ruler-container">
                 <canvas ref={canvasHorizontalRulerRef} />
             </div>
-            <div ref={divMainRef} className="editor-main-spectrogram-canvas-container" onMouseDown={handleCanvasMouseDown} onWheel={handleWheel}>
+            <div ref={divMainRef} className="spectrogram-canvas-container" onMouseDown={handleCanvasMouseDown} onWheel={handleWheel}>
                 <canvas ref={canvasRef} />
-                <div className="editor-main-selrange" style={{ left: selLeft, width: selWidth }} hidden={!selRange}>
+                <div className="selrange" style={{ left: selLeft, width: selWidth }} hidden={!selRange}>
                     <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />
                     <div className="resize-handler resize-handler-e" onMouseDown={handleResizeEndMouseDown} />
                 </div>
             </div>
-            <div className="editor-main-playhead-container">
-                {$playhead > 1 || $playhead < 0 ? null : <div className="editor-main-playhead" style={{ left: playheadLeft }} />}
+            <div className="playhead-container">
+                {$playhead > 1 || $playhead < 0 ? null : <div className="playhead" style={{ left: playheadLeft }} />}
             </div>
         </div>
-    );
+        <div className="visualizer-component-configuration"></div>
+    </>);
 };
 
-export default AudioEditorSpectrogram;
+export default SpectrogramComponent;

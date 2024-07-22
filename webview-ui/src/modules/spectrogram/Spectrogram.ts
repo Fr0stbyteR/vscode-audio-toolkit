@@ -1,19 +1,13 @@
-import { hslToRgb } from "../utils";
-import SpectrogramWorker from "../workers/SpectrogramWorker";
-import { AudioEditorState, DrawOptions } from "./AudioEditor";
-import { STFTOptions } from "./STFTProcessor";
+import { AudioToolkitModule, FrequencyDomainChannelData, VisualizationOptions, VisualizationStyleOptions } from "../../core/AudioToolkitModule";
+import SpectrogramComponent from "./SpectrogramComponent";
+import SpectrogramWorker from "../../workers/SpectrogramWorker";
+import { dbtoa, getRuler, hslToRgb } from "../../utils";
+import { AudioEditorConfiguration, AudioEditorState } from "../../core/AudioEditor";
 
 export interface SpectrogramResizeOptions {
     resizeFactor: number;
     minWidth: number;
     minHeight: number;
-}
-
-export interface FrequencyDomainChannelData {
-    /** FFTed frames, each advances `hopSize` samples */
-    magnitudes: Float32Array[];
-    /** FFTed frames, each advances `hopSize` samples */
-    phases: Float32Array[];
 }
 
 export interface ResizedSpectrogram {
@@ -55,16 +49,16 @@ export interface SpectrogramSliceData {
     resizedSpectrograms: ResizedSpectrograms;
 }
 
-export interface SpectrogramPaintOptions {
-    phosphorColor: string;
-    separatorColor: string;
-    playheadColor: string;
-    gridColor: string;
-    gridRulerColor: string;
-    textColor: string;
-    paintGridLabels: boolean;
-    labelFont: string;
-    fadePathColor: string;
+export interface SpectrogramState {
+    fftDrawThreshold: number;
+}
+
+export interface SpectrogramDrawOptions {
+    width: number;
+    height: number;
+    verticalZoom: number;
+    verticalOffset: number;
+    gridLabels: boolean;
     fadeInExp: number;
     fadeInTo: number;
     fadeOutExp: number;
@@ -72,31 +66,57 @@ export interface SpectrogramPaintOptions {
     fade: number;
 }
 
-class Spectrogram {
+class Spectrogram implements AudioToolkitModule<SpectrogramState> {
+    static MODULE_ID = "spectrogram";
+    static MODULE_NAME = "Spectrogram";
+    static DEFAULT_STATE = {};
     static MAX_BITMAP_SIZE = 1024 * 1024;
     static DB_DRAW_THRESHOLD = -100;
-    static async fromAudioData(audioData: Float32Array[], sampleRate: number, { fftDrawThreshold = this.DB_DRAW_THRESHOLD, fftSize = 1024, fftOverlap = 2, fftWindowFunction = "blackmanHarris" }: Partial<STFTOptions> = {}) {
-        const spectrogram = new Spectrogram(audioData, sampleRate);
-        await spectrogram._worker.init();
-        const resized = await spectrogram._worker.generateResized(audioData, { fftSize, fftOverlap, fftWindowFunction, fftDrawThreshold });
-        spectrogram._dataSlices = [resized];
+    static async fromAudioData(timeDomainData: Float32Array[], frequencyDomainData: FrequencyDomainChannelData[], sampleRate: number, configuration: AudioEditorConfiguration, { fftDrawThreshold = this.DB_DRAW_THRESHOLD }: Partial<SpectrogramState> = {}, sharableData?: { fftDrawThreshold: number, dataSlices: SpectrogramSliceData[] }) {
+        const spectrogram = new Spectrogram(timeDomainData, frequencyDomainData, sampleRate, { fftDrawThreshold });
+        if (sharableData) {
+            spectrogram._dataSlices = sharableData.dataSlices;
+            if (fftDrawThreshold !== sharableData.fftDrawThreshold) spectrogram._dataSlices.forEach(ds => ds.resizedSpectrograms.resizes.forEach(rs => rs.imageBitmaps = []));
+        } else {
+            const resized = await spectrogram._worker.generateResized(frequencyDomainData, { ...configuration, startIndex: 0, endIndex: spectrogram.length });
+            spectrogram._dataSlices = [resized];
+        }
         return spectrogram;
     }
+    public moduleId = Spectrogram.MODULE_ID;
+    public onStateChange: ((newState: SpectrogramState) => any) | undefined;
+    public Component = SpectrogramComponent;
+    public state: SpectrogramState;
     private _worker = new SpectrogramWorker();
     private _dataSlices: SpectrogramSliceData[] = [];
-    private imageBitmapsCache: { [size: `${number}x${number}`]: ImageBitmap[][] } = {};
-    private imageBitmaps: ImageBitmap[] = [];
     get length() {
-        return this.audioData[0].length;
+        return this.timeDomainData[0].length;
     }
     get numberOfChannels() {
-        return this.audioData.length;
+        return this.timeDomainData.length;
     }
     private constructor(
-        public audioData: Float32Array[],
-        public sampleRate: number
-    ) {}
+        public timeDomainData: Float32Array[],
+        public frequencyDomainData: FrequencyDomainChannelData[],
+        public sampleRate: number,
+        initialState: SpectrogramState
+    ) {
+        this.state = initialState;
+    }
 
+    getState() {
+        return this.state;
+    }
+    setState(newState: SpectrogramState) {
+        this.state = newState;
+        this.onStateChange?.(newState);
+    }
+    getSharableData() {
+        return {
+            ...this.state,
+            dataSlices: this._dataSlices
+        };
+    }
     getBestResizes(targetSamplesPerPixel: number, targetHeight: number): [number, number][] {
         return this._dataSlices.map(({ resizedSpectrograms }) => {
             const width = resizedSpectrograms.sizes.filter((_, i) => resizedSpectrograms.resizes[i].samplesPerPixel < targetSamplesPerPixel).map((([w]) => w)).sort((a, b) => a - b)[0] ?? resizedSpectrograms.sizes[0][0];
@@ -214,9 +234,9 @@ class Spectrogram {
     }
     async paint(
         ctx: CanvasRenderingContext2D,
-        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 }: Partial<DrawOptions>,
+        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, fadeInExp = 1, fadeInTo, fadeOutExp = 1, fadeOutFrom, fade = 0 }: Partial<SpectrogramDrawOptions>,
         { viewRange }: Pick<AudioEditorState, "viewRange">,
-        { phosphorColor = "rgb(67, 217, 150)", separatorColor = "grey", playheadColor = "rgba(191, 0, 0)", fadePathColor = "yellow", fadeInExp = 1, fadeInTo, fadeOutExp = 1, fadeOutFrom, fade = 0 }: Partial<Pick<SpectrogramPaintOptions, "phosphorColor" | "separatorColor" | "playheadColor" | "fadePathColor" | "fadeInTo" | "fadeInExp" | "fadeOutFrom" | "fadeOutExp" | "fade">> = {}
+        { phosphorColor = "rgb(67, 217, 150)", separatorColor = "grey", playheadColor = "rgba(191, 0, 0)", fadePathColor = "yellow" }: Partial<Pick<VisualizationStyleOptions, "phosphorColor" | "separatorColor" | "playheadColor" | "fadePathColor">> = {}
     ) {
         const { numberOfChannels } = this;
 
@@ -272,11 +292,53 @@ class Spectrogram {
         ctx.stroke();
         */
     }
+    async paintVerticalRuler(
+        ctx: CanvasRenderingContext2D,
+        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, gridLabels = true }: Partial<SpectrogramDrawOptions>,
+        { viewRange, configuration: { audioUnit, beatsPerMeasure, beatsPerMinute, division } }: Pick<VisualizationOptions<this>, "viewRange" | "configuration">,
+        { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<VisualizationStyleOptions, "gridColor" | "gridRulerColor" | "textColor" | "labelFont">> = {}
+    ) {
+        const { sampleRate } = this;
+        const { ruler } = getRuler(viewRange, audioUnit, { sampleRate, beatsPerMeasure, beatsPerMinute, division });
+        ctx.clearRect(0, 0, width, height);
+        const top = gridLabels ? 40 : 0;
+        const [$drawFrom, $drawTo] = viewRange;
+        const pixelsPerSample = width / ($drawTo - $drawFrom);
+        ctx.strokeStyle = gridColor;
+        ctx.beginPath();
+        let x: number;
+        let y: number;
+        for (const $str in ruler) {
+            x = (+$str - $drawFrom) * pixelsPerSample;
+            ctx.moveTo(x, top);
+            ctx.lineTo(x, height);
+        }
+        ctx.stroke();
+        if (!gridLabels) return;
+        ctx.strokeStyle = gridRulerColor;
+        ctx.fillStyle = textColor;
+        ctx.font = `12px ${labelFont}`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "bottom";
+        ctx.fillText(audioUnit === "time" ? "hms" : audioUnit === "measure" ? `${beatsPerMinute} bpm` : "samps", 2, top - 14);
+        ctx.textAlign = "center";
+        ctx.beginPath();
+        let text: string;
+        for (const $str in ruler) {
+            text = ruler[$str];
+            x = (+$str - $drawFrom) * pixelsPerSample;
+            y = text ? top - 10 : top - 5;
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, top);
+            if (text) ctx.fillText(text, x, y - 4);
+        }
+        ctx.stroke();
+    }
     async paintHorizontalRuler(
         ctx: CanvasRenderingContext2D,
-        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 }: Partial<DrawOptions>,
+        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, gridLabels = true }: Partial<SpectrogramDrawOptions>,
         _stateAndConfigurations: any,
-        { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", paintGridLabels = true, labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<SpectrogramPaintOptions, "gridColor" | "gridRulerColor" | "textColor" | "paintGridLabels" | "labelFont">> = {}
+        { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<VisualizationStyleOptions, "gridColor" | "gridRulerColor" | "textColor" | "labelFont">> = {}
     ) {
         const { sampleRate, numberOfChannels } = this;
         const halfSampleRate = sampleRate / 2;
@@ -301,7 +363,7 @@ class Spectrogram {
         ctx.clearRect(0, 0, width, height);
         ctx.strokeStyle = gridColor;
         ctx.beginPath();
-        const right = paintGridLabels ? 80 : 0;
+        const right = gridLabels ? 80 : 0;
         const x = width - right;
         let hz = coarse;
         let y: number;
@@ -315,7 +377,7 @@ class Spectrogram {
             }
         }
         ctx.stroke();
-        if (!paintGridLabels) return;
+        if (!gridLabels) return;
         ctx.strokeStyle = gridRulerColor;
         ctx.fillStyle = textColor;
         ctx.font = `12px ${labelFont}`;

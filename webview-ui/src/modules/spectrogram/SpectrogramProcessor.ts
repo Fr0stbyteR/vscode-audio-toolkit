@@ -1,5 +1,5 @@
 import { ResizedSpectrogram, ResizedSpectrograms } from "./Spectrogram";
-import { STFTOptions } from "./STFTProcessor";
+import { STFTOptions } from "../../core/STFTProcessor";
 
 export interface ResizeOptions {
     resizeFactor: number;

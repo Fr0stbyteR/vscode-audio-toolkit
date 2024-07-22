@@ -1,30 +1,25 @@
 import "./AudioEditorMain.scss";
+import "./AudioEditorComponentContainer.scss";
 import { FunctionComponent, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AudioEditorConfiguration, AudioEditorState } from "../core/AudioEditor";
 import { AudioEditorContext } from "./contexts";
-import AudioEditorWaveform from "./AudioEditorWaveform";
-import AudioEditorSpectrogram from "./AudioEditorSpectrogram";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
-import { VisualizationOptions, VisualizationStyleOptions, VisualizersState } from "../core/AudioToolkitModule";
+import { VisualizationStyleOptions, ModulesState } from "../core/AudioToolkitModule";
 import { getRuler, setCanvasToFullSize } from "../utils";
 
 interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRange" | "enabledChannels">, VisualizationStyleOptions {
     configuration: AudioEditorConfiguration;
     windowSize: number[];
+    configuring: boolean;
+    visualizersState: ModulesState;
 }
 
-const visualizersMap: Record<string, FunctionComponent<VisualizationOptions<any>>> = {
-    "Waveform": AudioEditorWaveform,
-    "Spectrogram": AudioEditorSpectrogram 
-};
- 
 const AudioEditorMain: FunctionComponent<Props> = (props) => {
-    const { playhead, viewRange, selRange, windowSize, gridRulerColor, textColor, labelFont, configuration: { audioUnit, beatsPerMeasure, beatsPerMinute, division } } = props;
+    const { playhead, viewRange, selRange, windowSize, gridRulerColor, textColor, labelFont, configuration: { audioUnit, beatsPerMeasure, beatsPerMinute, division }, configuring, visualizersState } = props;
     const audioEditor = useContext(AudioEditorContext)!;
     const divSelRangeRef = useRef<HTMLDivElement>(null);
     const divVerticalRulerRef = useRef<HTMLDivElement>(null);
     const canvasVerticalRulerRef = useRef<HTMLCanvasElement>(null);
-    const [visualizersState, setVisualizersState] = useState<VisualizersState>(/*vscode.getState() as VisualizersState ||*/ [{ name: "Waveform", visible: true, state: null }, { name: "Spectrogram", visible: true, state: null }]);
     const [rerenderTimestamp, setRerenderTimestamp] = useState(performance.now());
     const handlePlayheadHandlerMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!divVerticalRulerRef.current) return;
@@ -175,10 +170,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                 const y = e.clientY;
                 const height = rect.height + (y - origin.y);
                 container.style.flex = `0 0 ${height}px`;
-                setVisualizersState((state) => {
-                    state[visualizerIndex] = { ...state[visualizerIndex], visible: height };
-                    return state.slice();
-                });
+                audioEditor.setModuleVisible(visualizerIndex, height);
             }
         };
         const handleMouseUp = (e: MouseEvent) => {
@@ -190,13 +182,11 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
         };
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
-    }, []);
+    }, [audioEditor]);
     const handleClickCollapseVisualizer = useCallback((visualizerIndex: number) => {
-        setVisualizersState((state) => {
-            state[visualizerIndex] = { ...state[visualizerIndex], visible: !state[visualizerIndex].visible };
-            return state.slice();
-        });
-    }, []);
+        const visible = visualizersState[visualizerIndex].visible;
+        audioEditor.setModuleVisible(visualizerIndex, !visible);
+    }, [audioEditor, visualizersState]);
     const handleMouseDownMoveVisualizer = useCallback((e: React.MouseEvent<HTMLElement>, visualizerIndex: number) => {
         e.preventDefault();
         e.stopPropagation();
@@ -212,9 +202,9 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
         container.classList.add("dragging");
         parent.style.cursor = "grabbing";
         const dividers = [...parent.getElementsByClassName("editor-main-divider")];
-        dividers.splice(visualizerIndex + 1, 1);
+        dividers.splice(visualizerIndex, 1);
         let moveToIndex = visualizerIndex;
-        dividers[visualizerIndex].classList.add("active");
+        dividers[visualizerIndex - 1].classList.add("active");
         setRerenderTimestamp(performance.now());
         const handleMouseMove = (e: MouseEvent) => {
             e.stopPropagation();
@@ -229,7 +219,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                 prevY = dividersY[i - 1] ?? 0;
                 nextY = dividersY[i + 1] ?? Infinity;
                 if (e.clientY >= y - (y - prevY) * 0.5 && e.clientY < y + (nextY - y) * 0.5) {
-                    moveToIndex = i;
+                    moveToIndex = i + 1;
                     dividers[i].classList.add("active");
                 } else {
                     dividers[i].classList.remove("active");
@@ -249,11 +239,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
             container.classList.remove("dragging");
             parent.style.cursor = "";
             if (visualizerIndex !== moveToIndex) {
-                setVisualizersState((state) => {
-                    const [vs] = state.splice(visualizerIndex, 1);
-                    state.splice(moveToIndex, 0, vs);
-                    return state.slice();
-                });
+                audioEditor.moveModule(visualizerIndex, moveToIndex);
             }
             setRerenderTimestamp(performance.now());
             document.removeEventListener("mousemove", handleMouseMove);
@@ -261,15 +247,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
         };
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
-    }, []);
-    const onSaveState = useCallback(async (moduleIndex: number, state: any) => {
-        setVisualizersState((prevState) => {
-            prevState[moduleIndex] = { ...prevState[moduleIndex], state };
-            const nextState = prevState.slice();
-            // vscode.setState<VisualizersState>(nextState);
-            return nextState;
-        });
-    }, []);
+    }, [audioEditor]);
     const paintVerticalRuler = useCallback(() => {
         const canvas = canvasVerticalRulerRef.current;
         const ctx = canvas?.getContext("2d");
@@ -303,7 +281,8 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
     }, [audioEditor, audioUnit, beatsPerMeasure, beatsPerMinute, division, gridRulerColor, labelFont, textColor, viewRange]);
     useEffect(() => setRerenderTimestamp(performance.now()), [windowSize, visualizersState]);
     // useEffect(() => void vscode.setState(visualizersState), [visualizersState]);
-    useEffect(paintVerticalRuler, [paintVerticalRuler]);
+    useEffect(paintVerticalRuler, [paintVerticalRuler, configuring]);
+    useEffect(() => setRerenderTimestamp(performance.now()), [configuring]);
 
     const [viewStart, viewEnd] = viewRange;
     const viewLength = viewEnd - viewStart;
@@ -314,15 +293,15 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
     const selWidth = `${($selEnd - $selStart) * 100}%`;
     const $playhead = (playhead - viewStart) / viewLength;
     const playheadLeft = `${$playhead * 100}%`;
-    const moduleCommonProps = { ...props, rerenderTimestamp, onSaveState };
+    const moduleCommonProps = { ...props, rerenderTimestamp };
     return (
         <div className="editor-main">
             <div className="editor-main-flex">
-                <div className="editor-main-playhead-container" hidden={$playhead < 0 || $playhead > 1}>
+                <div className={`editor-main-playhead-container${configuring ? " configuring" : ""}`} hidden={$playhead < 0 || $playhead > 1}>
                     <div className="editor-main-playhead-handler" style={{ left: playheadLeft }} onMouseDown={handlePlayheadHandlerMouseDown} />
                     <div className="editor-main-playhead" style={{ left: playheadLeft }}></div>
                 </div>
-                <div className="editor-main-vertical-ruler-area" ref={divVerticalRulerRef} onMouseDown={handlePlayheadHandlerMouseDown} onDoubleClick={handlePlayheadHandlerDoubleClick}>
+                <div className={`editor-main-vertical-ruler-area${configuring ? " configuring" : ""}`} ref={divVerticalRulerRef} onMouseDown={handlePlayheadHandlerMouseDown} onDoubleClick={handlePlayheadHandlerDoubleClick}>
                     <canvas ref={canvasVerticalRulerRef} />
                     <div className="editor-main-selrange-handler" ref={divSelRangeRef} style={{ left: selLeft, width: `calc(${selWidth} - 4px)` }} hidden={!selRange} >
                         <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />
@@ -332,7 +311,9 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                 </div>
                 <div className="editor-main-divider" />
                 {visualizersState.map(({ name, visible }, i) => {
-                    const Component = visualizersMap[name];
+                    if (i === 0) return undefined;
+                    const module = audioEditor.modulesInstance[i];
+                    const { Component } = module;
                     return (<>
                         <div key={i} className={`editor-main-visualizer-container${visible ? "" : " collapse"}`} style={{ flex: typeof visible === "number" ? `0 0 ${visible}px` : visible ? "1 1 auto" : "0 0 auto" }}>
                             <div className="editor-main-visualizer-label">
@@ -344,7 +325,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                                 </VSCodeButton>
                                 <span>{name}</span>
                             </div>
-                            {visible ? <div className="editor-main-visualizer-component"><Component module={null} moduleIndex={i} {...moduleCommonProps} /></div> : undefined}
+                            {visible ? <div className={`editor-main-visualizer-component${configuring ? " configuring" : ""}`}><Component module={module} moduleIndex={i} {...moduleCommonProps} /></div> : undefined}
                         </div>
                         <div className={`editor-main-divider${visible ? " draggable" : ""}`} onMouseDown={visible ? (e) => handleDividerMouseDown(e, i) : undefined} />
                     </>);

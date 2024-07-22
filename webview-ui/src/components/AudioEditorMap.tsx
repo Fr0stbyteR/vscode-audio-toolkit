@@ -3,13 +3,16 @@ import { FunctionComponent, useCallback, useContext, useEffect, useRef, useState
 import { AudioEditorContext } from "./contexts";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { AudioEditorState } from "../core/AudioEditor";
-import { WaveformPaintOptions } from "../core/Waveform";
 import { setCanvasToFullSize } from "../utils";
+import { VisualizationStyleOptions } from "../core/AudioToolkitModule";
+import Waveform from "../modules/waveform/Waveform";
 
-interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRange">, Partial<WaveformPaintOptions> {
-    windowSize: number[]
+interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRange">, Partial<VisualizationStyleOptions> {
+    windowSize: number[];
+    configuring: boolean,
+    setConfiguring: React.Dispatch<React.SetStateAction<boolean>>;
 }
-const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRange, phosphorColor, playheadColor, windowSize }) => {
+const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRange, phosphorColor, playheadColor, windowSize, configuring, setConfiguring }) => {
     const audioEditor = useContext(AudioEditorContext)!;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const divViewRangeRef = useRef<HTMLDivElement>(null);
@@ -18,7 +21,7 @@ const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRang
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        audioEditor.waveform.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange: [0, audioEditor.length] }, { playheadColor, phosphorColor });
+        (audioEditor.modulesInstance[0] as Waveform).paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange: [0, audioEditor.length] }, { playheadColor, phosphorColor });
     }, [audioEditor, playheadColor, phosphorColor]);
     useEffect(paint, [paint, windowSize, phosphorColor, playheadColor]);
     const handleMoveMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -125,6 +128,9 @@ const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRang
         audioEditor.zoomH(ref, e.deltaY < 0 ? 1 : -1);
     }, [audioEditor]);
     const handleClickSelectAll = useCallback(() => audioEditor.setViewRangeToAll(), [audioEditor]);
+    const handleClickAdd = useCallback(() => {
+
+    }, []);
     const { length } = audioEditor;
     const [viewStart, viewEnd] = viewRange;
     const viewLeft = `${viewStart / length * 100}%`;
@@ -135,7 +141,7 @@ const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRang
     const $playhead = playhead / length;
     const playheadLeft = `${$playhead * 100}%`;
     return (
-        <div className="editor-map">
+        <div className={`editor-map${configuring ? " configuring" : ""}`}>
             <div className="editor-map-canvas-container" onWheel={handleWheel}>
                 <canvas ref={canvasRef} />
                 <div className="editor-map-playhead" style={{ left: playheadLeft }}></div>
@@ -149,6 +155,16 @@ const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRang
                 <span className="editor-map-select-all" >
                     <VSCodeButton aria-label="View All" title="View All" appearance="icon" onClick={handleClickSelectAll}>
                         <span className="codicon codicon-symbol-array"></span>
+                    </VSCodeButton>
+                </span>
+                <span className="editor-map-toggle-configuration" >
+                    <VSCodeButton aria-label="Toggle Configuration" className={configuring ? "active" : ""} title="Toggle Configuration" appearance="icon" onClick={() => setConfiguring(v => !v)}>
+                        <span className="codicon codicon-symbol-property"></span>
+                    </VSCodeButton>
+                </span>
+                <span className="editor-map-add-component" >
+                    <VSCodeButton aria-label="Add Module" title="Add Module" appearance="icon" onClick={handleClickAdd}>
+                        <span className="codicon codicon-add"></span>
                     </VSCodeButton>
                 </span>
             </div>

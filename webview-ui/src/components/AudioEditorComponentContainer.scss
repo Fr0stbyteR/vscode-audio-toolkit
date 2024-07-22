@@ -1,0 +1,26 @@
+.audio-editor-container div.editor-main-visualizer-component {
+    & > div.visualizer-component-container {
+        height: 100%;
+        flex: 1 1 auto;
+        position: relative;
+
+        & > div.visualizer-component-visualization-area {
+            display: block;
+            position: absolute;
+            height: 100%;
+            width: calc(100% - var(--visualizer-right-spacing));
+            overflow: hidden;
+        }
+    }
+
+    & > div.visualizer-component-configuration {
+        height: 100%;
+        flex: 0 0 var(--visualizer-configuration-spacing);
+        position: relative;
+        display: none;
+    }
+    
+    &.configuring > div.visualizer-component-configuration {
+        display: block;
+    }
+}

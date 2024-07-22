@@ -2,7 +2,8 @@
     flex: 1 0 auto;
     position: relative;
     display: block;
-    overflow: auto;
+    overflow-y: auto;
+    scrollbar-width: none;
 
     & > div.editor-main-flex {
         position: absolute;
@@ -14,11 +15,15 @@
         & > div.editor-main-playhead-container {
             display: block;
             position: absolute;
-            margin: 40px 80px 0px 24px;
-            width: calc(100% - 80px - 24px);
+            margin-top: 40px;
+            margin-left: 24px;
+            width: calc(100% - var(--visualizer-right-spacing) - 24px);
     
             &[hidden] {
                 display: none;
+            }
+            &.configuring {
+                width: calc(100% - var(--visualizer-right-spacing) - var(--visualizer-configuration-spacing) - 24px);
             }
             & > div.editor-main-playhead-handler {
                 display: block;
@@ -75,7 +80,7 @@
         & > div.editor-main-visualizer-container {
             display: flex;
             flex: 1 1 auto;
-            flex-direction: column;
+            flex-direction: row;
             position: relative;
             min-height: 100px;
             transition: transform 0s;
@@ -93,16 +98,16 @@
 
             & > div.editor-main-visualizer-component {
                 display: flex;
+                flex-direction: row;
                 flex: 1 1 auto;
                 height: 100%;
-                width: calc(100% - 24px);
-                margin-left: 24px;
             }
 
             & > div.editor-main-visualizer-label {
                 display: flex;
                 flex-direction: column;
-                position: absolute;
+                position: relative;
+                flex: 0 0 23px;
                 width: 23px;
                 height: calc(100% - 10px);
                 border-width: 1px 0px 0px 1px;
@@ -161,9 +166,12 @@
             flex: 0 0 40px;
             height: 40px;
             margin-left: 24px;
-            width: calc(100% - 80px - 24px);
+            width: calc(100% - var(--visualizer-right-spacing) - 24px);
             overflow: hidden;
 
+            &.configuring {
+                width: calc(100% - var(--visualizer-right-spacing) - var(--visualizer-configuration-spacing) - 24px);
+            }
             & > canvas {
                 position: absolute;
                 display: block;

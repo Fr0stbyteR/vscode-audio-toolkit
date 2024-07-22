@@ -1,6 +1,8 @@
-import { dbtoa, getRuler } from "../utils";
-import WaveformWorker from "../workers/WaveformWorker";
-import { AudioEditorConfiguration, AudioEditorState, DrawOptions } from "./AudioEditor";
+import { AudioToolkitModule, FrequencyDomainChannelData, VisualizationOptions, VisualizationStyleOptions } from "../../core/AudioToolkitModule";
+import WaveformComponent from "./WaveformComponent";
+import WaveformWorker from "../../workers/WaveformWorker";
+import { dbtoa, getRuler } from "../../utils";
+import { AudioEditorConfiguration } from "../../core/AudioEditor";
 
 export interface WaveformResizeOptions {
     resizeFactor: number;
@@ -26,16 +28,12 @@ export interface WaveformSliceData {
     resizedWaveforms: ResizedWaveforms;
 }
 
-export interface WaveformPaintOptions {
-    phosphorColor: string;
-    separatorColor: string;
-    playheadColor: string;
-    gridColor: string;
-    gridRulerColor: string;
-    textColor: string;
-    paintGridLabels: boolean;
-    labelFont: string;
-    fadePathColor: string;
+export interface WaveformDrawOptions {
+    width: number;
+    height: number;
+    verticalZoom: number;
+    verticalOffset: number;
+    gridLabels: boolean;
     fadeInExp: number;
     fadeInTo: number;
     fadeOutExp: number;
@@ -43,43 +41,58 @@ export interface WaveformPaintOptions {
     fade: number;
 }
 
-class Waveform {
-    static async fromAudioData(audioData: Float32Array[], sampleRate: number) {
-        const waveform = new Waveform(audioData, sampleRate);
-        const resized = await waveform._worker.generateResized(audioData);
-        waveform._dataSlices = [resized];
+class Waveform implements AudioToolkitModule<{}> {
+    static MODULE_ID = "waveform";
+    static MODULE_NAME = "Waveform";
+    static DEFAULT_STATE = {};
+    static async fromAudioData(timeDomainData: Float32Array[], _frequencyDomainData: FrequencyDomainChannelData[], sampleRate: number, _configuration: AudioEditorConfiguration, _initialState: Partial<{}>, sharableData: WaveformSliceData[]) {
+        const waveform = new Waveform(timeDomainData, sampleRate);
+        if (sharableData) {
+            waveform._dataSlices = sharableData;
+        } else {
+            const resized = await waveform._worker.generateResized(timeDomainData);
+            waveform._dataSlices = [resized];
+        }
         return waveform;
     }
-
+    public moduleId = Waveform.MODULE_ID;
+    public Component = WaveformComponent;
     private _worker = new WaveformWorker();
     private _dataSlices: WaveformSliceData[] = [];
     get length() {
-        return this.audioData[0].length;
+        return this.timeDomainData[0].length;
     }
     get numberOfChannels() {
-        return this.audioData.length;
+        return this.timeDomainData.length;
     }
     private constructor(
-        public audioData: Float32Array[],
+        public timeDomainData: Float32Array[],
         public sampleRate: number
     ) {}
 
+    getState() {
+        return {};
+    }
+    setState(newState: any) {
+    }
+    getSharableData() {
+        return this._dataSlices;
+    }
     getBestResizes(targetSamplesPerPixel: number) {
         return this._dataSlices.map((waveformSliceData) => {
             return waveformSliceData.resizedWaveforms.resizes.findLastIndex(({ samplesPerPixel }) => samplesPerPixel < targetSamplesPerPixel);
         });
     }
-
     async paintVerticalRuler(
         ctx: CanvasRenderingContext2D,
-        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 }: Partial<DrawOptions>,
-        { viewRange, audioUnit, beatsPerMeasure, beatsPerMinute, division }: Pick<AudioEditorState & AudioEditorConfiguration, "viewRange" | "audioUnit" | "beatsPerMeasure" | "beatsPerMinute" | "division">,
-        { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", paintGridLabels = true, labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<WaveformPaintOptions, "gridColor" | "gridRulerColor" | "textColor" | "paintGridLabels" | "labelFont">> = {}
+        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, gridLabels = true }: Partial<WaveformDrawOptions>,
+        { viewRange, configuration: { audioUnit, beatsPerMeasure, beatsPerMinute, division } }: Pick<VisualizationOptions<this>, "viewRange" | "configuration">,
+        { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<VisualizationStyleOptions, "gridColor" | "gridRulerColor" | "textColor" | "labelFont">> = {}
     ) {
         const { sampleRate } = this;
         const { ruler } = getRuler(viewRange, audioUnit, { sampleRate, beatsPerMeasure, beatsPerMinute, division });
         ctx.clearRect(0, 0, width, height);
-        const top = paintGridLabels ? 40 : 0;
+        const top = gridLabels ? 40 : 0;
         const [$drawFrom, $drawTo] = viewRange;
         const pixelsPerSample = width / ($drawTo - $drawFrom);
         ctx.strokeStyle = gridColor;
@@ -92,7 +105,7 @@ class Waveform {
             ctx.lineTo(x, height);
         }
         ctx.stroke();
-        if (!paintGridLabels) return;
+        if (!gridLabels) return;
         ctx.strokeStyle = gridRulerColor;
         ctx.fillStyle = textColor;
         ctx.font = `12px ${labelFont}`;
@@ -114,15 +127,15 @@ class Waveform {
     }
     async paintHorizontalRuler(
         ctx: CanvasRenderingContext2D,
-        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 }: Partial<DrawOptions>,
+        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 , gridLabels = true}: Partial<WaveformDrawOptions>,
         _stateAndConfigurations: any,
-        { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", paintGridLabels = true, labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<WaveformPaintOptions, "gridColor" | "gridRulerColor" | "textColor" | "paintGridLabels" | "labelFont">> = {}
+        { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<VisualizationStyleOptions, "gridColor" | "gridRulerColor" | "textColor" | "labelFont">> = {}
     ) {
         const { numberOfChannels } = this;
         const channelHeight = height / numberOfChannels;
 
         ctx.clearRect(0, 0, width, height);
-        const right = paintGridLabels ? 80 : 0;
+        const right = gridLabels ? 80 : 0;
         const range = channelHeight > 100 ? [-3, -6, -12, -18] : [-3, -12];
         ctx.strokeStyle = gridColor;
         ctx.beginPath();
@@ -145,7 +158,7 @@ class Waveform {
             }
         }
         ctx.stroke();
-        if (!paintGridLabels) return;
+        if (!gridLabels) return;
         ctx.strokeStyle = gridRulerColor;
         ctx.fillStyle = textColor;
         ctx.font = `12px ${labelFont}`;
@@ -180,13 +193,13 @@ class Waveform {
     }
     async paint(
         ctx: CanvasRenderingContext2D,
-        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 }: Partial<DrawOptions>,
-        { viewRange }: Pick<AudioEditorState, "viewRange">,
-        { phosphorColor = "rgb(67, 217, 150)", separatorColor = "grey", playheadColor = "rgba(191, 0, 0)", fadePathColor = "yellow", fadeInExp = 1, fadeInTo, fadeOutExp = 1, fadeOutFrom, fade = 0 }: Partial<Pick<WaveformPaintOptions, "phosphorColor" | "separatorColor" | "playheadColor" | "fadePathColor" | "fadeInTo" | "fadeInExp" | "fadeOutFrom" | "fadeOutExp" | "fade">> = {}
+        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, fadeInExp = 1, fadeInTo, fadeOutExp = 1, fadeOutFrom, fade = 0 }: Partial<WaveformDrawOptions>,
+        { viewRange }: Pick<VisualizationOptions<this>, "viewRange">,
+        { phosphorColor = "rgb(67, 217, 150)", separatorColor = "grey", playheadColor = "rgba(191, 0, 0)", fadePathColor = "yellow" }: Partial<Pick<VisualizationStyleOptions, "phosphorColor" | "separatorColor" | "playheadColor" | "fadePathColor">> = {}
     ) {
         ctx.clearRect(0, 0, width, height);
         
-        const { audioData, _dataSlices, numberOfChannels } = this;
+        const { timeDomainData: audioData, _dataSlices, numberOfChannels } = this;
         const yMin = -verticalZoom;
         const yMax = verticalZoom;
         // Grids

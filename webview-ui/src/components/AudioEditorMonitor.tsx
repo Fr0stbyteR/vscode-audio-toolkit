@@ -5,10 +5,10 @@ import { VSCodeDataGrid, VSCodeDataGridCell, VSCodeDataGridRow } from "@vscode/w
 import { DataGridRowTypes } from "@vscode/webview-ui-toolkit";
 import TimeInput from "./TimeInput";
 import { AudioEditorConfiguration, AudioEditorState } from "../core/AudioEditor";
-import { WaveformPaintOptions } from "../core/Waveform";
 import { atodb, setCanvasToFullSize } from "../utils";
+import { VisualizationStyleOptions } from "../core/AudioToolkitModule";
 
-interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRange">, Pick<WaveformPaintOptions, "gridRulerColor" | "gridColor" | "textColor"> {
+interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRange">, Pick<VisualizationStyleOptions, "gridRulerColor" | "gridColor" | "textColor"> {
     monospaceFont: string;
     configuration: AudioEditorConfiguration;
     windowSize: number[];

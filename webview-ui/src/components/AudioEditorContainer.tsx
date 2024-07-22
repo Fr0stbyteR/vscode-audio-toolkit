@@ -5,6 +5,7 @@ import AudioEditorMain from "./AudioEditorMain";
 import AudioEditorControls from "./AudioEditorControls";
 import AudioEditorMonitor from "./AudioEditorMonitor";
 import { AudioEditorContext } from "./contexts";
+import { ModulesState } from "../core/AudioToolkitModule";
 
 interface Props {
 }
@@ -18,7 +19,9 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
     const [loop, setLoop] = useState(audioEditor.state.loop);
     const [enabledChannels, setEnabledChannels] = useState(audioEditor.state.enabledChannels);
     const [configuration, setConfiguration] = useState(audioEditor.configuration);
+    const [configuring, setConfiguring] = useState(false);
     const [windowSize, setWindowSize] = useState([window.innerWidth, window.innerHeight]);
+    const [visualizersState, setVisualizersState] = useState<ModulesState>(audioEditor.modulesState);
     const phosphorColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-menu-selectionBackground");
     const playheadColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-minimap-findMatchHighlight");
     const gridColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-menu-separatorBackground");
@@ -35,13 +38,16 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
         phosphorColor,
         playheadColor,
         configuration,
+        configuring,
         gridColor,
         gridRulerColor,
         labelFont: monospaceFont,
         separatorColor: gridColor,
+        fadePathColor: "yellow",
         monospaceFont,
         textColor,
-        windowSize
+        windowSize,
+        visualizersState
     };
     const handleWindowUiResized = useCallback(() => {
         audioEditor.emit("uiResized");
@@ -58,6 +64,7 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
         audioEditor.on("enabledChannels", setEnabledChannels);
         audioEditor.on("configuration", setConfiguration);
         audioEditor.on("uiResized", handleUiResized);
+        audioEditor.on("modulesState", setVisualizersState);
         window.addEventListener("resize", handleWindowUiResized);
         return () => {
             audioEditor.off("playhead", setPlayhead);
@@ -68,13 +75,14 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
             audioEditor.off("enabledChannels", setEnabledChannels);
             audioEditor.off("configuration", setConfiguration);
             audioEditor.off("uiResized", handleUiResized);
+            audioEditor.off("modulesState", setVisualizersState);
             window.removeEventListener("resize", handleWindowUiResized);
         };
     }, [audioEditor, handleUiResized, handleWindowUiResized]);
     return (
         <div className="audio-editor-container">
             <div className="audio-editor-left-container">
-                <AudioEditorMap {...componentProps} />
+                <AudioEditorMap {...componentProps} {...{ setConfiguring }} />
                 <AudioEditorMain {...componentProps} />
                 <AudioEditorControls {...componentProps} />
                 <AudioEditorMonitor {...componentProps} />
