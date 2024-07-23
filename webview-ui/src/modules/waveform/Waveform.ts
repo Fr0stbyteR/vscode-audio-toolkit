@@ -1,4 +1,4 @@
-import { AudioToolkitModule, FrequencyDomainChannelData, VisualizationOptions, VisualizationStyleOptions } from "../../core/AudioToolkitModule";
+import { AudioToolkitModule, AudioToolkitModuleState, FrequencyDomainChannelData, VisualizationOptions, VisualizationStyleOptions } from "../../core/AudioToolkitModule";
 import WaveformComponent from "./WaveformComponent";
 import WaveformWorker from "../../workers/WaveformWorker";
 import { dbtoa, getRuler } from "../../utils";
@@ -41,14 +41,18 @@ export interface WaveformDrawOptions {
     fade: number;
 }
 
-class Waveform implements AudioToolkitModule<{}> {
+export interface WaveformState extends AudioToolkitModuleState {
+    name: string;
+}
+
+class Waveform implements AudioToolkitModule<WaveformState> {
     static MODULE_ID = "waveform";
     static MODULE_NAME = "Waveform";
     static DEFAULT_STATE = {};
-    static async fromAudioData(timeDomainData: Float32Array[], _frequencyDomainData: FrequencyDomainChannelData[], sampleRate: number, _configuration: AudioEditorConfiguration, _initialState: Partial<{}>, sharableData: WaveformSliceData[]) {
-        const waveform = new Waveform(timeDomainData, sampleRate);
-        if (sharableData) {
-            waveform._dataSlices = sharableData;
+    static async fromAudioData(timeDomainData: Float32Array[], _frequencyDomainData: FrequencyDomainChannelData[], sampleRate: number, _configuration: AudioEditorConfiguration, { name = "" }: Partial<WaveformState> = {}, sharableData?: { dataSlices: WaveformSliceData[] }) {
+        const waveform = new Waveform(timeDomainData, sampleRate, { name });
+        if (sharableData?.dataSlices) {
+            waveform._dataSlices = sharableData.dataSlices;
         } else {
             const resized = await waveform._worker.generateResized(timeDomainData);
             waveform._dataSlices = [resized];
@@ -57,6 +61,8 @@ class Waveform implements AudioToolkitModule<{}> {
     }
     public moduleId = Waveform.MODULE_ID;
     public Component = WaveformComponent;
+    public state: WaveformState;
+    public onStateChange: ((newState: WaveformState) => any) | undefined;
     private _worker = new WaveformWorker();
     private _dataSlices: WaveformSliceData[] = [];
     get length() {
@@ -67,16 +73,21 @@ class Waveform implements AudioToolkitModule<{}> {
     }
     private constructor(
         public timeDomainData: Float32Array[],
-        public sampleRate: number
-    ) {}
+        public sampleRate: number,
+        initialState: WaveformState
+    ) {
+        this.state = initialState;
+    }
 
     getState() {
-        return {};
+        return this.state;
     }
-    setState(newState: any) {
+    setState(newState: WaveformState) {
+        this.state = newState;
+        this.onStateChange?.(newState);
     }
     getSharableData() {
-        return this._dataSlices;
+        return { dataSlices: this._dataSlices };
     }
     getBestResizes(targetSamplesPerPixel: number) {
         return this._dataSlices.map((waveformSliceData) => {

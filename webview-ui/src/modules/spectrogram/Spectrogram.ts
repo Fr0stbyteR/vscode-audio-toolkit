@@ -1,4 +1,4 @@
-import { AudioToolkitModule, FrequencyDomainChannelData, VisualizationOptions, VisualizationStyleOptions } from "../../core/AudioToolkitModule";
+import { AudioToolkitModule, AudioToolkitModuleState, FrequencyDomainChannelData, VisualizationOptions, VisualizationStyleOptions } from "../../core/AudioToolkitModule";
 import SpectrogramComponent from "./SpectrogramComponent";
 import SpectrogramWorker from "../../workers/SpectrogramWorker";
 import { dbtoa, getRuler, hslToRgb } from "../../utils";
@@ -49,7 +49,8 @@ export interface SpectrogramSliceData {
     resizedSpectrograms: ResizedSpectrograms;
 }
 
-export interface SpectrogramState {
+export interface SpectrogramState extends AudioToolkitModuleState {
+    name: string;
     fftDrawThreshold: number;
 }
 
@@ -72,9 +73,9 @@ class Spectrogram implements AudioToolkitModule<SpectrogramState> {
     static DEFAULT_STATE = {};
     static MAX_BITMAP_SIZE = 1024 * 1024;
     static DB_DRAW_THRESHOLD = -100;
-    static async fromAudioData(timeDomainData: Float32Array[], frequencyDomainData: FrequencyDomainChannelData[], sampleRate: number, configuration: AudioEditorConfiguration, { fftDrawThreshold = this.DB_DRAW_THRESHOLD }: Partial<SpectrogramState> = {}, sharableData?: { fftDrawThreshold: number, dataSlices: SpectrogramSliceData[] }) {
-        const spectrogram = new Spectrogram(timeDomainData, frequencyDomainData, sampleRate, { fftDrawThreshold });
-        if (sharableData) {
+    static async fromAudioData(timeDomainData: Float32Array[], frequencyDomainData: FrequencyDomainChannelData[], sampleRate: number, configuration: AudioEditorConfiguration, { fftDrawThreshold = this.DB_DRAW_THRESHOLD, name = "" }: Partial<SpectrogramState> = {}, sharableData?: { fftDrawThreshold: number, dataSlices: SpectrogramSliceData[] }) {
+        const spectrogram = new Spectrogram(timeDomainData, frequencyDomainData, sampleRate, { name, fftDrawThreshold });
+        if (sharableData?.dataSlices) {
             spectrogram._dataSlices = sharableData.dataSlices;
             if (fftDrawThreshold !== sharableData.fftDrawThreshold) spectrogram._dataSlices.forEach(ds => ds.resizedSpectrograms.resizes.forEach(rs => rs.imageBitmaps = []));
         } else {
@@ -84,9 +85,9 @@ class Spectrogram implements AudioToolkitModule<SpectrogramState> {
         return spectrogram;
     }
     public moduleId = Spectrogram.MODULE_ID;
-    public onStateChange: ((newState: SpectrogramState) => any) | undefined;
     public Component = SpectrogramComponent;
     public state: SpectrogramState;
+    public onStateChange: ((newState: SpectrogramState) => any) | undefined;
     private _worker = new SpectrogramWorker();
     private _dataSlices: SpectrogramSliceData[] = [];
     get length() {

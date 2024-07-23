@@ -4,7 +4,7 @@ import Waveform from "../modules/waveform/Waveform";
 import AudioPlayer from "./AudioPlayer";
 import { dbtoa } from "../utils";
 import { AudioEditorConfiguration, AudioUnit } from "../../../src/web/proxies/VSCodeAudioEditor.types";
-import { AudioToolkitModule, FrequencyDomainChannelData, ModulesState } from "./AudioToolkitModule";
+import { AudioToolkitModule, AudioToolkitModuleState, FrequencyDomainChannelData, ModulesState } from "./AudioToolkitModule";
 import STFTWorker from "../workers/STFTWorker";
 import Spectrogram from "../modules/spectrogram/Spectrogram";
 
@@ -61,9 +61,9 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         division: 16
     };
     static DEFAULT_MODULES_STATE: ModulesState = [
-        { id: "waveform", name: "Map", visible: true, state: undefined },
-        { id: "waveform", name: "Waveform", visible: true, state: undefined },
-        { id: "spectrogram", name: "Spectrogram", visible: true, state: undefined }
+        { moduleId: "waveform", moduleName: "Map", visible: true, state: { name: "" } },
+        { moduleId: "waveform", moduleName: "Waveform", visible: true, state: { name: "" } },
+        { moduleId: "spectrogram", moduleName: "Spectrogram", visible: true, state: { name: "" } }
     ];
     static async fromData(data: ArrayBuffer, context: AudioContext, configuration: Partial<AudioEditorConfiguration> = {}, modulesState = this.DEFAULT_MODULES_STATE) {
         const audioBuffer = await context.decodeAudioData(data);
@@ -143,7 +143,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     }
     async initModules(initialtates: ModulesState) {
         for (let i = 0; i < initialtates.length; i++) {
-            const { id, name, state } = initialtates[i];
+            const { moduleId: id, moduleName: name, state } = initialtates[i];
             await this.addModule(id, state, name);
         }
     }
@@ -154,7 +154,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         this._configuration = { ...this._configuration, ...configuration };
         this.emit("configuration", this._configuration);
     }
-    setModuleState(index: number, state: ModulesState) {
+    setModuleState(index: number, state: AudioToolkitModuleState) {
         this._modulesState[index] = { ...this._modulesState[index], state };
         this._modulesState = [...this._modulesState];
         this.emit("modulesState", this._modulesState);
@@ -164,13 +164,13 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         this._modulesState = [...this._modulesState];
         this.emit("modulesState", this._modulesState);
     }
-    async addModule(id: string, initialState: any, name?: string) {
-        const Constructor = this.modulesMap[id];
-        if (!Constructor) throw new Error(`Module ${id} not found.`);
-        const sharableData = this._modulesInstance.find(i => i.moduleId === id)?.getSharableData();
+    async addModule(moduleId: string, initialState: any, moduleName?: string) {
+        const Constructor = this.modulesMap[moduleId];
+        if (!Constructor) throw new Error(`Module ${moduleId} not found.`);
+        const sharableData = this._modulesInstance.find(i => i.moduleId === moduleId)?.getSharableData();
         const instance = await Constructor.fromAudioData(this._timeDomainData, this._frequencyDomainData, this.sampleRate, this.configuration, initialState, sharableData);
         this._modulesInstance = [...this._modulesInstance, instance];
-        this._modulesState = [...this._modulesState, { id, name: name ?? Constructor.MODULE_NAME, visible: true, state: instance.getState() }];
+        this._modulesState = [...this._modulesState, { moduleId, moduleName: moduleName ?? Constructor.MODULE_NAME, visible: true, state: instance.getState() }];
         this.emit("modulesState", this._modulesState);
     }
     removeModule(index: number) {

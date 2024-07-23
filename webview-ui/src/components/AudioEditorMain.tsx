@@ -310,7 +310,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                     </div>
                 </div>
                 <div className="editor-main-divider" />
-                {visualizersState.map(({ name, visible }, i) => {
+                {visualizersState.map(({ moduleName, visible, state: { name } }, i) => {
                     if (i === 0) return undefined;
                     const module = audioEditor.modulesInstance[i];
                     const { Component } = module;
@@ -323,7 +323,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                                 <VSCodeButton className="editor-main-visualizer-container-mover" appearance="icon" title="Move" tabIndex={-1} onMouseDown={(e) => handleMouseDownMoveVisualizer(e, i)}>
                                     <span className="codicon codicon-move"></span>
                                 </VSCodeButton>
-                                <span>{name}</span>
+                                <span>{name ? `${name} - ${moduleName}` : moduleName}</span>
                             </div>
                             {visible ? <div className={`editor-main-visualizer-component${configuring ? " configuring" : ""}`}><Component module={module} moduleIndex={i} {...moduleCommonProps} /></div> : undefined}
                         </div>

@@ -1,8 +1,7 @@
 .audio-editor-container div.editor-main-visualizer-component {
-    & > div.waveform-container {
-        min-height: 100px;
+    & > div.marker-container {
 
-        & > .waveform-background {
+        & > .marker-background {
             display: block;
             position: absolute;
             height: 100%;
@@ -27,7 +26,7 @@
             }
         }
 
-        & > .waveform-vertical-ruler-container {
+        & > .marker-vertical-ruler-container {
             display: block;
             position: absolute;
             height: 100%;
@@ -42,7 +41,7 @@
             }
         }
 
-        & > .waveform-horizontal-ruler-container {
+        & > .marker-horizontal-ruler-container {
             display: block;
             position: absolute;
             height: 100%;
@@ -57,7 +56,7 @@
             }
         }
 
-        & > .waveform-canvas-container {
+        & > .marker-canvas-container {
             display: block;
             position: absolute;
             height: 100%;
@@ -194,7 +193,7 @@
             }    
         }
     }
-    & > div.visualizer-component-configuration > div.waveform-channel-enabler {
+    & > div.visualizer-component-configuration > div.marker-channel-enabler {
         position: absolute;
         display: flex;
         flex-direction: column;

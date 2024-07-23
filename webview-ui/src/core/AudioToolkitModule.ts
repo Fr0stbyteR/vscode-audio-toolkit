@@ -7,7 +7,7 @@ export interface FrequencyDomainChannelData {
     phases: Float32Array[];
 }
 
-export type ModulesState = { id: string, name: string; visible: boolean | number; state: any }[];
+export type ModulesState = { moduleId: string, moduleName: string; visible: boolean | number; state: AudioToolkitModuleState }[];
 
 export interface VisualizationStyleOptions {
     phosphorColor: string;
@@ -29,7 +29,12 @@ export interface VisualizationOptions<T extends AudioToolkitModule> extends Visu
     rerenderTimestamp: number;
 }
 
-export interface AudioToolkitModule<State = any> {
+export interface AudioToolkitModuleState {
+    name: string;
+    [key: string]: any;
+}
+
+export interface AudioToolkitModule<State extends AudioToolkitModuleState = any> {
     Component: React.FunctionComponent<VisualizationOptions<any>>;
     moduleId: string;
     getState(): State;
@@ -42,6 +47,6 @@ export declare const AudioToolkitModule: {
     MODULE_NAME: string;
     DEFAULT_STATE: any;
     prototype: AudioToolkitModule;
-    fromAudioData(timedomainData: Float32Array[], frequencyDomainData: FrequencyDomainChannelData[], sampleRate: number, configuration: AudioEditorConfiguration, initialState?: any, sharableData?: Record<string, any>): Promise<AudioToolkitModule>;
+    fromAudioData(timedomainData: Float32Array[], frequencyDomainData: FrequencyDomainChannelData[], sampleRate: number, configuration: AudioEditorConfiguration, initialState?: any, sharableData?: Record<string, any>): Promise<AudioToolkitModule<any>>;
 };
 

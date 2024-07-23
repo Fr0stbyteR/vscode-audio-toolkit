@@ -1,5 +1,6 @@
 .audio-editor-container div.editor-main-visualizer-component {
     & > div.spectrogram-container {
+        min-height: 100px;
 
         & > .spectrogram-background {
             display: block;
