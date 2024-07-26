@@ -2,7 +2,7 @@ import { AudioToolkitModule, AudioToolkitModuleState, FrequencyDomainChannelData
 import SpectrogramComponent from "./SpectrogramComponent";
 import SpectrogramWorker from "../../workers/SpectrogramWorker";
 import { dbtoa, getRuler, hslToRgb } from "../../utils";
-import { AudioEditorConfiguration, AudioEditorState } from "../../core/AudioEditor";
+import AudioEditor, { AudioEditorConfiguration, AudioEditorState } from "../../core/AudioEditor";
 
 export interface SpectrogramResizeOptions {
     resizeFactor: number;
@@ -73,13 +73,14 @@ class Spectrogram implements AudioToolkitModule<SpectrogramState> {
     static DEFAULT_STATE = {};
     static MAX_BITMAP_SIZE = 1024 * 1024;
     static DB_DRAW_THRESHOLD = -100;
-    static async fromAudioData(timeDomainData: Float32Array[], frequencyDomainData: FrequencyDomainChannelData[], sampleRate: number, configuration: AudioEditorConfiguration, { fftDrawThreshold = this.DB_DRAW_THRESHOLD, name = "" }: Partial<SpectrogramState> = {}, sharableData?: { fftDrawThreshold: number, dataSlices: SpectrogramSliceData[] }) {
-        const spectrogram = new Spectrogram(timeDomainData, frequencyDomainData, sampleRate, { name, fftDrawThreshold });
+    static async fromAudioData(audioEditor: AudioEditor, { fftDrawThreshold = this.DB_DRAW_THRESHOLD, name = "" }: Partial<SpectrogramState> = {}, sharableData?: { fftDrawThreshold: number, dataSlices: SpectrogramSliceData[] }) {
+        const { frequencyDomainData, configuration } = audioEditor;
+        const spectrogram = new Spectrogram(audioEditor, { name, fftDrawThreshold });
         if (sharableData?.dataSlices) {
             spectrogram._dataSlices = sharableData.dataSlices;
             if (fftDrawThreshold !== sharableData.fftDrawThreshold) spectrogram._dataSlices.forEach(ds => ds.resizedSpectrograms.resizes.forEach(rs => rs.imageBitmaps = []));
         } else {
-            const resized = await spectrogram._worker.generateResized(frequencyDomainData, { ...configuration, startIndex: 0, endIndex: spectrogram.length });
+            const resized = await spectrogram._worker.generateResized(frequencyDomainData, { ...configuration, startIndex: 0, endIndex: audioEditor.length });
             spectrogram._dataSlices = [resized];
         }
         return spectrogram;
@@ -90,16 +91,8 @@ class Spectrogram implements AudioToolkitModule<SpectrogramState> {
     public onStateChange: ((newState: SpectrogramState) => any) | undefined;
     private _worker = new SpectrogramWorker();
     private _dataSlices: SpectrogramSliceData[] = [];
-    get length() {
-        return this.timeDomainData[0].length;
-    }
-    get numberOfChannels() {
-        return this.timeDomainData.length;
-    }
     private constructor(
-        public timeDomainData: Float32Array[],
-        public frequencyDomainData: FrequencyDomainChannelData[],
-        public sampleRate: number,
+        public audioEditor: AudioEditor,
         initialState: SpectrogramState
     ) {
         this.state = initialState;
@@ -239,7 +232,7 @@ class Spectrogram implements AudioToolkitModule<SpectrogramState> {
         { viewRange }: Pick<AudioEditorState, "viewRange">,
         { phosphorColor = "rgb(67, 217, 150)", separatorColor = "grey", playheadColor = "rgba(191, 0, 0)", fadePathColor = "yellow" }: Partial<Pick<VisualizationStyleOptions, "phosphorColor" | "separatorColor" | "playheadColor" | "fadePathColor">> = {}
     ) {
-        const { numberOfChannels } = this;
+        const { numberOfChannels } = this.audioEditor;
 
         ctx.clearRect(0, 0, width, height);
 
@@ -299,7 +292,7 @@ class Spectrogram implements AudioToolkitModule<SpectrogramState> {
         { viewRange, configuration: { audioUnit, beatsPerMeasure, beatsPerMinute, division } }: Pick<VisualizationOptions<this>, "viewRange" | "configuration">,
         { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<VisualizationStyleOptions, "gridColor" | "gridRulerColor" | "textColor" | "labelFont">> = {}
     ) {
-        const { sampleRate } = this;
+        const { sampleRate } = this.audioEditor;
         const { ruler } = getRuler(viewRange, audioUnit, { sampleRate, beatsPerMeasure, beatsPerMinute, division });
         ctx.clearRect(0, 0, width, height);
         const top = gridLabels ? 40 : 0;
@@ -341,7 +334,7 @@ class Spectrogram implements AudioToolkitModule<SpectrogramState> {
         _stateAndConfigurations: any,
         { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<VisualizationStyleOptions, "gridColor" | "gridRulerColor" | "textColor" | "labelFont">> = {}
     ) {
-        const { sampleRate, numberOfChannels } = this;
+        const { sampleRate, numberOfChannels } = this.audioEditor;
         const halfSampleRate = sampleRate / 2;
         const channelHeight = height / numberOfChannels;
         let coarse: number | undefined;

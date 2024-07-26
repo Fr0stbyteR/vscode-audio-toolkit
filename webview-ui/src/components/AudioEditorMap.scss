@@ -99,6 +99,9 @@
                 }
             }
         }
+        & > span.editor-map-add-component > vscode-dropdown {
+            width: 0px;
+        }
     }
     
     &.configuring > .editor-map-controls {

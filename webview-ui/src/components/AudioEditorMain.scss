@@ -117,13 +117,27 @@
                 & > * {
                     display: block;
                 }
-                & > span {
-                    margin: 2px auto 10px auto;
-                    font-weight: bold;
-                    writing-mode: vertical-rl;
-                    user-select: none;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
+                & > div.editor-main-visualizer-label-container {
+                    display: block;
+                    position: relative;
+                    flex: 1 1 auto;
+                    width: 100%;
+                    height: 100%;
+
+                    & > span {
+                        display: block;
+                        position: absolute;
+                        line-height: 23px;
+                        height: calc(100% - 12px);
+                        width: 100%;
+                        margin: 2px auto 10px auto;
+                        font-weight: bold;
+                        writing-mode: vertical-rl;
+                        user-select: none;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        text-wrap: nowrap;
+                    }
                 }
 
                 & > .editor-main-visualizer-container-mover {
@@ -150,7 +164,10 @@
                         display: inline-block;
                         margin: auto 0px auto 0px;
                     }
-                    & > span {
+                    & > div.editor-main-visualizer-label-container > span {
+                        height: 100%;
+                        line-height: 24px;
+                        width: calc(100% - 12px);
                         margin: auto 10px auto 2px;
                         vertical-align: middle;
                         writing-mode: unset;

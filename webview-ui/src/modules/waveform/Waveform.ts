@@ -2,7 +2,7 @@ import { AudioToolkitModule, AudioToolkitModuleState, FrequencyDomainChannelData
 import WaveformComponent from "./WaveformComponent";
 import WaveformWorker from "../../workers/WaveformWorker";
 import { dbtoa, getRuler } from "../../utils";
-import { AudioEditorConfiguration } from "../../core/AudioEditor";
+import AudioEditor from "../../core/AudioEditor";
 
 export interface WaveformResizeOptions {
     resizeFactor: number;
@@ -49,8 +49,9 @@ class Waveform implements AudioToolkitModule<WaveformState> {
     static MODULE_ID = "waveform";
     static MODULE_NAME = "Waveform";
     static DEFAULT_STATE = {};
-    static async fromAudioData(timeDomainData: Float32Array[], _frequencyDomainData: FrequencyDomainChannelData[], sampleRate: number, _configuration: AudioEditorConfiguration, { name = "" }: Partial<WaveformState> = {}, sharableData?: { dataSlices: WaveformSliceData[] }) {
-        const waveform = new Waveform(timeDomainData, sampleRate, { name });
+    static async fromAudioData(audioEditor: AudioEditor, { name = "" }: Partial<WaveformState> = {}, sharableData?: { dataSlices: WaveformSliceData[] }) {
+        const { timeDomainData } = audioEditor;
+        const waveform = new Waveform(audioEditor, { name });
         if (sharableData?.dataSlices) {
             waveform._dataSlices = sharableData.dataSlices;
         } else {
@@ -65,15 +66,8 @@ class Waveform implements AudioToolkitModule<WaveformState> {
     public onStateChange: ((newState: WaveformState) => any) | undefined;
     private _worker = new WaveformWorker();
     private _dataSlices: WaveformSliceData[] = [];
-    get length() {
-        return this.timeDomainData[0].length;
-    }
-    get numberOfChannels() {
-        return this.timeDomainData.length;
-    }
     private constructor(
-        public timeDomainData: Float32Array[],
-        public sampleRate: number,
+        public audioEditor: AudioEditor,
         initialState: WaveformState
     ) {
         this.state = initialState;
@@ -100,7 +94,7 @@ class Waveform implements AudioToolkitModule<WaveformState> {
         { viewRange, configuration: { audioUnit, beatsPerMeasure, beatsPerMinute, division } }: Pick<VisualizationOptions<this>, "viewRange" | "configuration">,
         { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<VisualizationStyleOptions, "gridColor" | "gridRulerColor" | "textColor" | "labelFont">> = {}
     ) {
-        const { sampleRate } = this;
+        const { sampleRate } = this.audioEditor;
         const { ruler } = getRuler(viewRange, audioUnit, { sampleRate, beatsPerMeasure, beatsPerMinute, division });
         ctx.clearRect(0, 0, width, height);
         const top = gridLabels ? 40 : 0;
@@ -142,7 +136,7 @@ class Waveform implements AudioToolkitModule<WaveformState> {
         _stateAndConfigurations: any,
         { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<VisualizationStyleOptions, "gridColor" | "gridRulerColor" | "textColor" | "labelFont">> = {}
     ) {
-        const { numberOfChannels } = this;
+        const { numberOfChannels } = this.audioEditor;
         const channelHeight = height / numberOfChannels;
 
         ctx.clearRect(0, 0, width, height);
@@ -210,7 +204,8 @@ class Waveform implements AudioToolkitModule<WaveformState> {
     ) {
         ctx.clearRect(0, 0, width, height);
         
-        const { timeDomainData: audioData, _dataSlices, numberOfChannels } = this;
+        const { _dataSlices } = this;
+        const { timeDomainData, numberOfChannels } = this.audioEditor;
         const yMin = -verticalZoom;
         const yMax = verticalZoom;
         // Grids
@@ -313,14 +308,14 @@ class Waveform implements AudioToolkitModule<WaveformState> {
                         if (j === $1) $$ -= offsetEnd;
                     }
                 } else {
-                    prev = audioData[channel][$$ - 1] || 0;
+                    prev = timeDomainData[channel][$$ - 1] || 0;
                     prevX = ($$ - 0.5 - $drawFrom) * pixelsPerSample;
                     prevY = calcY(prev, channel);
                     ctx.moveTo(x, prevY);
                     while ($$ < endIndex && $$ < $drawTo) {
                         x = ($$ + 0.5 - $drawFrom) * pixelsPerSample;
                         $next = Math.min($$ + Math.max(1, Math.round(1 / pixelsPerSample)), $drawTo, endIndex);
-                        subarray = audioData[channel].subarray($$, $next) as any;
+                        subarray = timeDomainData[channel].subarray($$, $next) as any;
                         minInStep = Math.min.apply(Math, subarray);
                         maxInStep = Math.max.apply(Math, subarray);
                         /*
@@ -349,7 +344,7 @@ class Waveform implements AudioToolkitModule<WaveformState> {
                         if (pixelsPerSample > 10) ctx.fillRect(x - 2, y - 2, 4, 4);
                         $$ = $next;
                     }
-                    next = audioData[channel][$$] || 0;
+                    next = timeDomainData[channel][$$] || 0;
                     nextX = ($$ + 0.5 - $drawFrom) * pixelsPerSample;
                     nextY = calcY(next, channel);
                     ctx.lineTo(nextX, nextY);

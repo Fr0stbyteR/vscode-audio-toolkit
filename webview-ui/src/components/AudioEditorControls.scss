@@ -17,7 +17,6 @@
     & > span.editor-main-player-controls-container {
         flex: 1 1 auto;
         margin-left: 80px;
-        margin-right: 320px;
         position: relative;
         white-space: nowrap;
         display: flex;
@@ -88,6 +87,16 @@
                     }
                 }
             }
+        }
+    }
+
+    & > span.editor-add-component {
+        flex: 0 0 320px;
+        position: relative;
+        display: flex;
+
+        & > vscode-dropdown {
+            margin-left: auto;
         }
     }
 }

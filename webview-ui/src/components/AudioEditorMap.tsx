@@ -1,5 +1,5 @@
 import "./AudioEditorMap.scss";
-import { FunctionComponent, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { FunctionComponent, useCallback, useContext, useEffect, useRef } from "react";
 import { AudioEditorContext } from "./contexts";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { AudioEditorState } from "../core/AudioEditor";
@@ -128,9 +128,6 @@ const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRang
         audioEditor.zoomH(ref, e.deltaY < 0 ? 1 : -1);
     }, [audioEditor]);
     const handleClickSelectAll = useCallback(() => audioEditor.setViewRangeToAll(), [audioEditor]);
-    const handleClickAdd = useCallback(() => {
-
-    }, []);
     const { length } = audioEditor;
     const [viewStart, viewEnd] = viewRange;
     const viewLeft = `${viewStart / length * 100}%`;
@@ -152,19 +149,14 @@ const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRang
                 </div>
             </div>
             <div className="editor-map-controls">
-                <span className="editor-map-select-all" >
-                    <VSCodeButton aria-label="View All" title="View All" appearance="icon" onClick={handleClickSelectAll}>
+                <span className="editor-map-select-all">
+                    <VSCodeButton tabIndex={-1} aria-label="View All" title="View All" appearance="icon" onClick={handleClickSelectAll}>
                         <span className="codicon codicon-symbol-array"></span>
                     </VSCodeButton>
                 </span>
-                <span className="editor-map-toggle-configuration" >
-                    <VSCodeButton aria-label="Toggle Configuration" className={configuring ? "active" : ""} title="Toggle Configuration" appearance="icon" onClick={() => setConfiguring(v => !v)}>
+                <span className="editor-map-toggle-configuration">
+                    <VSCodeButton tabIndex={-1} aria-label="Toggle Configuration" className={configuring ? "active" : ""} title="Toggle Configuration" appearance="icon" onClick={() => setConfiguring(v => !v)}>
                         <span className="codicon codicon-symbol-property"></span>
-                    </VSCodeButton>
-                </span>
-                <span className="editor-map-add-component" >
-                    <VSCodeButton aria-label="Add Module" title="Add Module" appearance="icon" onClick={handleClickAdd}>
-                        <span className="codicon codicon-add"></span>
                     </VSCodeButton>
                 </span>
             </div>

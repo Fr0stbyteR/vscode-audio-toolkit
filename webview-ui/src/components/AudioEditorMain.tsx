@@ -248,6 +248,9 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
     }, [audioEditor]);
+    const handleClickRemoveVisualizer = useCallback((visualizerIndex: number) => {
+        audioEditor.removeModule(visualizerIndex);
+    }, [audioEditor]);
     const paintVerticalRuler = useCallback(() => {
         const canvas = canvasVerticalRulerRef.current;
         const ctx = canvas?.getContext("2d");
@@ -279,6 +282,9 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
         }
         ctx.stroke();
     }, [audioEditor, audioUnit, beatsPerMeasure, beatsPerMinute, division, gridRulerColor, labelFont, textColor, viewRange]);
+    const handleStopPropagation = (e: React.KeyboardEvent) => {
+        e.stopPropagation();
+    };
     useEffect(() => setRerenderTimestamp(performance.now()), [windowSize, visualizersState]);
     // useEffect(() => void vscode.setState(visualizersState), [visualizersState]);
     useEffect(paintVerticalRuler, [paintVerticalRuler, configuring]);
@@ -310,8 +316,9 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                     </div>
                 </div>
                 <div className="editor-main-divider" />
-                {visualizersState.map(({ moduleName, visible, state: { name } }, i) => {
+                {visualizersState.map(({ moduleName, visible, state }, i) => {
                     if (i === 0) return undefined;
+                    const { name } = state;
                     const module = audioEditor.modulesInstance[i];
                     const { Component } = module;
                     return (<>
@@ -323,9 +330,14 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                                 <VSCodeButton className="editor-main-visualizer-container-mover" appearance="icon" title="Move" tabIndex={-1} onMouseDown={(e) => handleMouseDownMoveVisualizer(e, i)}>
                                     <span className="codicon codicon-move"></span>
                                 </VSCodeButton>
-                                <span>{name ? `${name} - ${moduleName}` : moduleName}</span>
+                                <div className="editor-main-visualizer-label-container">
+                                    <span>{name ? `${name} - ${moduleName}` : moduleName}</span>
+                                </div>
+                                <VSCodeButton className="editor-main-visualizer-delete" appearance="icon" title="Delete" tabIndex={-1} onMouseDown={(e) => handleClickRemoveVisualizer(i)}>
+                                    <span className="codicon codicon-trash"></span>
+                                </VSCodeButton>
                             </div>
-                            {visible ? <div className={`editor-main-visualizer-component${configuring ? " configuring" : ""}`}><Component module={module} moduleIndex={i} {...moduleCommonProps} /></div> : undefined}
+                            {visible ? <div className={`editor-main-visualizer-component${configuring ? " configuring" : ""}`} onKeyDown={handleStopPropagation} onKeyUp={handleStopPropagation}><Component module={module} moduleIndex={i} moduleState={state} {...moduleCommonProps} /></div> : undefined}
                         </div>
                         <div className={`editor-main-divider${visible ? " draggable" : ""}`} onMouseDown={visible ? (e) => handleDividerMouseDown(e, i) : undefined} />
                     </>);

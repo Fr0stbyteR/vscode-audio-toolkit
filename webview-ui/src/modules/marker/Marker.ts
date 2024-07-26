@@ -1,17 +1,11 @@
 import { AudioToolkitModule, AudioToolkitModuleState, FrequencyDomainChannelData, VisualizationOptions, VisualizationStyleOptions } from "../../core/AudioToolkitModule";
 import MarkerComponent from "./MarkerComponent";
-import { dbtoa, getRuler } from "../../utils";
-import { AudioEditorConfiguration } from "../../core/AudioEditor";
+import { getRuler } from "../../utils";
+import AudioEditor, { AudioEditorConfiguration } from "../../core/AudioEditor";
 
 export interface AudioMarker {
     position: number | [number, number];
     name: string;
-}
-
-export interface MarkerSliceData {
-    startIndex: number;
-    endIndex: number;
-    markers: AudioMarker[];
 }
 
 export interface MarkerDrawOptions {
@@ -22,30 +16,24 @@ export interface MarkerDrawOptions {
 
 export interface MarkerState extends AudioToolkitModuleState {
     name: string;
-    data: MarkerSliceData[];
+    color: string;
+    data: AudioMarker[];
 }
 
 class Marker implements AudioToolkitModule<MarkerState> {
     static MODULE_ID = "marker";
     static MODULE_NAME = "Marker";
     static DEFAULT_STATE = {};
-    static async fromAudioData(timeDomainData: Float32Array[], _frequencyDomainData: FrequencyDomainChannelData[], sampleRate: number, _configuration: AudioEditorConfiguration, { name = "", data = [] }: Partial<MarkerState> = {}, sharableData?: undefined) {
-        const marker = new Marker(timeDomainData, sampleRate, { name, data });
+    static async fromAudioData(audioEditor: AudioEditor, { name = "", data = [], color = "#ff0000" }: Partial<MarkerState> = {}, sharableData?: undefined) {
+        const marker = new Marker(audioEditor, { name, data, color });
         return marker;
     }
     public moduleId = Marker.MODULE_ID;
     public Component = MarkerComponent;
     public state: MarkerState;
     public onStateChange: ((newState: MarkerState) => any) | undefined;
-    get length() {
-        return this.timeDomainData[0].length;
-    }
-    get numberOfChannels() {
-        return this.timeDomainData.length;
-    }
     private constructor(
-        public timeDomainData: Float32Array[],
-        public sampleRate: number,
+        public audioEditor: AudioEditor,
         initialState: MarkerState
     ) {
         this.state = initialState;
@@ -58,6 +46,37 @@ class Marker implements AudioToolkitModule<MarkerState> {
         this.state = newState;
         this.onStateChange?.(newState);
     }
+    setMarkerPosition(markerIndex: number, position: number | [number, number]) {
+        if (typeof position !== "number") {
+            let [start, end] = position;
+            end = Math.min(this.audioEditor.length, end);
+            start = Math.max(0, start);
+            if (start > end) position = [end, start];
+            else position = [start, end];
+        } else {
+            position = Math.max(0, Math.min(this.audioEditor.length, position));
+        }
+        this.state.data[markerIndex] = { ...this.state.data[markerIndex], position };
+        this.setState({ ...this.state, data: this.state.data.slice() });
+    }
+    addMarker(position: number | [number, number], name = "") {
+        this.state.data.push({ position, name });
+        this.setState({ ...this.state, data: this.state.data.slice() });
+    }
+    deleteMarker(markerIndex: number) {
+        this.state.data.splice(markerIndex, 1);
+        this.setState({ ...this.state, data: this.state.data.slice() });
+    }
+    setMarkerName(markerIndex: number, name: string) {
+        this.state.data[markerIndex] = { ...this.state.data[markerIndex], name };
+        this.setState({ ...this.state, data: this.state.data.slice() });
+    }
+    setMarkerClassName(name: string) {
+        this.setState({ ...this.state, name });
+    }
+    setMarkerColor(color: string) {
+        this.setState({ ...this.state, color });
+    }
     getSharableData() {
         return;
     }
@@ -67,7 +86,7 @@ class Marker implements AudioToolkitModule<MarkerState> {
         { viewRange, configuration: { audioUnit, beatsPerMeasure, beatsPerMinute, division } }: Pick<VisualizationOptions<this>, "viewRange" | "configuration">,
         { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<VisualizationStyleOptions, "gridColor" | "gridRulerColor" | "textColor" | "labelFont">> = {}
     ) {
-        const { sampleRate } = this;
+        const { sampleRate } = this.audioEditor;
         const { ruler } = getRuler(viewRange, audioUnit, { sampleRate, beatsPerMeasure, beatsPerMinute, division });
         ctx.clearRect(0, 0, width, height);
         const top = gridLabels ? 40 : 0;

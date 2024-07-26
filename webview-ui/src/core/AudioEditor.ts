@@ -7,6 +7,7 @@ import { AudioEditorConfiguration, AudioUnit } from "../../../src/web/proxies/VS
 import { AudioToolkitModule, AudioToolkitModuleState, FrequencyDomainChannelData, ModulesState } from "./AudioToolkitModule";
 import STFTWorker from "../workers/STFTWorker";
 import Spectrogram from "../modules/spectrogram/Spectrogram";
+import Marker from "../modules/marker/Marker";
 
 export type {
     AudioEditorConfiguration,
@@ -103,6 +104,12 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     get audioBuffer() {
         return this._audioBuffer;
     }
+    get timeDomainData() {
+        return this._timeDomainData;
+    }
+    get frequencyDomainData() {
+        return this._frequencyDomainData;
+    }
     get context() {
         return this._context;
     }
@@ -123,7 +130,8 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     private _modulesInstance: AudioToolkitModule[] = [];
     public modulesMap: Record<string, typeof AudioToolkitModule> = {
         [Waveform.MODULE_ID]: Waveform,
-        [Spectrogram.MODULE_ID]: Spectrogram
+        [Spectrogram.MODULE_ID]: Spectrogram,
+        [Marker.MODULE_ID]: Marker
     };
     private constructor(
         private _audioBuffer: OperableAudioBuffer,
@@ -164,13 +172,15 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         this._modulesState = [...this._modulesState];
         this.emit("modulesState", this._modulesState);
     }
-    async addModule(moduleId: string, initialState: any, moduleName?: string) {
+    async addModule(moduleId: string, initialState?: any, moduleName?: string) {
         const Constructor = this.modulesMap[moduleId];
         if (!Constructor) throw new Error(`Module ${moduleId} not found.`);
         const sharableData = this._modulesInstance.find(i => i.moduleId === moduleId)?.getSharableData();
-        const instance = await Constructor.fromAudioData(this._timeDomainData, this._frequencyDomainData, this.sampleRate, this.configuration, initialState, sharableData);
+        const instance = await Constructor.fromAudioData(this, initialState, sharableData);
         this._modulesInstance = [...this._modulesInstance, instance];
         this._modulesState = [...this._modulesState, { moduleId, moduleName: moduleName ?? Constructor.MODULE_NAME, visible: true, state: instance.getState() }];
+        const handleStateChange = (newState: any) => this.setModuleState(this._modulesInstance.indexOf(instance), newState);
+        instance.onStateChange = handleStateChange;
         this.emit("modulesState", this._modulesState);
     }
     removeModule(index: number) {
