@@ -1,7 +1,7 @@
 import "./AudioEditorControls.scss";
 import { FunctionComponent, useCallback, useContext, useState } from "react";
 import { AudioEditorContext } from "./contexts";
-import { AudioEditorConfiguration, AudioEditorState } from "../core/AudioEditor";
+import AudioEditor, { AudioEditorConfiguration, AudioEditorState } from "../core/AudioEditor";
 import { VSCodeButton, VSCodeDropdown, VSCodeOption } from "@vscode/webview-ui-toolkit/react";
 import TimeInput from "./TimeInput";
 
@@ -64,7 +64,7 @@ const AudioEditorControls: FunctionComponent<Props> = ({ playhead, playing, loop
                 <VSCodeDropdown className="editor-add-component-dropdown" value="none" onInput={handleAddModuleInput}>
                 <   VSCodeOption value="none">Add a Module</VSCodeOption>
                     {
-                        Object.keys(audioEditor.modulesMap).map(k => <VSCodeOption value={k}>{audioEditor.modulesMap[k].MODULE_NAME}</VSCodeOption>)
+                        Object.keys(AudioEditor.MODULES_MAP).map(k => <VSCodeOption value={k}>{AudioEditor.MODULES_MAP[k].MODULE_NAME}</VSCodeOption>)
                     }
                 </VSCodeDropdown>
             </span>

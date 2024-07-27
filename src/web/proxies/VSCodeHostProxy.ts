@@ -23,7 +23,7 @@ const Proxy = class VSCodeHostProxy {
                 try {
                     r.value = await (this as any)[call](...args);
                 } catch (e) {
-                    r.error = e as Error;
+                    r.error = (e as any).toString();
                 }
                 webviewPanel.webview.postMessage(r);
             } else {

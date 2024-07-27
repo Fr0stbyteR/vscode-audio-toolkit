@@ -1,13 +1,10 @@
 import TypedEventEmitter from "@shren/typed-event-emitter";
 import OperableAudioBuffer from "./OperableAudioBuffer";
-import Waveform from "../modules/waveform/Waveform";
 import AudioPlayer from "./AudioPlayer";
 import { dbtoa } from "../utils";
 import { AudioEditorConfiguration, AudioUnit } from "../../../src/web/proxies/VSCodeAudioEditor.types";
 import { AudioToolkitModule, AudioToolkitModuleState, FrequencyDomainChannelData, ModulesState } from "./AudioToolkitModule";
 import STFTWorker from "../workers/STFTWorker";
-import Spectrogram from "../modules/spectrogram/Spectrogram";
-import Marker from "../modules/marker/Marker";
 
 export type {
     AudioEditorConfiguration,
@@ -61,12 +58,22 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         beatsPerMeasure: 4,
         division: 16
     };
+    static MODULES_MAP: Record<string, typeof AudioToolkitModule> = {};
     static DEFAULT_MODULES_STATE: ModulesState = [
         { moduleId: "waveform", moduleName: "Map", visible: true, state: { name: "" } },
         { moduleId: "waveform", moduleName: "Waveform", visible: true, state: { name: "" } },
         { moduleId: "spectrogram", moduleName: "Spectrogram", visible: true, state: { name: "" } }
     ];
+    static async loadModulesFromJson(jsonUrl: string, baseUrl: string) {
+        const response = await fetch(/* @vite-ignore */new URL(jsonUrl, baseUrl));
+        const json = await response.json();
+        for (const moduleId in json) {
+            const { default: Module } = await import(/* @vite-ignore */new URL(json[moduleId], baseUrl).href) as { default: typeof AudioToolkitModule };
+            this.MODULES_MAP[moduleId] = Module;
+        }
+    }
     static async fromData(data: ArrayBuffer, context: AudioContext, configuration: Partial<AudioEditorConfiguration> = {}, modulesState = this.DEFAULT_MODULES_STATE) {
+        if (!Object.keys(this.MODULES_MAP).length) await this.loadModulesFromJson("./modules.json", import.meta.url);
         const audioBuffer = await context.decodeAudioData(data);
         const operableAudioBuffer: OperableAudioBuffer = Object.setPrototypeOf(audioBuffer, OperableAudioBuffer.prototype);
         const timeDomainData = operableAudioBuffer.toArray(true);
@@ -128,11 +135,6 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     private _player: AudioPlayer | null = null;
     private _modulesState: ModulesState = [];
     private _modulesInstance: AudioToolkitModule[] = [];
-    public modulesMap: Record<string, typeof AudioToolkitModule> = {
-        [Waveform.MODULE_ID]: Waveform,
-        [Spectrogram.MODULE_ID]: Spectrogram,
-        [Marker.MODULE_ID]: Marker
-    };
     private constructor(
         private _audioBuffer: OperableAudioBuffer,
         private _timeDomainData: Float32Array[],
@@ -173,7 +175,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         this.emit("modulesState", this._modulesState);
     }
     async addModule(moduleId: string, initialState?: any, moduleName?: string) {
-        const Constructor = this.modulesMap[moduleId];
+        const Constructor = AudioEditor.MODULES_MAP[moduleId];
         if (!Constructor) throw new Error(`Module ${moduleId} not found.`);
         const sharableData = this._modulesInstance.find(i => i.moduleId === moduleId)?.getSharableData();
         const instance = await Constructor.fromAudioData(this, initialState, sharableData);

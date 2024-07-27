@@ -1,7 +1,7 @@
-import { AudioToolkitModule, AudioToolkitModuleState, FrequencyDomainChannelData, VisualizationOptions, VisualizationStyleOptions } from "../../core/AudioToolkitModule";
+import { AudioToolkitModule, AudioToolkitModuleState, VisualizationOptions, VisualizationStyleOptions } from "../../core/AudioToolkitModule";
 import MarkerComponent from "./MarkerComponent";
 import { getRuler } from "../../utils";
-import AudioEditor, { AudioEditorConfiguration } from "../../core/AudioEditor";
+import AudioEditor from "../../core/AudioEditor";
 
 export interface AudioMarker {
     position: number | [number, number];

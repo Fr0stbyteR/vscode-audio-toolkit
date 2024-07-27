@@ -287,7 +287,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
     };
     useEffect(() => setRerenderTimestamp(performance.now()), [windowSize, visualizersState]);
     // useEffect(() => void vscode.setState(visualizersState), [visualizersState]);
-    useEffect(paintVerticalRuler, [paintVerticalRuler, configuring]);
+    useEffect(paintVerticalRuler, [paintVerticalRuler, rerenderTimestamp]);
     useEffect(() => setRerenderTimestamp(performance.now()), [configuring]);
 
     const [viewStart, viewEnd] = viewRange;

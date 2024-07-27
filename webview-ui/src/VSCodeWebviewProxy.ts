@@ -41,7 +41,7 @@ const Proxy = class VSCodeWebviewProxy {
                 try {
                     r.value = await (this as any)[call](...args);
                 } catch (e) {
-                    r.error = e as Error;
+                    r.error = (e as any).toString();
                 }
                 Ctor.vscodeApi.postMessage(r as any);
             } else {
