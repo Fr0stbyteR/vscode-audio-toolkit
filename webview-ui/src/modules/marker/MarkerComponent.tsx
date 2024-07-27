@@ -98,9 +98,48 @@ const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ modu
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
     }, [audioEditor, selRange]);
-    const handleContainerMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => setSelectedMarker(-1), []);
+    const handleContainerMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setSelectedMarker(-1);
+        const [viewStart, viewEnd] = viewRange;
+        const viewLength = viewEnd - viewStart;
+        const origin = { x: e.clientX, y: e.clientY };
+        const rect = e.currentTarget.getBoundingClientRect();
+        const playhead = viewStart + (e.clientX - rect.left) / rect.width * viewLength;
+        audioEditor.setPlayhead(playhead);
+        audioEditor.setSelRange(null);
+        const handleMouseMove = (e: MouseEvent) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const x = e.clientX;
+            if (x === origin.x) {
+                audioEditor.setSelRange(null);
+            } else {
+                if (x > rect.right) audioEditor.scrollH((x - rect.right) / 1000);
+                else if (x < rect.left) audioEditor.scrollH((x - rect.left) / 1000);
+                const [viewStart, viewEnd] = audioEditor.state.viewRange;
+                const viewLength = viewEnd - viewStart;
+                const to = viewStart + Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * viewLength;
+                audioEditor.setSelRange([playhead, to]);
+            }
+        };
+        const handleMouseUp = (e: MouseEvent) => {
+            e.stopPropagation();
+            e.preventDefault();
+            audioEditor.emitSelRangeToPlay();
+            document.removeEventListener("mousemove", handleMouseMove);
+            document.removeEventListener("mouseup", handleMouseUp);
+        };
+        document.addEventListener("mousemove", handleMouseMove);
+        document.addEventListener("mouseup", handleMouseUp);
+    }, [audioEditor, viewRange]);
     const handleClickDeleteMarker = useCallback((e: React.MouseEvent<HTMLDivElement>) => module.deleteMarker(selectedMarker), [module, selectedMarker]);
-    const handleClickAddMarker = useCallback((e: React.MouseEvent<HTMLDivElement>) => module.addMarker(selRange ?? playhead, markerName), [module, selRange, playhead, markerName]);
+    const handleClickAddMarker = useCallback((e: React.MouseEvent<HTMLElement>) => module.addMarker(selRange ?? playhead, markerName), [module, selRange, playhead, markerName]);
+    const handleAddMarkerMouseDown = useCallback((e: React.MouseEvent<HTMLElement>) => {
+        e.stopPropagation();
+        e.preventDefault();
+    }, []);
     const handleInputMarkerClass: (((e: Event) => unknown) & React.FormEventHandler<HTMLInputElement>) = useCallback((e) => module.setMarkerClassName((e.currentTarget as HTMLInputElement).value), [module]);
     const handleInputMarkerColor: (((e: Event) => unknown) & React.FormEventHandler<HTMLInputElement>) = useCallback((e) => module.setMarkerColor((e.currentTarget as HTMLInputElement).value), [module]);
     const handleInputMarkerName: (((e: Event) => unknown) & React.FormEventHandler<HTMLInputElement>) = useCallback((e) => {
@@ -291,7 +330,7 @@ const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ modu
                                 $playhead > 1 || $playhead < 0
                                 ? null
                                 : <div className="playhead" style={{ left: playheadLeft }}>
-                                    <VSCodeButton tabIndex={-1} aria-label="Add Marker" title="Add Marker" appearance="icon" onClick={handleClickAddMarker}>
+                                    <VSCodeButton tabIndex={-1} aria-label="Add Marker" title="Add Marker" appearance="icon" onClick={handleClickAddMarker} onMouseDown={handleAddMarkerMouseDown}>
                                         <span className="codicon codicon-add"></span>
                                     </VSCodeButton>
                                 </div>

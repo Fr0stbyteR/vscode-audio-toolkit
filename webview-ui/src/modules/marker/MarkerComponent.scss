@@ -215,6 +215,10 @@
                 padding: 0px;
                 border-width: 0px;
             }
+
+            & vscode-text-field {
+                width: 100%;
+            }
         }
 /*
         & .marker-button-delete {
