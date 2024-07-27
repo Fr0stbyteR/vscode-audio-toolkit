@@ -19,8 +19,14 @@ fs.writeFileSync("public/modules.json", JSON.stringify(modulesJson), "utf-8");
 // https://vitejs.dev/config/
 export default defineConfig((configEnv) => ({
     plugins: [react()],
-    base: '',
-    define: { 'process.env': process.env },
+    base: "",
+    define: { "process.env": process.env },
+    resolve: {
+        alias: {
+            fs: "./src/empty.ts",
+            url: "./src/empty.ts"
+        }
+    },
     build: {
         lib,
         outDir: "../dist/web/webview",
