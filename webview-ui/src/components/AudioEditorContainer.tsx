@@ -21,7 +21,7 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
     const [configuration, setConfiguration] = useState(audioEditor.configuration);
     const [configuring, setConfiguring] = useState(false);
     const [windowSize, setWindowSize] = useState([window.innerWidth, window.innerHeight]);
-    const [visualizersState, setVisualizersState] = useState<ModulesState>(audioEditor.modulesState);
+    const [modulesState, setModulesState] = useState<ModulesState>(audioEditor.modulesState);
     const phosphorColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-menu-selectionBackground");
     const playheadColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-minimap-findMatchHighlight");
     const gridColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-menu-separatorBackground");
@@ -47,7 +47,7 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
         monospaceFont,
         textColor,
         windowSize,
-        visualizersState
+        visualizersState: modulesState
     };
     const handleWindowUiResized = useCallback(() => {
         audioEditor.emit("uiResized");
@@ -55,6 +55,7 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
     const handleUiResized = useCallback(() => {
         setWindowSize([window.innerWidth, window.innerHeight]);
     }, []);
+    const handleModulesState = useCallback(({ state }: { state: ModulesState }) => setModulesState(state), []);
     useEffect(() => {
         audioEditor.on("playhead", setPlayhead);
         audioEditor.on("viewRange", setViewRange);
@@ -64,7 +65,7 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
         audioEditor.on("enabledChannels", setEnabledChannels);
         audioEditor.on("configuration", setConfiguration);
         audioEditor.on("uiResized", handleUiResized);
-        audioEditor.on("modulesState", setVisualizersState);
+        audioEditor.on("modulesState", handleModulesState);
         window.addEventListener("resize", handleWindowUiResized);
         return () => {
             audioEditor.off("playhead", setPlayhead);
@@ -75,10 +76,10 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
             audioEditor.off("enabledChannels", setEnabledChannels);
             audioEditor.off("configuration", setConfiguration);
             audioEditor.off("uiResized", handleUiResized);
-            audioEditor.off("modulesState", setVisualizersState);
+            audioEditor.off("modulesState", handleModulesState);
             window.removeEventListener("resize", handleWindowUiResized);
         };
-    }, [audioEditor, handleUiResized, handleWindowUiResized]);
+    }, [audioEditor, handleModulesState, handleUiResized, handleWindowUiResized]);
     return (
         <div className="audio-editor-container">
             <div className="audio-editor-left-container">

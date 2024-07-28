@@ -9,6 +9,11 @@ export interface FrequencyDomainChannelData {
 
 export type ModulesState = { moduleId: string, moduleName: string; visible: boolean | number; state: AudioToolkitModuleState }[];
 
+export interface AudioToolkitModuleState {
+    name: string;
+    [key: string]: any;
+}
+
 export interface VisualizationStyleOptions {
     phosphorColor: string;
     separatorColor: string;
@@ -28,11 +33,6 @@ export interface VisualizationOptions<T extends AudioToolkitModule, S = ReturnTy
     configuration: AudioEditorConfiguration;
     configuring: boolean;
     rerenderTimestamp: number;
-}
-
-export interface AudioToolkitModuleState {
-    name: string;
-    [key: string]: any;
 }
 
 export interface AudioToolkitModule<State extends AudioToolkitModuleState = any> {

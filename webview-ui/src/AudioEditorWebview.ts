@@ -1,15 +1,17 @@
 import { IVSCodeAudioEditorWebview, IVSCodeAudioEditorHost } from "../../src/web/proxies/VSCodeAudioEditor.types";
 import AudioEditor, { AudioEditorConfiguration } from "./core/AudioEditor";
+import { ModulesState } from "./core/AudioToolkitModule";
 import VSCodeWebviewProxy from "./VSCodeWebviewProxy";
 
-class AudioEditorWebview extends VSCodeWebviewProxy<{}, IVSCodeAudioEditorWebview, IVSCodeAudioEditorHost> {
-    static fnNames: (keyof IVSCodeAudioEditorHost)[] = ["ready"];
+class AudioEditorWebview extends VSCodeWebviewProxy<ModulesState, IVSCodeAudioEditorWebview, IVSCodeAudioEditorHost> {
+    static fnNames: (keyof IVSCodeAudioEditorHost)[] = ["ready", "makeEditModulesState", "makeEditModulesState"];
     private audioEditor: AudioEditor | undefined;
     private setAudioEditor: React.Dispatch<React.SetStateAction<AudioEditor | null>> | undefined;
+    private _emitModulesState = true;
     attachReact(setAudioEditor: React.Dispatch<React.SetStateAction<AudioEditor | null>>) {
         this.setAudioEditor = setAudioEditor;
     }
-    async init({ data, uri, editable }: { data?: Uint8Array; uri?: string; editable?: boolean }, configuration: AudioEditorConfiguration) {
+    async init({ data, uri, editable }: { data?: Uint8Array; uri?: string; editable?: boolean }, configuration: AudioEditorConfiguration, modulesState: ModulesState | null = this.getState()) {
         const { setAudioEditor } = this;
         const { fftWindowFunction } = configuration;
         configuration.fftWindowFunction = `${fftWindowFunction.slice(0, 1).toLowerCase()}${fftWindowFunction.slice(1).replaceAll(/[-\s]/g, "")}`;
@@ -22,9 +24,14 @@ class AudioEditorWebview extends VSCodeWebviewProxy<{}, IVSCodeAudioEditorWebvie
         }
         if (!arrayBuffer) throw new Error(`Cannot resolve data from ${uri} or data input`);
         const audioContext = new AudioContext({ latencyHint: 0.0001 });
-        const audioEditor = await AudioEditor.fromData(arrayBuffer, audioContext, configuration);
+        const audioEditor = await AudioEditor.fromData(arrayBuffer, audioContext, configuration, modulesState ?? undefined);
         this.audioEditor = audioEditor;
         setAudioEditor!(audioEditor);
+        audioEditor.on("modulesState", (({ prevState, state }) => {
+            this.setState(state);
+            if (!this._emitModulesState) return;
+            this.makeEditModulesState({ state, prevState });
+        }));
         window.focus();
         const handleKeyDown = async (e: KeyboardEvent) => {
             if (e.key !== "") return;
@@ -45,6 +52,11 @@ class AudioEditorWebview extends VSCodeWebviewProxy<{}, IVSCodeAudioEditorWebvie
             fftOverlap,
             fftWindowFunction: `${fftWindowFunction.slice(0, 1).toLowerCase()}${fftWindowFunction.slice(1).replaceAll(/[-\s]/g, "")}`
         });
+    }
+    async updateModulesStateFromHost(modulesState: ModulesState | null) {
+        this._emitModulesState = false;
+        this.audioEditor?.setModulesState(modulesState || AudioEditor.DEFAULT_MODULES_STATE);
+        this._emitModulesState = true;
     }
     playOrStop() {
         const { audioEditor } = this;

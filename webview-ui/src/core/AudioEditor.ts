@@ -27,7 +27,7 @@ export interface AudioEditorEventMap {
     "setAudio": never;
     "ready": never;
     "configuration": AudioEditorConfiguration;
-    "modulesState": ModulesState;
+    "modulesState": { state: ModulesState; prevState: ModulesState };
 }
 
 export interface AudioEditorState {
@@ -40,12 +40,6 @@ export interface AudioEditorState {
     viewRange: [number, number];
     enabledChannels: boolean[];
     gain: number;
-}
-export interface DrawOptions {
-    width: number;
-    height: number;
-    verticalZoom: number;
-    verticalOffset: number;
 }
 
 class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
@@ -164,42 +158,50 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         this._configuration = { ...this._configuration, ...configuration };
         this.emit("configuration", this._configuration);
     }
+    setModulesState(state: ModulesState) {
+        this.emit("modulesState", { prevState: this._modulesState, state });
+    }
     setModuleState(index: number, state: AudioToolkitModuleState) {
+        const prevState = { ...this._modulesState };
         this._modulesState[index] = { ...this._modulesState[index], state };
         this._modulesState = [...this._modulesState];
-        this.emit("modulesState", this._modulesState);
+        this.emit("modulesState", { prevState, state: this._modulesState });
     }
     setModuleVisible(index: number, visible: boolean | number) {
+        const prevState = { ...this._modulesState };
         this._modulesState[index] = { ...this._modulesState[index], visible };
         this._modulesState = [...this._modulesState];
-        this.emit("modulesState", this._modulesState);
+        this.emit("modulesState", { prevState, state: this._modulesState });
     }
     async addModule(moduleId: string, initialState?: any, moduleName?: string) {
         const Constructor = AudioEditor.MODULES_MAP[moduleId];
         if (!Constructor) throw new Error(`Module ${moduleId} not found.`);
         const sharableData = this._modulesInstance.find(i => i.moduleId === moduleId)?.getSharableData();
         const instance = await Constructor.fromAudioData(this, initialState, sharableData);
+        const prevState = { ...this._modulesState };
         this._modulesInstance = [...this._modulesInstance, instance];
         this._modulesState = [...this._modulesState, { moduleId, moduleName: moduleName ?? Constructor.MODULE_NAME, visible: true, state: instance.getState() }];
         const handleStateChange = (newState: any) => this.setModuleState(this._modulesInstance.indexOf(instance), newState);
         instance.onStateChange = handleStateChange;
-        this.emit("modulesState", this._modulesState);
+        this.emit("modulesState", { prevState, state: this._modulesState });
     }
     removeModule(index: number) {
+        const prevState = { ...this._modulesState };
         this._modulesState.splice(index, 1);
         this._modulesState = this._modulesState.slice();
         this._modulesInstance.splice(index, 1);
         this._modulesInstance = this._modulesInstance.slice();
-        this.emit("modulesState", this._modulesState);
+        this.emit("modulesState", { prevState, state: this._modulesState });
     }
     moveModule(fromIndex: number, toIndex: number) {
+        const prevState = { ...this._modulesState };
         const [ms] = this._modulesState.splice(fromIndex, 1);
         this._modulesState.splice(toIndex, 0, ms);
         this._modulesState = this._modulesState.slice();
         const [mi] = this._modulesInstance.splice(fromIndex, 1);
         this._modulesInstance.splice(toIndex, 0, mi);
         this._modulesInstance = this._modulesInstance.slice();
-        this.emit("modulesState", this._modulesState);
+        this.emit("modulesState", { prevState, state: this._modulesState });
     }
     zoomH(refIn: number, factor: number) { // factor = 1 as zoomIn, -1 as zoomOut
         const { viewRange } = this.state;

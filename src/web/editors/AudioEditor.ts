@@ -1,57 +1,50 @@
 import * as vscode from "vscode";
 import { getNonce, getUri, Disposable, WebviewCollection, disposeAll } from "../utils";
 import VSCodeHostProxy from "../proxies/VSCodeHostProxy";
-import { AudioEditorConfiguration, IVSCodeAudioEditorHost, IVSCodeAudioEditorWebview } from "../proxies/VSCodeAudioEditor.types";
-
-/**
- * Define the type of edits used in paw draw files.
- */
-interface AudioEdit {
-	readonly color: string;
-	readonly stroke: ReadonlyArray<[number, number]>;
-}
+import { AudioEditorConfiguration, AudioToolkitEdit, IVSCodeAudioEditorHost, IVSCodeAudioEditorWebview, ModulesState } from "../proxies/VSCodeAudioEditor.types";
 
 interface AudioDocumentDelegate {
 	getFileData(): Promise<Uint8Array>;
 }
 
 class AudioDocument extends Disposable implements vscode.CustomDocument {
-	static async create(uri: vscode.Uri, backupId: string | undefined, delegate: AudioDocumentDelegate) {
+	static async create(uri: vscode.Uri, backupId: string | undefined) {
 		// If we have a backup, read that. Otherwise read the resource from the workspace
-		const dataFile = typeof backupId === "string" ? vscode.Uri.parse(backupId) : uri;
-		const fileData = await AudioDocument.readFile(dataFile);
-		return new AudioDocument(uri, fileData, delegate);
-	}
-
-	private static async readFile(uri: vscode.Uri): Promise<Uint8Array> {
-		if (uri.scheme === "untitled") {
-			return new Uint8Array();
+		const audioFileUri = typeof backupId === "string" ? vscode.Uri.parse(backupId) : uri;
+		const editable = vscode.workspace.fs.isWritableFileSystem(uri.scheme);
+		const isInWorkspace = uri.fsPath !== vscode.workspace.asRelativePath(uri);
+		const jsonUri = isInWorkspace ? vscode.Uri.file(uri.fsPath.replace(/\.[^.]+$/, ".json")) : undefined;
+		const audioData = audioFileUri.scheme === "untitled" ? new Uint8Array() : new Uint8Array(await vscode.workspace.fs.readFile(audioFileUri));
+		let modulesState: ModulesState | null = null;
+		if (jsonUri) {
+			try {
+				const buffer = await vscode.workspace.fs.readFile(jsonUri);
+				const str = Buffer.from(buffer).toString("utf-8");
+				modulesState = JSON.parse(str);
+			} catch (error) {
+				console.log(error);
+			}
 		}
-		return new Uint8Array(await vscode.workspace.fs.readFile(uri));
+		return new AudioDocument(uri, jsonUri, audioData, modulesState);
 	}
 
-	private readonly _uri: vscode.Uri;
-
-	private _documentData: Uint8Array;
-	private _edits: Array<AudioEdit> = [];
-	private _savedEdits: Array<AudioEdit> = [];
-
-	private readonly _delegate: AudioDocumentDelegate;
+	private _edits: Array<AudioToolkitEdit> = [];
+	private _savedEdits: Array<AudioToolkitEdit> = [];
 
 	private constructor(
-		uri: vscode.Uri,
-		initialContent: Uint8Array,
-		delegate: AudioDocumentDelegate
+		private readonly _uri: vscode.Uri,
+		private _jsonUri: vscode.Uri | undefined,
+		private readonly _audioData: Uint8Array,
+		private _modulesState: ModulesState | null
+		
 	) {
 		super();
-		this._uri = uri;
-		this._documentData = initialContent;
-		this._delegate = delegate;
 	}
 
 	public get uri() { return this._uri; }
-
-	public get documentData(): Uint8Array { return this._documentData; }
+	public get jsonUri() { return this._jsonUri; }
+	public get audioData() { return this._audioData; }
+	public get modulesState() { return this._modulesState; }
 
 	private readonly _onDidDispose = this._register(new vscode.EventEmitter<void>());
 	/**
@@ -60,8 +53,8 @@ class AudioDocument extends Disposable implements vscode.CustomDocument {
 	public readonly onDidDispose = this._onDidDispose.event;
 
 	private readonly _onDidChangeDocument = this._register(new vscode.EventEmitter<{
-		readonly content?: Uint8Array;
-		readonly edits: readonly AudioEdit[];
+		readonly content: ModulesState | null;
+		readonly edits: readonly AudioToolkitEdit[];
 	}>());
 	/**
 	 * Fired to notify webviews that the document has changed.
@@ -95,20 +88,25 @@ class AudioDocument extends Disposable implements vscode.CustomDocument {
 	 *
 	 * This fires an event to notify VS Code that the document has been edited.
 	 */
-	makeEdit(edit: AudioEdit) {
+	makeEdit(edit: AudioToolkitEdit) {
 		this._edits.push(edit);
+		this._modulesState = edit.state;
 
 		this._onDidChange.fire({
-			label: "Stroke",
+			label: "modules_state",
 			undo: async () => {
 				this._edits.pop();
+				this._modulesState = this._edits[this._edits.length - 1]?.state || null;
 				this._onDidChangeDocument.fire({
+					content: this._modulesState,
 					edits: this._edits,
 				});
 			},
 			redo: async () => {
 				this._edits.push(edit);
+				this._modulesState = edit.state;
 				this._onDidChangeDocument.fire({
+					content: this._modulesState,
 					edits: this._edits,
 				});
 			}
@@ -119,7 +117,15 @@ class AudioDocument extends Disposable implements vscode.CustomDocument {
 	 * Called by VS Code when the user saves the document.
 	 */
 	async save(cancellation: vscode.CancellationToken): Promise<void> {
-		await this.saveAs(this.uri, cancellation);
+		if (!this._jsonUri) {
+			const fileInfo = await vscode.window.showSaveDialog();
+			if (fileInfo) {
+				this._jsonUri = fileInfo;
+			} else {
+				return;
+			}
+		}
+		await this.saveAs(this._jsonUri, cancellation);
 		this._savedEdits = Array.from(this._edits);
 	}
 
@@ -127,22 +133,31 @@ class AudioDocument extends Disposable implements vscode.CustomDocument {
 	 * Called by VS Code when the user saves the document to a new location.
 	 */
 	async saveAs(targetResource: vscode.Uri, cancellation: vscode.CancellationToken): Promise<void> {
-		const fileData = await this._delegate.getFileData();
+		const fileData = Buffer.from(JSON.stringify(this._modulesState), "utf-8");
 		if (cancellation.isCancellationRequested) {
 			return;
 		}
-		await vscode.workspace.fs.writeFile(targetResource, fileData);
+		await vscode.workspace.fs.writeFile(targetResource, new Uint8Array(fileData));
 	}
 
 	/**
 	 * Called by VS Code when the user calls `revert` on a document.
 	 */
 	async revert(_cancellation: vscode.CancellationToken): Promise<void> {
-		const diskContent = await AudioDocument.readFile(this.uri);
-		this._documentData = diskContent;
+		let modulesState: ModulesState | null = null;
+		if (this._jsonUri) {
+			try {
+				const buffer = await vscode.workspace.fs.readFile(this._jsonUri);
+				const str = Buffer.from(buffer).toString("utf-8");
+				modulesState = JSON.parse(str);
+			} catch (error) {
+				console.log(error);
+			}
+		}
+		this._modulesState = modulesState;
 		this._edits = this._savedEdits;
 		this._onDidChangeDocument.fire({
-			content: diskContent,
+			content: modulesState,
 			edits: this._edits,
 		});
 	}
@@ -189,11 +204,12 @@ class AudioEditorHost extends VSCodeHostProxy<AudioDocument, IVSCodeAudioEditorH
 
 		const configuration = vscode.workspace.getConfiguration("audioToolkit") as unknown as AudioEditorConfiguration;
 		const initMessage = {
-			data: isInWorkspace ? undefined : document.documentData,
+			data: isInWorkspace ? undefined : document.audioData,
 			uri: webviewPanel.webview.asWebviewUri(document.uri).toString(),
 			editable,
 		};
-		this.init(initMessage, configuration).then((sr) => {
+		const modulesState = document.modulesState;
+		this.init(initMessage, configuration, modulesState).then((sr) => {
 			provider.sampleRateMap.set(document.uri, sr);
 			if (statusBarItem) {
 				statusBarItem.show();
@@ -201,6 +217,9 @@ class AudioEditorHost extends VSCodeHostProxy<AudioDocument, IVSCodeAudioEditorH
 			}
 		});
 		// this.updateConfigurationFromHost(configuration);
+	}
+	makeEditModulesState(edit: AudioToolkitEdit) {
+		this.document.makeEdit(edit);
 	}
 }
 
@@ -267,17 +286,7 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
         return document.backup(context.destination, cancellation);
     }
     async openCustomDocument(uri: vscode.Uri, openContext: vscode.CustomDocumentOpenContext, token: vscode.CancellationToken) {
-		const document: AudioDocument = await AudioDocument.create(uri, openContext.backupId, {
-			getFileData: async () => {
-				const webviewsForDocument = Array.from(this.webviews.get(document.uri));
-				if (!webviewsForDocument.length) {
-					throw new Error("Could not find webview to save for");
-				}
-				const panel = webviewsForDocument[0];
-				const response = await this.postMessageWithResponse<number[]>(panel, "getFileData", {});
-				return new Uint8Array(response);
-			}
-		});
+		const document: AudioDocument = await AudioDocument.create(uri, openContext.backupId);
 
 		const listeners: vscode.Disposable[] = [];
 
@@ -289,17 +298,12 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
 			});
 		}));
 
-		/*
 		listeners.push(document.onDidChangeContent(e => {
 			// Update all webviews when the document changes
 			for (const webviewPanel of this.webviews.get(document.uri)) {
-				this.postMessage(webviewPanel, "update", {
-					edits: e.edits,
-					content: e.content,
-				});
+				this.proxies.get(webviewPanel)?.updateModulesStateFromHost(e.content);
 			}
 		}));
-		*/
 		
 		listeners.push(vscode.workspace.onDidChangeConfiguration((e) => {
 			if (e.affectsConfiguration("audioToolkit")) {
@@ -314,38 +318,6 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
 
 		return document;
     }
-
-	private _requestId = 1;
-	private readonly _callbacks = new Map<number, (response: any) => void>();
-
-	private postMessageWithResponse<R = unknown>(panel: vscode.WebviewPanel, type: string, body: any): Promise<R> {
-		const requestId = this._requestId++;
-		const p = new Promise<R>(resolve => this._callbacks.set(requestId, resolve));
-		panel.webview.postMessage({ type, requestId, body });
-		return p;
-	}
-
-	private postMessage(panel: vscode.WebviewPanel, type: string, body: any): void {
-		panel.webview.postMessage({ type, body });
-	}
-
-	private onMessage(webviewPanel: vscode.WebviewPanel, document: AudioDocument, message: any) {
-		switch (message.type) {
-			case "stroke":
-				document.makeEdit(message as AudioEdit);
-				return;
-			case "response":
-                {
-                    const callback = this._callbacks.get(message.requestId);
-                    callback?.(message.body);
-                    return;
-                }
-            case "hello":
-                // Code that should run in response to the hello message command
-                vscode.window.showInformationMessage(message.text);
-                return;
-		}
-	}
 
     public async resolveCustomEditor(document: AudioDocument, webviewPanel: vscode.WebviewPanel, token: vscode.CancellationToken) {
 		// Add the webview to our internal set of active webviews
