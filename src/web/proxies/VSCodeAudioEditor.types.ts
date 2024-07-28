@@ -10,7 +10,7 @@ export interface AudioEditorConfiguration {
     division: number;
 }
 
-export type ModulesState = { moduleId: string, moduleName: string; visible: boolean | number; state: AudioToolkitModuleState }[];
+export type AudioToolkitModulesState = { moduleId: string, moduleName: string; visible: boolean | number; state: AudioToolkitModuleState }[];
 
 export interface AudioToolkitModuleState {
     name: string;
@@ -18,8 +18,8 @@ export interface AudioToolkitModuleState {
 }
 
 export interface AudioToolkitEdit {
-    prevState: ModulesState;
-    state: ModulesState;
+    prevState: AudioToolkitModulesState;
+    state: AudioToolkitModulesState;
 }
 
 export interface IVSCodeAudioEditorHost {
@@ -28,9 +28,9 @@ export interface IVSCodeAudioEditorHost {
 }
 
 export interface IVSCodeAudioEditorWebview {
-    init(documentInfo: { data?: Uint8Array; uri?: string; editable?: boolean }, configuration: AudioEditorConfiguration, modulesState: ModulesState | null): Promise<number>;
+    init(documentInfo: { data?: Uint8Array; uri?: string; editable?: boolean }, configuration: AudioEditorConfiguration, modulesState: AudioToolkitModulesState | null): Promise<number>;
     updateConfigurationFromHost(configuration: AudioEditorConfiguration): void;
-    updateModulesStateFromHost(modulesState: ModulesState | null): void;
+    updateModulesStateFromHost(modulesState: AudioToolkitModulesState | null): void;
     playOrStop(): void;
     pauseOrResume(): void;
 }

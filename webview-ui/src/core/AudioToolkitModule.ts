@@ -1,17 +1,12 @@
+import { AudioToolkitModuleState, AudioToolkitModulesState } from "../../../src/web/proxies/VSCodeAudioEditor.types";
 import AudioEditor, { AudioEditorConfiguration, AudioEditorState } from "./AudioEditor";
+export type { AudioToolkitModuleState, AudioToolkitModulesState };
 
 export interface FrequencyDomainChannelData {
     /** FFTed frames, each advances `hopSize` samples */
     magnitudes: Float32Array[];
     /** FFTed frames, each advances `hopSize` samples */
     phases: Float32Array[];
-}
-
-export type ModulesState = { moduleId: string, moduleName: string; visible: boolean | number; state: AudioToolkitModuleState }[];
-
-export interface AudioToolkitModuleState {
-    name: string;
-    [key: string]: any;
 }
 
 export interface VisualizationStyleOptions {

@@ -5,7 +5,7 @@ import AudioEditorMain from "./AudioEditorMain";
 import AudioEditorControls from "./AudioEditorControls";
 import AudioEditorMonitor from "./AudioEditorMonitor";
 import { AudioEditorContext } from "./contexts";
-import { ModulesState } from "../core/AudioToolkitModule";
+import { AudioToolkitModulesState } from "../core/AudioToolkitModule";
 
 interface Props {
 }
@@ -21,7 +21,7 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
     const [configuration, setConfiguration] = useState(audioEditor.configuration);
     const [configuring, setConfiguring] = useState(false);
     const [windowSize, setWindowSize] = useState([window.innerWidth, window.innerHeight]);
-    const [modulesState, setModulesState] = useState<ModulesState>(audioEditor.modulesState);
+    const [modulesState, setModulesState] = useState<AudioToolkitModulesState>(audioEditor.modulesState);
     const phosphorColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-menu-selectionBackground");
     const playheadColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-minimap-findMatchHighlight");
     const gridColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-menu-separatorBackground");
@@ -55,7 +55,7 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
     const handleUiResized = useCallback(() => {
         setWindowSize([window.innerWidth, window.innerHeight]);
     }, []);
-    const handleModulesState = useCallback(({ state }: { state: ModulesState }) => setModulesState(state), []);
+    const handleModulesState = useCallback(({ state }: { state: AudioToolkitModulesState }) => setModulesState(state), []);
     useEffect(() => {
         audioEditor.on("playhead", setPlayhead);
         audioEditor.on("viewRange", setViewRange);

@@ -4,14 +4,14 @@ import { FunctionComponent, useCallback, useContext, useEffect, useRef, useState
 import { AudioEditorConfiguration, AudioEditorState } from "../core/AudioEditor";
 import { AudioEditorContext } from "./contexts";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
-import { VisualizationStyleOptions, ModulesState } from "../core/AudioToolkitModule";
+import { VisualizationStyleOptions, AudioToolkitModulesState } from "../core/AudioToolkitModule";
 import { getRuler, setCanvasToFullSize } from "../utils";
 
 interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRange" | "enabledChannels">, VisualizationStyleOptions {
     configuration: AudioEditorConfiguration;
     windowSize: number[];
     configuring: boolean;
-    visualizersState: ModulesState;
+    visualizersState: AudioToolkitModulesState;
 }
 
 const AudioEditorMain: FunctionComponent<Props> = (props) => {

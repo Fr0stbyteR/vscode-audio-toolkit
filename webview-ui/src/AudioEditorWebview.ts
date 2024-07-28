@@ -1,9 +1,9 @@
 import { IVSCodeAudioEditorWebview, IVSCodeAudioEditorHost } from "../../src/web/proxies/VSCodeAudioEditor.types";
 import AudioEditor, { AudioEditorConfiguration } from "./core/AudioEditor";
-import { ModulesState } from "./core/AudioToolkitModule";
+import { AudioToolkitModulesState } from "./core/AudioToolkitModule";
 import VSCodeWebviewProxy from "./VSCodeWebviewProxy";
 
-class AudioEditorWebview extends VSCodeWebviewProxy<ModulesState, IVSCodeAudioEditorWebview, IVSCodeAudioEditorHost> {
+class AudioEditorWebview extends VSCodeWebviewProxy<AudioToolkitModulesState, IVSCodeAudioEditorWebview, IVSCodeAudioEditorHost> {
     static fnNames: (keyof IVSCodeAudioEditorHost)[] = ["ready", "makeEditModulesState", "makeEditModulesState"];
     private audioEditor: AudioEditor | undefined;
     private setAudioEditor: React.Dispatch<React.SetStateAction<AudioEditor | null>> | undefined;
@@ -11,7 +11,7 @@ class AudioEditorWebview extends VSCodeWebviewProxy<ModulesState, IVSCodeAudioEd
     attachReact(setAudioEditor: React.Dispatch<React.SetStateAction<AudioEditor | null>>) {
         this.setAudioEditor = setAudioEditor;
     }
-    async init({ data, uri, editable }: { data?: Uint8Array; uri?: string; editable?: boolean }, configuration: AudioEditorConfiguration, modulesState: ModulesState | null = this.getState()) {
+    async init({ data, uri, editable }: { data?: Uint8Array; uri?: string; editable?: boolean }, configuration: AudioEditorConfiguration, modulesState: AudioToolkitModulesState | null = this.getState()) {
         const { setAudioEditor } = this;
         const { fftWindowFunction } = configuration;
         configuration.fftWindowFunction = `${fftWindowFunction.slice(0, 1).toLowerCase()}${fftWindowFunction.slice(1).replaceAll(/[-\s]/g, "")}`;
@@ -53,7 +53,7 @@ class AudioEditorWebview extends VSCodeWebviewProxy<ModulesState, IVSCodeAudioEd
             fftWindowFunction: `${fftWindowFunction.slice(0, 1).toLowerCase()}${fftWindowFunction.slice(1).replaceAll(/[-\s]/g, "")}`
         });
     }
-    async updateModulesStateFromHost(modulesState: ModulesState | null) {
+    updateModulesStateFromHost(modulesState: AudioToolkitModulesState | null) {
         this._emitModulesState = false;
         this.audioEditor?.setModulesState(modulesState || AudioEditor.DEFAULT_MODULES_STATE);
         this._emitModulesState = true;

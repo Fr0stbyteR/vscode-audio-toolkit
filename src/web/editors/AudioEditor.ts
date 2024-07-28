@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { getNonce, getUri, Disposable, WebviewCollection, disposeAll } from "../utils";
 import VSCodeHostProxy from "../proxies/VSCodeHostProxy";
-import { AudioEditorConfiguration, AudioToolkitEdit, IVSCodeAudioEditorHost, IVSCodeAudioEditorWebview, ModulesState } from "../proxies/VSCodeAudioEditor.types";
+import { AudioEditorConfiguration, AudioToolkitEdit, IVSCodeAudioEditorHost, IVSCodeAudioEditorWebview, AudioToolkitModulesState } from "../proxies/VSCodeAudioEditor.types";
 
 interface AudioDocumentDelegate {
 	getFileData(): Promise<Uint8Array>;
@@ -15,7 +15,7 @@ class AudioDocument extends Disposable implements vscode.CustomDocument {
 		const isInWorkspace = uri.fsPath !== vscode.workspace.asRelativePath(uri);
 		const jsonUri = isInWorkspace ? vscode.Uri.file(uri.fsPath.replace(/\.[^.]+$/, ".json")) : undefined;
 		const audioData = audioFileUri.scheme === "untitled" ? new Uint8Array() : new Uint8Array(await vscode.workspace.fs.readFile(audioFileUri));
-		let modulesState: ModulesState | null = null;
+		let modulesState: AudioToolkitModulesState | null = null;
 		if (jsonUri) {
 			try {
 				const buffer = await vscode.workspace.fs.readFile(jsonUri);
@@ -35,7 +35,7 @@ class AudioDocument extends Disposable implements vscode.CustomDocument {
 		private readonly _uri: vscode.Uri,
 		private _jsonUri: vscode.Uri | undefined,
 		private readonly _audioData: Uint8Array,
-		private _modulesState: ModulesState | null
+		private _modulesState: AudioToolkitModulesState | null
 		
 	) {
 		super();
@@ -53,7 +53,7 @@ class AudioDocument extends Disposable implements vscode.CustomDocument {
 	public readonly onDidDispose = this._onDidDispose.event;
 
 	private readonly _onDidChangeDocument = this._register(new vscode.EventEmitter<{
-		readonly content: ModulesState | null;
+		readonly content: AudioToolkitModulesState | null;
 		readonly edits: readonly AudioToolkitEdit[];
 	}>());
 	/**
@@ -144,7 +144,7 @@ class AudioDocument extends Disposable implements vscode.CustomDocument {
 	 * Called by VS Code when the user calls `revert` on a document.
 	 */
 	async revert(_cancellation: vscode.CancellationToken): Promise<void> {
-		let modulesState: ModulesState | null = null;
+		let modulesState: AudioToolkitModulesState | null = null;
 		if (this._jsonUri) {
 			try {
 				const buffer = await vscode.workspace.fs.readFile(this._jsonUri);
@@ -186,7 +186,7 @@ class AudioDocument extends Disposable implements vscode.CustomDocument {
 
 
 class AudioEditorHost extends VSCodeHostProxy<AudioDocument, IVSCodeAudioEditorHost, IVSCodeAudioEditorWebview> {
-	static fnNames: (keyof IVSCodeAudioEditorWebview)[] = ["init", "pauseOrResume", "playOrStop", "updateConfigurationFromHost"];
+	static fnNames: (keyof IVSCodeAudioEditorWebview)[] = ["init", "pauseOrResume", "playOrStop", "updateConfigurationFromHost", "updateModulesStateFromHost"];
 	constructor(
 		private provider: MainEditorProvider,
 		private statusBarItem: vscode.StatusBarItem | null,
