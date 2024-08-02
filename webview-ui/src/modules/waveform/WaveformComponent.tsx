@@ -1,10 +1,11 @@
 import "./WaveformComponent.scss";
-import { FunctionComponent, useCallback, useContext, useEffect, useRef } from "react";
+import { FunctionComponent, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AudioEditorContext } from "../../components/contexts";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { setCanvasToFullSize } from "../../utils";
 import { VisualizationOptions } from "../../core/AudioToolkitModule";
 import Waveform from "./Waveform";
+import VectorImageProcessor from "./VectorImageProcessor";
 
 const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = ({ module, viewRange, selRange, playhead, enabledChannels, phosphorColor, playheadColor, gridColor, gridRulerColor, textColor, monospaceFont, configuration, rerenderTimestamp }) => {
     const audioEditor = useContext(AudioEditorContext)!;
@@ -12,28 +13,30 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = ({ 
     const canvasVerticalRulerRef = useRef<HTMLCanvasElement>(null);
     const canvasHorizontalRulerRef = useRef<HTMLCanvasElement>(null);
     const divMainRef = useRef<HTMLDivElement>(null);
+    const [verticalZoom, setVerticalZoom] = useState(1);
+    const [verticalOffset, setVerticalOffset] = useState(0);
     // const divSelRangeRef = useRef<HTMLDivElement>(null);
     const paint = useCallback(() => {
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        module.paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange }, { playheadColor, phosphorColor });
-    }, [module, viewRange, playheadColor, phosphorColor]);
+        VectorImageProcessor.paint(ctx, module.dataSlices, { width, height, verticalZoom, verticalOffset }, { viewRange }, { phosphorColor });
+    }, [module, verticalZoom, verticalOffset, viewRange, phosphorColor]);
     const paintVerticalRuler = useCallback(() => {
         const canvas = canvasVerticalRulerRef.current;
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        module.paintVerticalRuler(ctx, { width, height, verticalZoom: 1, verticalOffset: 0, gridLabels: false }, { viewRange, configuration }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
+        VectorImageProcessor.paintVerticalRuler(ctx, module.audioEditor.sampleRate, { width, height, labelsHeight: 0 }, { viewRange, configuration }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
     }, [module, viewRange, configuration, gridColor, gridRulerColor, textColor, monospaceFont]);
     const paintHorizontalRuler = useCallback(() => {
         const canvas = canvasHorizontalRulerRef.current;
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        module.paintHorizontalRuler(ctx, { width, height, verticalZoom: 1, verticalOffset: 0, gridLabels: true }, null, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
-    }, [module, gridColor, gridRulerColor, textColor, monospaceFont]);
+        VectorImageProcessor.paintHorizontalRuler(ctx, module.audioEditor.numberOfChannels, { width, height, verticalZoom, verticalOffset, labelMode: "decibel", labelsWidth: 80 }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
+    }, [module, verticalZoom, verticalOffset, gridColor, gridRulerColor, textColor, monospaceFont]);
     useEffect(paint, [paint, rerenderTimestamp]);
     useEffect(paintVerticalRuler, [paintVerticalRuler, rerenderTimestamp]);
     useEffect(paintHorizontalRuler, [paintHorizontalRuler, rerenderTimestamp]);

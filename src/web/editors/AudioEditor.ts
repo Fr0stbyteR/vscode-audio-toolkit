@@ -90,13 +90,13 @@ class AudioDocument extends Disposable implements vscode.CustomDocument {
 	 */
 	makeEdit(edit: AudioToolkitEdit) {
 		this._edits.push(edit);
-		this._modulesState = edit.state;
+		this._modulesState = edit.modulesState;
 
 		this._onDidChange.fire({
 			label: "modules_state",
 			undo: async () => {
 				this._edits.pop();
-				this._modulesState = this._edits[this._edits.length - 1]?.state || null;
+				this._modulesState = this._edits[this._edits.length - 1]?.modulesState || null;
 				this._onDidChangeDocument.fire({
 					content: this._modulesState,
 					edits: this._edits,
@@ -104,7 +104,7 @@ class AudioDocument extends Disposable implements vscode.CustomDocument {
 			},
 			redo: async () => {
 				this._edits.push(edit);
-				this._modulesState = edit.state;
+				this._modulesState = edit.modulesState;
 				this._onDidChangeDocument.fire({
 					content: this._modulesState,
 					edits: this._edits,
@@ -182,8 +182,6 @@ class AudioDocument extends Disposable implements vscode.CustomDocument {
 		};
 	}
 }
-
-
 
 class AudioEditorHost extends VSCodeHostProxy<AudioDocument, IVSCodeAudioEditorHost, IVSCodeAudioEditorWebview> {
 	static fnNames: (keyof IVSCodeAudioEditorWebview)[] = ["init", "pauseOrResume", "playOrStop", "updateConfigurationFromHost", "updateModulesStateFromHost"];

@@ -1,7 +1,7 @@
 
 import ProxyWorker from "./ProxyWorker";
 import { ISpectrogramWorker, ISpectrogramWorkerWorker } from "./SpectrogramWorker.types";
-import SpectrogramImageProcessor from "../modules/spectrogram/SpectrogramProcessor";
+import MatrixImageProcessor from "../modules/spectrogram/MatrixImageProcessor";
 import { STFTOptions } from "../core/STFTProcessor";
 import { SpectrogramSliceData } from "../modules/spectrogram/Spectrogram";
 import { FrequencyDomainChannelData } from "../core/AudioToolkitModule";
@@ -32,8 +32,8 @@ class SpectrogramWorkerWorker extends ProxyWorker<ISpectrogramWorkerWorker, ISpe
             }
             spectrograms[channel] = spectrogram;
         }
-        const resizedSpectrograms = SpectrogramImageProcessor.generateResized(spectrograms, options);
-        return { startIndex, endIndex, offsetFromFFTFrame, frequencyDomainData, resizedSpectrograms } as SpectrogramSliceData;
+        const resizedSpectrograms = MatrixImageProcessor.generateResized(spectrograms, hopSize);
+        return { startIndex, endIndex, offsetFromFFTFrame, frequencyDomainData, resizedMatrices: resizedSpectrograms } as SpectrogramSliceData;
     }    
 }
 

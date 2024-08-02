@@ -1,11 +1,13 @@
 import { IWaveformWorker } from "./WaveformWorker.types";
-import { WaveformResizeOptions } from "../modules/waveform/Waveform";
 import ProxyWorker from "./ProxyWorker";
-import WaveformProcessor from "../modules/waveform/WaveformProcessor";
+import VectorImageProcessor, { VectorDataSlice, VectorResizeOptions } from "../modules/waveform/VectorImageProcessor";
+import { WaveformSliceData } from "../modules/waveform/Waveform";
 
 class Waveform extends ProxyWorker<IWaveformWorker> implements IWaveformWorker {
-    generateResized(audioData: Float32Array[], options: Partial<WaveformResizeOptions> = {}) {
-        return WaveformProcessor.generateResized(audioData, options);
+    generateResized(audioData: Float32Array[], options: Partial<VectorResizeOptions> & { startIndex: number; endIndex: number }) {
+        const { startIndex, endIndex } = options;
+        const resizedVectors = VectorImageProcessor.generateResized(audioData, 1, options);
+        return { startIndex, endIndex, offsetFromSample: 0, audioSamplesPerSample: 1, resizedVectors } as Omit<VectorDataSlice, "vectors">;
     }
 }
 

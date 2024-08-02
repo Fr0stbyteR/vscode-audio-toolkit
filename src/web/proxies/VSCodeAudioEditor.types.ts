@@ -18,8 +18,7 @@ export interface AudioToolkitModuleState {
 }
 
 export interface AudioToolkitEdit {
-    prevState: AudioToolkitModulesState;
-    state: AudioToolkitModulesState;
+    modulesState: AudioToolkitModulesState;
 }
 
 export interface IVSCodeAudioEditorHost {

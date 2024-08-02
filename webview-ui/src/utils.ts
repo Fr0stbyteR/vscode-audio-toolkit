@@ -296,3 +296,22 @@ export const getRuler = (range: [number, number], unit: AudioUnit, { sampleRate 
     }
     return { ruler, coarse, refined };
 };
+
+export const generateRuler = (steps: number[], multiplier: number, initialMultiplier: number, calcPixels: (input: number) => number, coarseMinPixels = 25, refinedMinPixels = 3) => {
+    let coarse: number | undefined;
+    let refined: number | undefined;
+    let step = 0;
+    let grid: number;
+    do {
+        grid = steps[step] * initialMultiplier;
+        if (step + 1 < steps.length) {
+            step++;
+        } else {
+            step = 0;
+            initialMultiplier *= multiplier;
+        }
+        if (!coarse && calcPixels(grid) >= coarseMinPixels) coarse = grid;
+        if (!refined && calcPixels(grid) >= refinedMinPixels) refined = grid;
+    } while (!coarse || !refined);
+    return [coarse, refined];
+};

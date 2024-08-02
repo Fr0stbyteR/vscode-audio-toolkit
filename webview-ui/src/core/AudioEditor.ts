@@ -27,7 +27,7 @@ export interface AudioEditorEventMap {
     "setAudio": never;
     "ready": never;
     "configuration": AudioEditorConfiguration;
-    "modulesState": { state: AudioToolkitModulesState; prevState: AudioToolkitModulesState };
+    "modulesState": AudioToolkitModulesState;
 }
 
 export interface AudioEditorState {
@@ -126,6 +126,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     get modulesInstance() {
         return this._modulesInstance;
     }
+    public makingEdit = true;
     private _player: AudioPlayer | null = null;
     private _modulesState: AudioToolkitModulesState = [];
     private _modulesInstance: AudioToolkitModule[] = [];
@@ -159,19 +160,19 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         this.emit("configuration", this._configuration);
     }
     setModulesState(state: AudioToolkitModulesState) {
-        this.emit("modulesState", { prevState: this._modulesState, state });
+        this.emit("modulesState", state);
     }
     setModuleState(index: number, state: AudioToolkitModuleState) {
         const prevState = { ...this._modulesState };
         this._modulesState[index] = { ...this._modulesState[index], state };
         this._modulesState = [...this._modulesState];
-        this.emit("modulesState", { prevState, state: this._modulesState });
+        this.emit("modulesState", this._modulesState);
     }
     setModuleVisible(index: number, visible: boolean | number) {
         const prevState = { ...this._modulesState };
         this._modulesState[index] = { ...this._modulesState[index], visible };
         this._modulesState = [...this._modulesState];
-        this.emit("modulesState", { prevState, state: this._modulesState });
+        this.emit("modulesState", this._modulesState);
     }
     async addModule(moduleId: string, initialState?: any, moduleName?: string) {
         const Constructor = AudioEditor.MODULES_MAP[moduleId];
@@ -183,7 +184,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         this._modulesState = [...this._modulesState, { moduleId, moduleName: moduleName ?? Constructor.MODULE_NAME, visible: true, state: instance.getState() }];
         const handleStateChange = (newState: any) => this.setModuleState(this._modulesInstance.indexOf(instance), newState);
         instance.onStateChange = handleStateChange;
-        this.emit("modulesState", { prevState, state: this._modulesState });
+        this.emit("modulesState", this._modulesState);
     }
     removeModule(index: number) {
         const prevState = { ...this._modulesState };
@@ -191,7 +192,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         this._modulesState = this._modulesState.slice();
         this._modulesInstance.splice(index, 1);
         this._modulesInstance = this._modulesInstance.slice();
-        this.emit("modulesState", { prevState, state: this._modulesState });
+        this.emit("modulesState", this._modulesState);
     }
     moveModule(fromIndex: number, toIndex: number) {
         const prevState = { ...this._modulesState };
@@ -201,7 +202,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         const [mi] = this._modulesInstance.splice(fromIndex, 1);
         this._modulesInstance.splice(toIndex, 0, mi);
         this._modulesInstance = this._modulesInstance.slice();
-        this.emit("modulesState", { prevState, state: this._modulesState });
+        this.emit("modulesState", this._modulesState);
     }
     zoomH(refIn: number, factor: number) { // factor = 1 as zoomIn, -1 as zoomOut
         const { viewRange } = this.state;

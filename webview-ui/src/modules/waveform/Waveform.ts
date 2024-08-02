@@ -3,29 +3,12 @@ import WaveformComponent from "./WaveformComponent";
 import WaveformWorker from "../../workers/WaveformWorker";
 import { dbtoa, getRuler } from "../../utils";
 import AudioEditor from "../../core/AudioEditor";
-
-export interface WaveformResizeOptions {
-    resizeFactor: number;
-    minWidth: number;
-}
-
-export interface ResizedWaveform {
-    offsetFromFrame: number;
-    samplesPerPixel: number;
-    minData: Float32Array[];
-    maxData: Float32Array[];
-}
-
-export interface ResizedWaveforms {
-    resizes: ResizedWaveform[];
-    sizes: number[];
-    resizeOptions: WaveformResizeOptions;
-}
+import VectorImageProcessor, { ResizedVectors, VectorDataSlice } from "./VectorImageProcessor";
 
 export interface WaveformSliceData {
     startIndex: number;
     endIndex: number;
-    resizedWaveforms: ResizedWaveforms;
+    resizedWaveforms: ResizedVectors;
 }
 
 export interface WaveformDrawOptions {
@@ -49,14 +32,14 @@ class Waveform implements AudioToolkitModule<WaveformState> {
     static MODULE_ID = "waveform";
     static MODULE_NAME = "Waveform";
     static DEFAULT_STATE = {};
-    static async fromAudioData(audioEditor: AudioEditor, { name = "" }: Partial<WaveformState> = {}, sharableData?: { dataSlices: WaveformSliceData[] }) {
-        const { timeDomainData } = audioEditor;
+    static async fromAudioData(audioEditor: AudioEditor, { name = "" }: Partial<WaveformState> = {}, sharableData?: { dataSlices: VectorDataSlice[] }) {
+        const { timeDomainData, length } = audioEditor;
         const waveform = new Waveform(audioEditor, { name });
         if (sharableData?.dataSlices) {
             waveform._dataSlices = sharableData.dataSlices;
         } else {
-            const resized = await waveform._worker.generateResized(timeDomainData);
-            waveform._dataSlices = [resized];
+            const ds = await waveform._worker.generateResized(timeDomainData, { startIndex: 0, endIndex: length });
+            waveform._dataSlices = [{ ...ds, vectors: timeDomainData }];
         }
         return waveform;
     }
@@ -65,7 +48,11 @@ class Waveform implements AudioToolkitModule<WaveformState> {
     public state: WaveformState;
     public onStateChange: ((newState: WaveformState) => any) | undefined;
     private _worker = new WaveformWorker();
-    private _dataSlices: WaveformSliceData[] = [];
+    private _dataSlices: VectorDataSlice[] = [];
+
+    get dataSlices() {
+        return this._dataSlices;
+    }
     private constructor(
         public audioEditor: AudioEditor,
         initialState: WaveformState
@@ -82,11 +69,6 @@ class Waveform implements AudioToolkitModule<WaveformState> {
     }
     getSharableData() {
         return { dataSlices: this._dataSlices };
-    }
-    getBestResizes(targetSamplesPerPixel: number) {
-        return this._dataSlices.map((waveformSliceData) => {
-            return waveformSliceData.resizedWaveforms.resizes.findLastIndex(({ samplesPerPixel }) => samplesPerPixel < targetSamplesPerPixel);
-        });
     }
     async paintVerticalRuler(
         ctx: CanvasRenderingContext2D,
@@ -202,10 +184,9 @@ class Waveform implements AudioToolkitModule<WaveformState> {
         { viewRange }: Pick<VisualizationOptions<this>, "viewRange">,
         { phosphorColor = "rgb(67, 217, 150)", separatorColor = "grey", playheadColor = "rgba(191, 0, 0)", fadePathColor = "yellow" }: Partial<Pick<VisualizationStyleOptions, "phosphorColor" | "separatorColor" | "playheadColor" | "fadePathColor">> = {}
     ) {
-        ctx.clearRect(0, 0, width, height);
-        
-        const { _dataSlices } = this;
-        const { timeDomainData, numberOfChannels } = this.audioEditor;
+        VectorImageProcessor.paint(ctx, this._dataSlices, { width, height, verticalZoom, verticalOffset }, { viewRange }, { phosphorColor, separatorColor });
+        return;
+        /*
         const yMin = -verticalZoom;
         const yMax = verticalZoom;
         // Grids
@@ -215,7 +196,7 @@ class Waveform implements AudioToolkitModule<WaveformState> {
         const fadeInPath: [number, number][] = [];
         const fadeOutPath: [number, number][] = [];
         const fadePath: [number, number][] = [];
-
+        ctx.clearRect(0, 0, width, height);
         ctx.beginPath();
         ctx.setLineDash([4, 2]);
         ctx.strokeStyle = separatorColor;
@@ -270,7 +251,7 @@ class Waveform implements AudioToolkitModule<WaveformState> {
                     continue;
                 }
                 if (bestResizesIndex[i] !== -1) {
-                    const { maxData, minData, samplesPerPixel, offsetFromFrame } = resizedWaveforms.resizes[bestResizesIndex[i]];
+                    const { maxData, minData, samplesPerFrame: samplesPerPixel, offsetFromFrame } = resizedWaveforms.resizes[bestResizesIndex[i]];
                     $0 = ~~(($$ - startIndex) / samplesPerPixel);
                     offsetStart = $$ - (startIndex - offsetFromFrame + $0 * samplesPerPixel);
                     $1 = Math.ceil((Math.min($drawTo, endIndex) - startIndex) / samplesPerPixel);
@@ -295,7 +276,7 @@ class Waveform implements AudioToolkitModule<WaveformState> {
                             minInStep *= fadeFactor;
                             maxInStep *= fadeFactor;
                         }
-                        */
+                        *//*
                         y = calcY(maxInStep, channel);
                         if (x === 0) ctx.moveTo(x, y);
                         else ctx.lineTo(x, y);
@@ -334,7 +315,7 @@ class Waveform implements AudioToolkitModule<WaveformState> {
                             minInStep *= fadeFactor;
                             maxInStep *= fadeFactor;
                         }
-                        */
+                        *//*
                         y = calcY(maxInStep, channel);
                         ctx.lineTo(x, y);
                         if (minInStep !== maxInStep && pixelsPerSample <= 1) {

@@ -141,7 +141,7 @@ const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ modu
         e.preventDefault();
     }, []);
     const handleInputMarkerClass: (((e: Event) => unknown) & React.FormEventHandler<HTMLInputElement>) = useCallback((e) => module.setMarkerClassName((e.currentTarget as HTMLInputElement).value), [module]);
-    const handleInputMarkerColor: (((e: Event) => unknown) & React.FormEventHandler<HTMLInputElement>) = useCallback((e) => module.setMarkerColor((e.currentTarget as HTMLInputElement).value), [module]);
+    const handleChangeMarkerColor: (((e: Event) => unknown) & React.FormEventHandler<HTMLInputElement>) = useCallback((e) => module.setMarkerColor((e.currentTarget as HTMLInputElement).value), [module]);
     const handleInputMarkerName: (((e: Event) => unknown) & React.FormEventHandler<HTMLInputElement>) = useCallback((e) => {
         const name = (e.currentTarget as HTMLInputElement).value;
         if (selectedMarker >= 0) module.setMarkerName(selectedMarker, name);
@@ -196,6 +196,7 @@ const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ modu
             e.stopPropagation();
             e.preventDefault();
             const rect = e.currentTarget.parentElement!.parentElement!.getBoundingClientRect();
+            let $start = start;
             const handleMouseMove = (e: MouseEvent) => {
                 e.stopPropagation();
                 e.preventDefault();
@@ -205,13 +206,16 @@ const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ modu
                     else if (x < rect.left) audioEditor.scrollH((x - rect.left) / 1000);
                     const [viewStart, viewEnd] = audioEditor.state.viewRange;
                     const viewLength = viewEnd - viewStart;
-                    const start = viewStart + (x - rect.left) / rect.width * viewLength;
-                    module.setMarkerPosition(i, [start, end]);
+                    $start = viewStart + (x - rect.left) / rect.width * viewLength;
+                    audioEditor.makingEdit = false;
+                    module.setMarkerPosition(i, [$start, end]);
+                    audioEditor.makingEdit = true;
                 }
             };
             const handleMouseUp = (e: MouseEvent) => {
                 e.stopPropagation();
                 e.preventDefault();
+                module.setMarkerPosition(i, [$start, end]);
                 document.removeEventListener("mousemove", handleMouseMove);
                 document.removeEventListener("mouseup", handleMouseUp);
             };
@@ -222,6 +226,7 @@ const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ modu
             e.stopPropagation();
             e.preventDefault();
             const rect = e.currentTarget.parentElement!.parentElement!.getBoundingClientRect();
+            let $end = end;
             const handleMouseMove = (e: MouseEvent) => {
                 e.stopPropagation();
                 e.preventDefault();
@@ -231,13 +236,16 @@ const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ modu
                     else if (x < rect.left) audioEditor.scrollH((x - rect.left) / 1000);
                     const [viewStart, viewEnd] = audioEditor.state.viewRange;
                     const viewLength = viewEnd - viewStart;
-                    const end = viewStart + (x - rect.left) / rect.width * viewLength;
-                    module.setMarkerPosition(i, [start, end]);
+                    $end = viewStart + (x - rect.left) / rect.width * viewLength;
+                    audioEditor.makingEdit = false;
+                    module.setMarkerPosition(i, [start, $end]);
+                    audioEditor.makingEdit = true;
                 }
             };
             const handleMouseUp = (e: MouseEvent) => {
                 e.stopPropagation();
                 e.preventDefault();
+                module.setMarkerPosition(i, [start, $end]);
                 document.removeEventListener("mousemove", handleMouseMove);
                 document.removeEventListener("mouseup", handleMouseUp);
             };
@@ -254,6 +262,7 @@ const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ modu
             const [viewStart, viewEnd] = audioEditor.state.viewRange;
             const viewLength = viewEnd - viewStart;
             const origin = viewStart + (e.clientX - rect.left) / rect.width * viewLength;
+            let $position = position;
             const handleMouseMove = (e: MouseEvent) => {
                 e.stopPropagation();
                 e.preventDefault();
@@ -265,17 +274,21 @@ const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ modu
                     const viewLength = viewEnd - viewStart;
                     const start = viewStart + (x - rect.left) / rect.width * viewLength;
                     if (typeof position === "number") {
-                        module.setMarkerPosition(i, start);
+                        $position = start;
                     } else {
                         const deltaSamples = start - origin;
-                        module.setMarkerPosition(i, position.map(p => p + deltaSamples) as [number, number]);
+                        $position = position.map(p => p + deltaSamples) as [number, number];
                     }
+                    audioEditor.makingEdit = false;
+                    module.setMarkerPosition(i, $position);
+                    audioEditor.makingEdit = true;
                 }
             };
             const handleMouseUp = (e: MouseEvent) => {
                 e.stopPropagation();
                 e.preventDefault();
                 if (currentTarget) currentTarget.style.cursor = "grab";
+                module.setMarkerPosition(i, $position);
                 document.removeEventListener("mousemove", handleMouseMove);
                 document.removeEventListener("mouseup", handleMouseUp);
             };
@@ -348,7 +361,7 @@ const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ modu
                 </div>
                 <div>
                     <label htmlFor={id2}>Label color</label>
-                    <input type="color" name="marker-color" value={moduleState.color} id={id2} onInput={handleInputMarkerColor} />
+                    <input type="color" name="marker-color" value={moduleState.color} id={id2} onChange={handleChangeMarkerColor} />
                 </div>
                 <div>
                     <label htmlFor={id1}>Marker Name</label>

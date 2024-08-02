@@ -55,7 +55,6 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
     const handleUiResized = useCallback(() => {
         setWindowSize([window.innerWidth, window.innerHeight]);
     }, []);
-    const handleModulesState = useCallback(({ state }: { state: AudioToolkitModulesState }) => setModulesState(state), []);
     useEffect(() => {
         audioEditor.on("playhead", setPlayhead);
         audioEditor.on("viewRange", setViewRange);
@@ -65,7 +64,7 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
         audioEditor.on("enabledChannels", setEnabledChannels);
         audioEditor.on("configuration", setConfiguration);
         audioEditor.on("uiResized", handleUiResized);
-        audioEditor.on("modulesState", handleModulesState);
+        audioEditor.on("modulesState", setModulesState);
         window.addEventListener("resize", handleWindowUiResized);
         return () => {
             audioEditor.off("playhead", setPlayhead);
@@ -76,10 +75,10 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
             audioEditor.off("enabledChannels", setEnabledChannels);
             audioEditor.off("configuration", setConfiguration);
             audioEditor.off("uiResized", handleUiResized);
-            audioEditor.off("modulesState", handleModulesState);
+            audioEditor.off("modulesState", setModulesState);
             window.removeEventListener("resize", handleWindowUiResized);
         };
-    }, [audioEditor, handleModulesState, handleUiResized, handleWindowUiResized]);
+    }, [audioEditor, handleUiResized, handleWindowUiResized]);
     return (
         <div className="audio-editor-container">
             <div className="audio-editor-left-container">

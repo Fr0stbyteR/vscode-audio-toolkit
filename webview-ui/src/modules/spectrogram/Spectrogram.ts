@@ -1,52 +1,15 @@
 import { AudioToolkitModule, AudioToolkitModuleState, FrequencyDomainChannelData, VisualizationOptions, VisualizationStyleOptions } from "../../core/AudioToolkitModule";
 import SpectrogramComponent from "./SpectrogramComponent";
 import SpectrogramWorker from "../../workers/SpectrogramWorker";
-import { dbtoa, getRuler, hslToRgb } from "../../utils";
-import AudioEditor, { AudioEditorConfiguration, AudioEditorState } from "../../core/AudioEditor";
+import { getRuler, hslToRgb } from "../../utils";
+import AudioEditor, { AudioEditorState } from "../../core/AudioEditor";
+import { MatrixDataSlice } from "./MatrixImageProcessor";
 
-export interface SpectrogramResizeOptions {
-    resizeFactor: number;
-    minWidth: number;
-    minHeight: number;
-}
-
-export interface ResizedSpectrogram {
-    /** the offset from the nearest frame before the startIndex, in samples */
-    offsetFromFrame: number;
-    samplesPerPixel: number;
-    data: Float32Array[][];
-    imageBitmaps?: ImageBitmap[][];
-}
-
-export interface ResizedSpectrograms {
-    resizes: ResizedSpectrogram[];
-    sizes: [number, number][];
-    resizeOptions: SpectrogramResizeOptions;
-}
-
-export interface SpectrogramSliceData {
-    /**
-     * The process starts from startIndex included of time-domain samples, FFT frame starts before the startIndex with paddings.
-     * ```
-     * const fftStartIndex = startIndex + hopSize - fftSize;
-     * ```
-     */
-    startIndex: number;
-    /**
-     * The processe ends to `endIndex` excluded of time-domain samples, FFT frame ends after the `endIndex` with paddings.
-     * ```
-     * const fftEndIndex = endIndex - hopSize + fftSize;
-     * ```
-     */
-    endIndex: number;
+export interface SpectrogramSliceData extends MatrixDataSlice {
     /**
      * Frequency-domain data of each channels.
      */
     frequencyDomainData: FrequencyDomainChannelData[];
-    /**
-     * Spectrogram image data of each channels, from `startIndex` to `endIndex`.
-     */
-    resizedSpectrograms: ResizedSpectrograms;
 }
 
 export interface SpectrogramState extends AudioToolkitModuleState {
@@ -78,7 +41,7 @@ class Spectrogram implements AudioToolkitModule<SpectrogramState> {
         const spectrogram = new Spectrogram(audioEditor, { name, fftDrawThreshold });
         if (sharableData?.dataSlices) {
             spectrogram._dataSlices = sharableData.dataSlices;
-            if (fftDrawThreshold !== sharableData.fftDrawThreshold) spectrogram._dataSlices.forEach(ds => ds.resizedSpectrograms.resizes.forEach(rs => rs.imageBitmaps = []));
+            if (fftDrawThreshold !== sharableData.fftDrawThreshold) spectrogram._dataSlices.forEach(ds => ds.resizedMatrices.resizes.forEach(rs => rs.imageBitmaps = []));
         } else {
             const resized = await spectrogram._worker.generateResized(frequencyDomainData, { ...configuration, startIndex: 0, endIndex: audioEditor.length });
             spectrogram._dataSlices = [resized];
@@ -91,6 +54,10 @@ class Spectrogram implements AudioToolkitModule<SpectrogramState> {
     public onStateChange: ((newState: SpectrogramState) => any) | undefined;
     private _worker = new SpectrogramWorker();
     private _dataSlices: SpectrogramSliceData[] = [];
+    get dataSlices() {
+        return this._dataSlices;
+    }
+
     private constructor(
         public audioEditor: AudioEditor,
         initialState: SpectrogramState
@@ -112,8 +79,8 @@ class Spectrogram implements AudioToolkitModule<SpectrogramState> {
         };
     }
     getBestResizes(targetSamplesPerPixel: number, targetHeight: number): [number, number][] {
-        return this._dataSlices.map(({ resizedSpectrograms }) => {
-            const width = resizedSpectrograms.sizes.filter((_, i) => resizedSpectrograms.resizes[i].samplesPerPixel < targetSamplesPerPixel).map((([w]) => w)).sort((a, b) => a - b)[0] ?? resizedSpectrograms.sizes[0][0];
+        return this._dataSlices.map(({ resizedMatrices: resizedSpectrograms }) => {
+            const width = resizedSpectrograms.sizes.filter((_, i) => resizedSpectrograms.resizes[i].audioSamplesPerFrame < targetSamplesPerPixel).map((([w]) => w)).sort((a, b) => a - b)[0] ?? resizedSpectrograms.sizes[0][0];
             const height = resizedSpectrograms.sizes.filter(([w, h]) => w === width && h > targetHeight).map(([_, h]) => h).sort((a, b) => a - b)[0] ?? resizedSpectrograms.sizes[0][1];
             return [width, height];
         });
@@ -172,7 +139,7 @@ class Spectrogram implements AudioToolkitModule<SpectrogramState> {
         let sliceStart: number;
         const bestResizes = this.getBestResizes(overallSamplesPerPixel, destHeight);
         for (let i = 0; i < this._dataSlices.length; i++) {
-            const { startIndex, endIndex, resizedSpectrograms } = this._dataSlices[i];
+            const { startIndex, endIndex, resizedMatrices: resizedSpectrograms } = this._dataSlices[i];
             length = endIndex - startIndex;
             if ($bitmapStart + length <= $drawFrom) {
                 $bitmapStart += length;
@@ -182,7 +149,7 @@ class Spectrogram implements AudioToolkitModule<SpectrogramState> {
             [w, h] = bestResizes[i];
             const resize = resizedSpectrograms.resizes[resizedSpectrograms.sizes.findIndex(([_w, _h]) => w === _w && h === _h)];
             if (!resize.imageBitmaps) resize.imageBitmaps = [];
-            samplesPerPixel = resize.samplesPerPixel;
+            samplesPerPixel = resize.audioSamplesPerFrame;
             for (let channel = 0; channel < numberOfChannels; channel++) {
                 if (!resize.imageBitmaps[channel]) resize.imageBitmaps[channel] = [];
                 const magnitudes = resize.data[channel];
@@ -273,9 +240,9 @@ class Spectrogram implements AudioToolkitModule<SpectrogramState> {
             }
             ctx.restore();
         }
+        /*
         let x: number;
         // cursor
-        /*
         if (cursor < $drawFrom || cursor > $drawTo) return;
         ctx.strokeStyle = cursorColor;
         ctx.lineWidth = 1;

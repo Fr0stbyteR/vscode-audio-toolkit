@@ -7,7 +7,6 @@ class AudioEditorWebview extends VSCodeWebviewProxy<AudioToolkitModulesState, IV
     static fnNames: (keyof IVSCodeAudioEditorHost)[] = ["ready", "makeEditModulesState", "makeEditModulesState"];
     private audioEditor: AudioEditor | undefined;
     private setAudioEditor: React.Dispatch<React.SetStateAction<AudioEditor | null>> | undefined;
-    private _emitModulesState = true;
     attachReact(setAudioEditor: React.Dispatch<React.SetStateAction<AudioEditor | null>>) {
         this.setAudioEditor = setAudioEditor;
     }
@@ -27,10 +26,10 @@ class AudioEditorWebview extends VSCodeWebviewProxy<AudioToolkitModulesState, IV
         const audioEditor = await AudioEditor.fromData(arrayBuffer, audioContext, configuration, modulesState ?? undefined);
         this.audioEditor = audioEditor;
         setAudioEditor!(audioEditor);
-        audioEditor.on("modulesState", (({ prevState, state }) => {
+        audioEditor.on("modulesState", ((state) => {
             this.setState(state);
-            if (!this._emitModulesState) return;
-            this.makeEditModulesState({ state, prevState });
+            if (!this.audioEditor?.makingEdit) return;
+            this.makeEditModulesState({ modulesState: state });
         }));
         window.focus();
         const handleKeyDown = async (e: KeyboardEvent) => {
@@ -54,9 +53,10 @@ class AudioEditorWebview extends VSCodeWebviewProxy<AudioToolkitModulesState, IV
         });
     }
     updateModulesStateFromHost(modulesState: AudioToolkitModulesState | null) {
-        this._emitModulesState = false;
-        this.audioEditor?.setModulesState(modulesState || AudioEditor.DEFAULT_MODULES_STATE);
-        this._emitModulesState = true;
+        if (!this.audioEditor) return;
+        this.audioEditor.makingEdit = false;
+        this.audioEditor.setModulesState(modulesState || AudioEditor.DEFAULT_MODULES_STATE);
+        this.audioEditor.makingEdit = true;
     }
     playOrStop() {
         const { audioEditor } = this;
