@@ -75,7 +75,7 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = ({ 
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
     }, [audioEditor, viewRange]);
-    const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    const handleCanvasWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
         if (!e.deltaX && !e.deltaY) return;
         let divMainFlexContainer = e.currentTarget.parentElement;
         while (divMainFlexContainer && !divMainFlexContainer.classList.contains("editor-main-flex")) {
@@ -95,6 +95,37 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = ({ 
         const ref = viewStart + (origin.x - rect.left) / rect.width * viewLength;
         audioEditor.zoomH(ref, e.deltaY < 0 ? 1 : -1);
     }, [audioEditor, viewRange]);
+    const handleHorizontalRulerMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const origin = { y: e.clientY };
+        const { height } = e.currentTarget.getBoundingClientRect();
+        const handleMouseMove = (e: MouseEvent) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const y = e.clientY;
+            setVerticalOffset(verticalOffset + (y - origin.y) / (height * 0.5));
+        };
+        const handleMouseUp = (e: MouseEvent) => {
+            e.stopPropagation();
+            e.preventDefault();
+            document.removeEventListener("mousemove", handleMouseMove);
+            document.removeEventListener("mouseup", handleMouseUp);
+        };
+        document.addEventListener("mousemove", handleMouseMove);
+        document.addEventListener("mouseup", handleMouseUp);
+    }, [verticalOffset]);
+    const handleHorizontalRulerWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+        if (!e.deltaY) return;
+        e.stopPropagation();
+        setVerticalZoom(zoom => zoom * 1.5 ** (e.deltaY < 0 ? 1 : -1));
+    }, []);
+    const handleHorizontalRulerDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setVerticalZoom(1);
+        setVerticalOffset(0);
+    }, []);
     const handleResizeStartMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!canvasRef.current || !selRange) return;
         e.stopPropagation();
@@ -168,10 +199,10 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = ({ 
             <div className="waveform-vertical-ruler-container">
                 <canvas ref={canvasVerticalRulerRef} />
             </div>
-            <div className="waveform-horizontal-ruler-container">
+            <div className="waveform-horizontal-ruler-container" onMouseDown={handleHorizontalRulerMouseDown} onWheel={handleHorizontalRulerWheel} onDoubleClick={handleHorizontalRulerDoubleClick}>
                 <canvas ref={canvasHorizontalRulerRef} />
             </div>
-            <div ref={divMainRef} className="waveform-canvas-container visualizer-component-visualization-area" onMouseDown={handleCanvasMouseDown} onWheel={handleWheel}>
+            <div ref={divMainRef} className="waveform-canvas-container visualizer-component-visualization-area" onMouseDown={handleCanvasMouseDown} onWheel={handleCanvasWheel}>
                 <canvas ref={canvasRef} />
                 <div className="selrange" style={{ left: selLeft, width: selWidth }} hidden={!selRange}>
                     <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />

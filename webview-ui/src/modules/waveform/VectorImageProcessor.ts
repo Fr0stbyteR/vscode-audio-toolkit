@@ -283,9 +283,9 @@ class VectorImageProcessor {
                     dbMin++;
                 }
             } else {
-                dbMin = Math.max(-90, atodb(Math.min(Math.abs(yMin), Math.abs(yMax))));
+                dbMin = Math.max(-90, ~~atodb(Math.min(Math.abs(yMin), Math.abs(yMax))));
             }
-            dbMax = atodb(Math.max(Math.abs(yMin), Math.abs(yMax)));
+            dbMax = ~~atodb(Math.max(Math.abs(yMin), Math.abs(yMax)));
             for (let channel = 0; channel < numberOfChannels; channel++) {
                 let lastCoarseY = Infinity;
                 let lastRefinedY = Infinity;
@@ -334,7 +334,7 @@ class VectorImageProcessor {
             const aMin = Math.ceil(yMin / coarse) * coarse;
             const aMax = Math.floor(yMax / coarse) * coarse;
             for (let channel = 0; channel < numberOfChannels; channel++) {
-                a = aMin + coarse;
+                a = aMin;
                 while (a <= aMax) {
                     y = calcY(a, channel);
                     ctx.moveTo(0, y);

@@ -149,7 +149,7 @@ class MatrixImageProcessor {
     }
     static async getBitmaps(dataSlices: MatrixDataSlice[], destWidth: number, destHeight: number, $drawFrom: number, $drawTo: number, $drawFromBin: number, $drawToBin: number, numberOfChannels: number) {
         const { MAX_BITMAP_SIZE } = this;
-        const bitmaps: { bitmap: ImageBitmap, drawParams: number[] }[][] = new Array(numberOfChannels).fill(null).map(() => []);
+        const bitmaps: { bitmap: ImageBitmap, drawParams: [number, number, number, number, number, number, number, number] }[][] = new Array(numberOfChannels).fill(null).map(() => []);
         const targetAudioSamplesPerPixel = ($drawTo - $drawFrom) / destWidth;
         const targetBinsPerPixel = ($drawToBin - $drawToBin) / destHeight;
         let samplesPerPixel: number;
@@ -197,8 +197,8 @@ class MatrixImageProcessor {
                 Math.max(0, ($bitmapStartPerChannel - $drawFrom) / ($drawTo - $drawFrom) * destWidth),
                 Math.max(0, ($drawToBin - oh) / ($drawToBin - $drawFromBin) * destHeight),
                 (Math.min($drawTo, $bitmapEndPerChannel) - Math.max($drawFrom, $bitmapStartPerChannel)) / ($drawTo - $drawFrom) * destWidth,
-                ((oh - Math.max(0, $drawFromBin)) - Math.max(0, $drawToBin - oh)) / ($drawToBin - $drawFromBin) * destHeight
-            ];
+                (Math.min(oh, $drawToBin) - Math.max(0, $drawFromBin)) / ($drawToBin - $drawFromBin) * destHeight
+            ] as typeof bitmaps[0][0]["drawParams"];
             for (let channel = 0; channel < numberOfChannels; channel++) {
                 if (!resize.imageBitmaps[channel]) resize.imageBitmaps[channel] = [];
                 const magnitudes = resize.data[channel];
@@ -244,8 +244,8 @@ class MatrixImageProcessor {
     ) {
         const numberOfChannels = dataSlices[0].resizedMatrices.resizes[0].data.length;
         const [ow, oh] = dataSlices[0].resizedMatrices.sizes[0];
-        const $drawFromBin = verticalOffset * oh / verticalZoom;
-        const $drawToBin = (verticalOffset + 1) * oh / verticalZoom;
+        const $drawFromBin = verticalOffset / 2 * oh / verticalZoom;
+        const $drawToBin = (verticalOffset / 2 + 1) * oh / verticalZoom;
 
         ctx.clearRect(0, 0, width, height);
 
@@ -273,12 +273,8 @@ class MatrixImageProcessor {
             // ctx.globalCompositeOperation = "lighter";
             ctx.translate(0, channel * channelHeight);
             for (let i = 0; i < bitmapsData[channel].length; i++) {
-                const { bitmap, drawParams: [sx, sy, sw, sh, dx, dy, dw, dh] } = bitmapsData[channel][i];
-                ctx.drawImage(
-                    bitmap,
-                    sx, sy, sw, sh,
-                    dx, dy, dw, dh
-                );
+                const { bitmap, drawParams } = bitmapsData[channel][i];
+                ctx.drawImage(bitmap, ...drawParams);
             }
             ctx.restore();
         }
