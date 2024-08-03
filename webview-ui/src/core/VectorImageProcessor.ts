@@ -1,5 +1,5 @@
-import { VisualizationOptions, VisualizationStyleOptions } from "../../core/AudioToolkitModule";
-import { atodb, dbtoa, generateRuler, getRuler } from "../../utils";
+import { VisualizationOptions, VisualizationStyleOptions } from "./AudioToolkitModule";
+import { atodb, dbtoa, generateRuler, getRuler } from "../utils";
 
 export interface VectorResizeOptions {
     resizeFactor: number;
@@ -174,6 +174,7 @@ class VectorImageProcessor {
                 for (let channel = 0; channel < numberOfChannels; channel++) {
                     $$ = $;
                     $$vector = $vector;
+                    ctx.save();
                     clip = new Path2D();
                     clip.rect(0, channel * channelHeight, width, channelHeight);
                     ctx.clip(clip);
@@ -227,6 +228,7 @@ class VectorImageProcessor {
                 for (let channel = 0; channel < numberOfChannels; channel++) {
                     $$ = $;
                     $$vector = $vector;
+                    ctx.save();
                     clip = new Path2D();
                     clip.rect(0, channel * channelHeight, width, channelHeight);
                     ctx.clip(clip);
@@ -253,6 +255,7 @@ class VectorImageProcessor {
             }
             $ = $$;
         }
+        ctx.restore();
     }
     static paintHorizontalRuler(
         ctx: CanvasRenderingContext2D,
@@ -262,6 +265,7 @@ class VectorImageProcessor {
     ) {
         const channelHeight = height / numberOfChannels;
 
+        ctx.save();
         ctx.clearRect(0, 0, width, height);
         ctx.strokeStyle = gridColor;
         ctx.beginPath();
@@ -344,8 +348,10 @@ class VectorImageProcessor {
             }
         }
         ctx.stroke();
+        ctx.restore();
 
         if (!labelsWidth) return;
+        ctx.save();
         ctx.strokeStyle = gridRulerColor;
         ctx.fillStyle = textColor;
         ctx.font = `12px ${labelFont}`;
@@ -429,6 +435,7 @@ class VectorImageProcessor {
             }
         }
         ctx.stroke();
+        ctx.restore();
     }
     static paintVerticalRuler(
         ctx: CanvasRenderingContext2D,
@@ -438,6 +445,7 @@ class VectorImageProcessor {
         { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<VisualizationStyleOptions, "gridColor" | "gridRulerColor" | "textColor" | "labelFont">> = {}
     ) {
         const { ruler } = getRuler(viewRange, audioUnit, { sampleRate, beatsPerMeasure, beatsPerMinute, division });
+        ctx.save();
         ctx.clearRect(0, 0, width, height);
         const top = labelsHeight;
         const [$drawFrom, $drawTo] = viewRange;
@@ -452,7 +460,9 @@ class VectorImageProcessor {
             ctx.lineTo(x, height);
         }
         ctx.stroke();
+        ctx.restore();
         if (!labelsHeight) return;
+        ctx.save();
         ctx.strokeStyle = gridRulerColor;
         ctx.fillStyle = textColor;
         ctx.font = `12px ${labelFont}`;
@@ -471,6 +481,7 @@ class VectorImageProcessor {
             if (text) ctx.fillText(text, x, y - 4);
         }
         ctx.stroke();
+        ctx.restore();
     }
 }
 

@@ -3,7 +3,7 @@ import WaveformComponent from "./WaveformComponent";
 import WaveformWorker from "../../workers/WaveformWorker";
 import { dbtoa, getRuler } from "../../utils";
 import AudioEditor from "../../core/AudioEditor";
-import VectorImageProcessor, { ResizedVectors, VectorDataSlice } from "./VectorImageProcessor";
+import VectorImageProcessor, { ResizedVectors, VectorDataSlice } from "../../core/VectorImageProcessor";
 
 export interface WaveformSliceData {
     startIndex: number;

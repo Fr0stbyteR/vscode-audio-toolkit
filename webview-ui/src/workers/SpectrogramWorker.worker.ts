@@ -1,7 +1,7 @@
 
 import ProxyWorker from "./ProxyWorker";
 import { ISpectrogramWorker, ISpectrogramWorkerWorker } from "./SpectrogramWorker.types";
-import MatrixImageProcessor from "../modules/spectrogram/MatrixImageProcessor";
+import MatrixImageProcessor from "../core/MatrixImageProcessor";
 import { STFTOptions } from "../core/STFTProcessor";
 import { SpectrogramSliceData } from "../modules/spectrogram/Spectrogram";
 import { FrequencyDomainChannelData } from "../core/AudioToolkitModule";

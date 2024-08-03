@@ -1,5 +1,5 @@
-import { VisualizationOptions, VisualizationStyleOptions } from "../../core/AudioToolkitModule";
-import { hslToRgb } from "../../utils";
+import { VisualizationOptions, VisualizationStyleOptions } from "./AudioToolkitModule";
+import { hslToRgb } from "../utils";
 
 export interface MatrixResizeOptions {
     resizeFactor: number;
@@ -247,6 +247,7 @@ class MatrixImageProcessor {
         const $drawFromBin = verticalOffset / 2 * oh / verticalZoom;
         const $drawToBin = (verticalOffset / 2 + 1) * oh / verticalZoom;
 
+        ctx.save();
         ctx.clearRect(0, 0, width, height);
 
         // Grids
@@ -278,6 +279,7 @@ class MatrixImageProcessor {
             }
             ctx.restore();
         }
+        ctx.restore();
     }
     /**
      * @param resized

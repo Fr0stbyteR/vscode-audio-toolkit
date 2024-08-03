@@ -3,7 +3,7 @@ import SpectrogramComponent from "./SpectrogramComponent";
 import SpectrogramWorker from "../../workers/SpectrogramWorker";
 import { getRuler, hslToRgb } from "../../utils";
 import AudioEditor, { AudioEditorState } from "../../core/AudioEditor";
-import { MatrixDataSlice } from "./MatrixImageProcessor";
+import { MatrixDataSlice } from "../../core/MatrixImageProcessor";
 
 export interface SpectrogramSliceData extends MatrixDataSlice {
     /**

@@ -5,7 +5,7 @@ import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { setCanvasToFullSize } from "../../utils";
 import { VisualizationOptions } from "../../core/AudioToolkitModule";
 import Waveform from "./Waveform";
-import VectorImageProcessor from "./VectorImageProcessor";
+import VectorImageProcessor from "../../core/VectorImageProcessor";
 
 const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = ({ module, viewRange, selRange, playhead, enabledChannels, phosphorColor, playheadColor, gridColor, gridRulerColor, textColor, monospaceFont, configuration, rerenderTimestamp }) => {
     const audioEditor = useContext(AudioEditorContext)!;

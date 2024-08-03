@@ -5,8 +5,8 @@ import { AudioEditorContext } from "../../components/contexts";
 import { setCanvasToFullSize } from "../../utils";
 import { VisualizationOptions } from "../../core/AudioToolkitModule";
 import Spectrogram from "./Spectrogram";
-import VectorImageProcessor from "../waveform/VectorImageProcessor";
-import MatrixImageProcessor from "./MatrixImageProcessor";
+import VectorImageProcessor from "../../core/VectorImageProcessor";
+import MatrixImageProcessor from "../../core/MatrixImageProcessor";
 
 const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>> = ({ module, viewRange, selRange, playhead, gridColor, gridRulerColor, textColor, monospaceFont, configuration, rerenderTimestamp }) => {
     const audioEditor = useContext(AudioEditorContext)!;
