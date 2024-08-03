@@ -32,11 +32,11 @@ class Waveform implements AudioToolkitModule<WaveformState> {
     static MODULE_ID = "waveform";
     static MODULE_NAME = "Waveform";
     static DEFAULT_STATE = {};
-    static async fromAudioData(audioEditor: AudioEditor, { name = "" }: Partial<WaveformState> = {}, sharableData?: { dataSlices: VectorDataSlice[] }) {
+    static async fromAudioData(audioEditor: AudioEditor, { name = "" }: Partial<WaveformState> = {}, sharableData?: { waveform: { dataSlices: VectorDataSlice[] } }) {
         const { timeDomainData, length } = audioEditor;
         const waveform = new Waveform(audioEditor, { name });
-        if (sharableData?.dataSlices) {
-            waveform._dataSlices = sharableData.dataSlices;
+        if (sharableData?.waveform) {
+            waveform._dataSlices = sharableData.waveform.dataSlices;
         } else {
             const ds = await waveform._worker.generateResized(timeDomainData, { startIndex: 0, endIndex: length });
             waveform._dataSlices = [{ ...ds, vectors: timeDomainData }];

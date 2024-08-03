@@ -30,18 +30,23 @@ export interface SpectrogramDrawOptions {
     fade: number;
 }
 
+interface SpectrogramSharableData {
+    fftDrawThreshold: number;
+    dataSlices: SpectrogramSliceData[];
+}
+
 class Spectrogram implements AudioToolkitModule<SpectrogramState> {
     static MODULE_ID = "spectrogram";
     static MODULE_NAME = "Spectrogram";
     static DEFAULT_STATE = {};
     static MAX_BITMAP_SIZE = 1024 * 1024;
     static DB_DRAW_THRESHOLD = -100;
-    static async fromAudioData(audioEditor: AudioEditor, { fftDrawThreshold = this.DB_DRAW_THRESHOLD, name = "" }: Partial<SpectrogramState> = {}, sharableData?: { fftDrawThreshold: number, dataSlices: SpectrogramSliceData[] }) {
+    static async fromAudioData(audioEditor: AudioEditor, { fftDrawThreshold = this.DB_DRAW_THRESHOLD, name = "" }: Partial<SpectrogramState> = {}, sharableData?: { spectrogram: SpectrogramSharableData }) {
         const { frequencyDomainData, configuration } = audioEditor;
         const spectrogram = new Spectrogram(audioEditor, { name, fftDrawThreshold });
-        if (sharableData?.dataSlices) {
-            spectrogram._dataSlices = sharableData.dataSlices;
-            if (fftDrawThreshold !== sharableData.fftDrawThreshold) spectrogram._dataSlices.forEach(ds => ds.resizedMatrices.resizes.forEach(rs => rs.imageBitmaps = []));
+        if (sharableData?.spectrogram) {
+            spectrogram._dataSlices = sharableData.spectrogram.dataSlices;
+            if (fftDrawThreshold !== sharableData.spectrogram.fftDrawThreshold) spectrogram._dataSlices.forEach(ds => ds.resizedMatrices.resizes.forEach(rs => rs.imageBitmaps = []));
         } else {
             const resized = await spectrogram._worker.generateResized(frequencyDomainData, { ...configuration, startIndex: 0, endIndex: audioEditor.length });
             spectrogram._dataSlices = [resized];
