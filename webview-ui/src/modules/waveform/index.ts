@@ -1,1 +1,3 @@
-export { default } from "./Waveform";
+import Waveform from "./Waveform";
+
+export default async () => [Waveform];

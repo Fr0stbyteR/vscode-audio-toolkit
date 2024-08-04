@@ -1,15 +1,9 @@
-import { AudioToolkitModule, AudioToolkitModuleState, FrequencyDomainChannelData, VisualizationOptions, VisualizationStyleOptions } from "../../core/AudioToolkitModule";
+import { AudioToolkitModule, AudioToolkitModuleState, VisualizationOptions, VisualizationStyleOptions } from "../../core/AudioToolkitModule";
 import WaveformComponent from "./WaveformComponent";
 import WaveformWorker from "../../workers/WaveformWorker";
 import { dbtoa, getRuler } from "../../utils";
 import AudioEditor from "../../core/AudioEditor";
-import VectorImageProcessor, { ResizedVectors, VectorDataSlice } from "../../core/VectorImageProcessor";
-
-export interface WaveformSliceData {
-    startIndex: number;
-    endIndex: number;
-    resizedWaveforms: ResizedVectors;
-}
+import VectorImageProcessor, { VectorDataSlice } from "../../core/VectorImageProcessor";
 
 export interface WaveformDrawOptions {
     width: number;
@@ -25,14 +19,13 @@ export interface WaveformDrawOptions {
 }
 
 export interface WaveformState extends AudioToolkitModuleState {
-    name: string;
 }
 
 class Waveform implements AudioToolkitModule<WaveformState> {
     static MODULE_ID = "waveform";
     static MODULE_NAME = "Waveform";
-    static DEFAULT_STATE = {};
-    static async fromAudioData(audioEditor: AudioEditor, { name = "" }: Partial<WaveformState> = {}, sharableData?: { waveform: { dataSlices: VectorDataSlice[] } }) {
+    static DEFAULT_STATE: WaveformState = { name: "" };
+    static async fromAudioData(audioEditor: AudioEditor, { name = this.DEFAULT_STATE.name }: Partial<WaveformState> = this.DEFAULT_STATE, sharableData?: { waveform: { dataSlices: VectorDataSlice[] } }) {
         const { timeDomainData, length } = audioEditor;
         const waveform = new Waveform(audioEditor, { name });
         if (sharableData?.waveform) {
@@ -49,10 +42,10 @@ class Waveform implements AudioToolkitModule<WaveformState> {
     public onStateChange: ((newState: WaveformState) => any) | undefined;
     private _worker = new WaveformWorker();
     private _dataSlices: VectorDataSlice[] = [];
-
     get dataSlices() {
         return this._dataSlices;
     }
+
     private constructor(
         public audioEditor: AudioEditor,
         initialState: WaveformState

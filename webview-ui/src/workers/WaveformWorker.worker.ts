@@ -1,7 +1,6 @@
 import { IWaveformWorker } from "./WaveformWorker.types";
 import ProxyWorker from "./ProxyWorker";
 import VectorImageProcessor, { VectorDataSlice, VectorResizeOptions } from "../core/VectorImageProcessor";
-import { WaveformSliceData } from "../modules/waveform/Waveform";
 
 class Waveform extends ProxyWorker<IWaveformWorker> implements IWaveformWorker {
     generateResized(audioData: Float32Array[], options: Partial<VectorResizeOptions> & { startIndex: number; endIndex: number }) {

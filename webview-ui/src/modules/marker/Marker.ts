@@ -23,8 +23,8 @@ export interface MarkerState extends AudioToolkitModuleState {
 class Marker implements AudioToolkitModule<MarkerState> {
     static MODULE_ID = "marker";
     static MODULE_NAME = "Marker";
-    static DEFAULT_STATE = {};
-    static async fromAudioData(audioEditor: AudioEditor, { name = "", data = [], color = "#ff0000" }: Partial<MarkerState> = {}, sharableData?: undefined) {
+    static DEFAULT_STATE: MarkerState = { name: "", data: [], color: "#ff0000" };
+    static async fromAudioData(audioEditor: AudioEditor, { name = this.DEFAULT_STATE.name, data = this.DEFAULT_STATE.data, color = this.DEFAULT_STATE.color }: Partial<MarkerState> = this.DEFAULT_STATE, sharableData?: undefined) {
         const marker = new Marker(audioEditor, { name, data, color });
         return marker;
     }

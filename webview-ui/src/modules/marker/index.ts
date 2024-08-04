@@ -1,1 +1,3 @@
-export { default } from "./Marker";
+import Marker from "./Marker";
+
+export default async () => [Marker];

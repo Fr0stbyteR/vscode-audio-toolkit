@@ -61,9 +61,11 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     static async loadModulesFromJson(jsonUrl: string, baseUrl: string) {
         const response = await fetch(/* @vite-ignore */new URL(jsonUrl, baseUrl));
         const json = await response.json();
-        for (const moduleId in json) {
-            const { default: Module } = await import(/* @vite-ignore */new URL(json[moduleId], baseUrl).href) as { default: typeof AudioToolkitModule };
-            this.MODULES_MAP[moduleId] = Module;
+        for (const url of json) {
+            const { default: moduleGetter } = await import(/* @vite-ignore */new URL(url, baseUrl).href) as { default: () => Promise<(typeof AudioToolkitModule)[]> };
+            if (!moduleGetter || typeof moduleGetter !== "function") return;
+            const Modules = await moduleGetter();
+            Modules.forEach(Module => this.MODULES_MAP[Module.MODULE_ID] = Module);
         }
     }
     static async fromData(data: ArrayBuffer, context: AudioContext, configuration: Partial<AudioEditorConfiguration> = {}, modulesState = this.DEFAULT_MODULES_STATE) {

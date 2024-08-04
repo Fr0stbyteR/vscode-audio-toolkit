@@ -1,1 +1,3 @@
-export { default } from "./Spectrogram";
+import Spectrogram from "./Spectrogram";
+
+export default async () => [Spectrogram];

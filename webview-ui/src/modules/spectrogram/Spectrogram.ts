@@ -13,7 +13,6 @@ export interface SpectrogramSliceData extends MatrixDataSlice {
 }
 
 export interface SpectrogramState extends AudioToolkitModuleState {
-    name: string;
     fftDrawThreshold: number;
 }
 
@@ -36,12 +35,12 @@ interface SpectrogramSharableData {
 }
 
 class Spectrogram implements AudioToolkitModule<SpectrogramState> {
-    static MODULE_ID = "spectrogram";
-    static MODULE_NAME = "Spectrogram";
-    static DEFAULT_STATE = {};
     static MAX_BITMAP_SIZE = 1024 * 1024;
     static DB_DRAW_THRESHOLD = -100;
-    static async fromAudioData(audioEditor: AudioEditor, { fftDrawThreshold = this.DB_DRAW_THRESHOLD, name = "" }: Partial<SpectrogramState> = {}, sharableData?: { spectrogram: SpectrogramSharableData }) {
+    static MODULE_ID = "spectrogram";
+    static MODULE_NAME = "Spectrogram";
+    static DEFAULT_STATE: SpectrogramState = { fftDrawThreshold: this.DB_DRAW_THRESHOLD, name: "" };
+    static async fromAudioData(audioEditor: AudioEditor, { fftDrawThreshold = this.DEFAULT_STATE.fftDrawThreshold, name = this.DEFAULT_STATE.name }: Partial<SpectrogramState> = this.DEFAULT_STATE, sharableData?: { spectrogram: SpectrogramSharableData }) {
         const { frequencyDomainData, configuration } = audioEditor;
         const spectrogram = new Spectrogram(audioEditor, { name, fftDrawThreshold });
         if (sharableData?.spectrogram) {

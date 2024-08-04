@@ -9,10 +9,10 @@ const lib: LibraryOptions = {
     },
     formats: ["es"]
 };
-const modulesJson: Record<string, string> = {};
-fs.readdirSync("./src/modules/").forEach((moduleId) => {
-    lib.entry[`modules/${moduleId}`] = path.join("./src/modules/", moduleId, "index.ts");
-    modulesJson[moduleId] = `./modules/${moduleId}.js`;
+const modulesJson: string[] = [];
+fs.readdirSync("./src/modules/").forEach((dir) => {
+    lib.entry[`modules/${dir}`] = path.join("./src/modules/", dir, "index.ts");
+    modulesJson.push(`./modules/${dir}.js`);
 });
 fs.writeFileSync("public/modules.json", JSON.stringify(modulesJson), "utf-8");
 
@@ -24,7 +24,9 @@ export default defineConfig((configEnv) => ({
     resolve: {
         alias: {
             fs: "./src/empty.ts",
-            url: "./src/empty.ts"
+            url: "./src/empty.ts",
+            path: "./src/empty.ts",
+            crypto: "./src/empty.ts"
         }
     },
     build: {
