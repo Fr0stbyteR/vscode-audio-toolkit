@@ -37,6 +37,8 @@ export const iNormExp = (x: number, e: number) => Math.max(0, x) ** (1.5 ** -e);
  */
 export const normExp = (x: number, e: number) => Math.max(0, x) ** (1.5 ** e);
 
+export const isCloseToMultipleOf = (x: number, y: number) => 0.5 - Math.abs(-Math.abs((x / y) % 1) + 0.5) < 1e-10;
+
 export const absMax = (signal: TypedArray | number[], from = 0, length = signal.length) => {
     const slice = signal.slice(from, from + length).map(v => Math.abs(v)) as any;
     return Math.max.apply(Math, slice);

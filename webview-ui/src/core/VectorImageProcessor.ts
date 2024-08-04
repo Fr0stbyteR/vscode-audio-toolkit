@@ -1,5 +1,5 @@
 import { VisualizationOptions, VisualizationStyleOptions } from "./AudioToolkitModule";
-import { atodb, dbtoa, generateRuler, getRuler } from "../utils";
+import { atodb, dbtoa, generateRuler, getRuler, isCloseToMultipleOf, mod } from "../utils";
 
 export interface VectorResizeOptions {
     resizeFactor: number;
@@ -19,11 +19,14 @@ export interface ResizedVectors {
     resizeOptions: VectorResizeOptions;
 }
 
-export interface VectorDrawOptions {
+export interface VectorPaintOptions {
     width: number;
     height: number;
     verticalZoom: number;
     verticalOffset: number;
+    beforeAndAfter: "none" | "inherit" | number;
+    paintOver: boolean;
+    paintSeparator: boolean;
     labelsHeight: number;
     labelsWidth: number;
     labelMode: "linear" | "decibel";
@@ -99,7 +102,7 @@ class VectorImageProcessor {
     static paint(
         ctx: CanvasRenderingContext2D,
         dataSlices: VectorDataSlice[],
-        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 }: Partial<VectorDrawOptions>,
+        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, beforeAndAfter = "inherit", paintOver = false, paintSeparator = !paintOver }: Partial<VectorPaintOptions>,
         { viewRange }: Pick<VisualizationOptions<any>, "viewRange">,
         { phosphorColor = "rgb(67, 217, 150)", separatorColor = "grey" }: Partial<Pick<VisualizationStyleOptions, "phosphorColor" | "separatorColor">> 
     ) {
@@ -121,18 +124,20 @@ class VectorImageProcessor {
         };
 
         ctx.save();
-        ctx.clearRect(0, 0, width, height);
+        if (!paintOver) ctx.clearRect(0, 0, width, height);
         ctx.imageSmoothingEnabled = false;
-        ctx.beginPath();
-        ctx.setLineDash([4, 2]);
-        ctx.strokeStyle = separatorColor;
-        for (let channel = 1; channel < numberOfChannels; channel++) {
-            ctx.moveTo(0, channel * channelHeight);
-            ctx.lineTo(width, channel * channelHeight);
-        }
-        ctx.stroke();
-        ctx.setLineDash([]);
         ctx.lineWidth = 1;
+        if (paintSeparator) {
+            ctx.beginPath();
+            ctx.setLineDash([4, 2]);
+            ctx.strokeStyle = separatorColor;
+            for (let channel = 1; channel < numberOfChannels; channel++) {
+                ctx.moveTo(0, channel * channelHeight);
+                ctx.lineTo(width, channel * channelHeight);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
         const bestResizesIndex = this.getBestResizes(dataSlices, 1 / pixelsPerAudioSample);
 
         let $ = 0;
@@ -141,21 +146,17 @@ class VectorImageProcessor {
         let $$vector: number;
         let $resize: number;
         let samples: number;
-        let pixelsPerSample: number;        
-        let x: number;
-        let y: number;
+        let pixelsPerSample: number; 
+        let v = 0;       
+        let x = 0;
+        let y = 0;
         let clip: Path2D;
         let minInStep: number;
         let maxInStep: number;
         let prevVector: Float32Array;
-        let prev: number;
-        let prevX: number;
-        let prevY: number;
         let nextVector: Float32Array;
-        let next: number;
-        let nextX: number;
-        let nextY: number;
-
+        let isFirstSample: boolean;
+        let isLastSample: boolean;
     
         for (let $dataSlice = 0; $dataSlice < dataSlices.length; $dataSlice++) {
             const { startIndex, endIndex, resizedVectors, audioSamplesPerSample, vectors, offsetFromSample } = dataSlices[$dataSlice];
@@ -181,42 +182,54 @@ class VectorImageProcessor {
                     ctx.beginPath();
                     ctx.strokeStyle = phosphorColor;
                     ctx.fillStyle = phosphorColor;
+                    isFirstSample = false;
+                    isLastSample = false;
                     if ($$vector > 0) {
-                        prev = vectors[channel][$$vector - 1];
-                        prevX = calcX($$) - 0.5 * pixelsPerSample;
-                    }
-                    else if ($dataSlice > 0) {
+                        v = vectors[channel][$$vector - 1];
+                        x = calcX($$) - 0.5 * pixelsPerSample;
+                    } else if ($dataSlice > 0) {
                         prevVector = dataSlices[$dataSlice - 1].vectors[channel];
-                        prev = prevVector[prevVector.length - 1];
-                        prevX = calcX(get$($dataSlice - 1, $resize, prevVector.length - 1)) - 0.5 * pixelsPerAudioSample * dataSlices[$dataSlice - 1].audioSamplesPerSample;
-                    } else {
-                        prev = 0;
-                        prevX = calcX($$) - 0.5 * pixelsPerSample;
+                        v = prevVector[prevVector.length - 1];
+                        x = calcX(get$($dataSlice - 1, $resize, prevVector.length - 1)) - 0.5 * pixelsPerAudioSample * dataSlices[$dataSlice - 1].audioSamplesPerSample;
+                    } else if (beforeAndAfter !== "none") {
+                        isFirstSample = true;
+                        v = beforeAndAfter === "inherit" ? vectors[channel][$$vector] : beforeAndAfter;
+                        x = beforeAndAfter === "inherit" ? 0 : calcX($$) - 0.5 * pixelsPerSample;
                     }
-                    prevY = calcY(prev, channel);
-                    ctx.moveTo(prevX, prevY);
-                    while ($$ < endIndex && $$ < $drawTo) {
+                    if (beforeAndAfter !== "none" || !isFirstSample) {
+                        y = calcY(v, channel);
+                        ctx.moveTo(x, y);
+                    }
+                    while ($$ < endIndex && $$ < $drawTo && $$vector < vectors[channel].length) {
+                        v = vectors[channel][$$vector];
                         x = calcX($$) + 0.5 * pixelsPerSample;
-                        y = calcY(vectors[channel][$$vector], channel);
-                        ctx.lineTo(x, y);
+                        y = calcY(v, channel);
+                        if (beforeAndAfter === "none" && isFirstSample) {
+                            ctx.moveTo(x, y);
+                            isFirstSample = false;
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
                         if (pixelsPerSample > 10) ctx.fillRect(x - 2, y - 2, 4, 4);
                         $$vector++;
                         $$ = get$($dataSlice, $resize, $$vector);
                     }
                     if ($$vector < vectors[channel].length - 1) {
-                        next = vectors[channel][$$vector + 1];
-                        nextX = calcX($$) + 0.5 * pixelsPerSample;
-                    }
-                    else if ($dataSlice < dataSlices.length - 1) {
+                        v = vectors[channel][$$vector + 1];
+                        x = calcX($$) + 0.5 * pixelsPerSample;
+                    } else if ($dataSlice < dataSlices.length - 1) {
                         nextVector = dataSlices[$dataSlice + 1].vectors[channel];
-                        next = nextVector[0];
-                        nextX = calcX(get$($dataSlice + 1, $resize, 0)) + 0.5 * pixelsPerAudioSample * dataSlices[$dataSlice + 1].audioSamplesPerSample;
-                    } else {
-                        next = 0;
-                        nextX = calcX($$) + 0.5 * pixelsPerSample;
+                        v = nextVector[0];
+                        x = calcX(get$($dataSlice + 1, $resize, 0)) + 0.5 * pixelsPerAudioSample * dataSlices[$dataSlice + 1].audioSamplesPerSample;
+                    } else if (beforeAndAfter !== "none") {
+                        isLastSample = true;
+                        if (beforeAndAfter !== "inherit") v = beforeAndAfter;
+                        x = beforeAndAfter === "inherit" ? width : calcX($$) + 0.5 * pixelsPerSample;
                     }
-                    nextY = calcY(next, channel);
-                    ctx.lineTo(nextX, nextY);
+                    if (beforeAndAfter !== "none" || !isLastSample) {
+                        y = calcY(v, channel);
+                        ctx.lineTo(x, y);
+                    }
                     ctx.stroke();
                     ctx.restore();
                 }
@@ -260,7 +273,7 @@ class VectorImageProcessor {
     static paintHorizontalRuler(
         ctx: CanvasRenderingContext2D,
         numberOfChannels: number,
-        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, labelsWidth = 0, labelMode = "decibel", labelUnit = labelMode === "decibel" ? "dB" : "" }: Partial<VectorDrawOptions>,
+        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, labelsWidth = 0, labelMode = "decibel", labelUnit = labelMode === "decibel" ? "dB" : "" }: Partial<VectorPaintOptions>,
         { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<VisualizationStyleOptions, "gridColor" | "gridRulerColor" | "textColor" | "labelFont">> = {}
     ) {
         const channelHeight = height / numberOfChannels;
@@ -366,11 +379,11 @@ class VectorImageProcessor {
                 ctx.lineTo(width, i * channelHeight);
             }
         }
+        let isCoarse = false;
         if (labelMode === "decibel") {
             for (let channel = 0; channel < numberOfChannels; channel++) {
                 let lastCoarseY = Infinity;
                 let lastRefinedY = Infinity;
-                let isCoarse = false;
                 if (yMin < 0 && 0 < yMax) {
                     y = calcY(0, channel);
                     ctx.moveTo(x, y);
@@ -425,11 +438,12 @@ class VectorImageProcessor {
             for (let channel = 0; channel < numberOfChannels; channel++) {
                 a = aMin;
                 while (a <= aMax) {
-                    x1 = x + (a % coarse === 0 ? 10 : 5);
+                    isCoarse = isCloseToMultipleOf(a, coarse);
+                    x1 = x + (isCoarse ? 10 : 5);
                     y = calcY(a, channel);
                     ctx.moveTo(x, y);
                     ctx.lineTo(x1, y);
-                    if (a % coarse === 0 && y > channelHeight * channel + 15 && y < channelHeight * (channel + 1) - 15) ctx.fillText(a.toString(), x + 14, y);
+                    if (isCoarse && y > channelHeight * channel + 15 && y < channelHeight * (channel + 1) - 15) ctx.fillText((+(a.toPrecision(7))).toString(), x + 14, y);
                     a += refined;
                 }
             }
@@ -440,7 +454,7 @@ class VectorImageProcessor {
     static paintVerticalRuler(
         ctx: CanvasRenderingContext2D,
         sampleRate: number,
-        { width = ctx.canvas.width, height = ctx.canvas.height, labelsHeight = 0 }: Partial<VectorDrawOptions>,
+        { width = ctx.canvas.width, height = ctx.canvas.height, labelsHeight = 0 }: Partial<VectorPaintOptions>,
         { viewRange, configuration: { audioUnit, beatsPerMeasure, beatsPerMinute, division } }: Pick<VisualizationOptions<any>, "viewRange" | "configuration">,
         { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<VisualizationStyleOptions, "gridColor" | "gridRulerColor" | "textColor" | "labelFont">> = {}
     ) {

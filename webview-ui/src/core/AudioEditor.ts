@@ -150,8 +150,8 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     }
     async initModules(initialtates: AudioToolkitModulesState) {
         for (let i = 0; i < initialtates.length; i++) {
-            const { moduleId: id, moduleName: name, state } = initialtates[i];
-            await this.addModule(id, state, name);
+            const { moduleId: id, moduleName: name, state, visible } = initialtates[i];
+            await this.addModule(id, state, name, visible);
         }
     }
     setState(state: Partial<AudioEditorState>) {
@@ -176,7 +176,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         this._modulesState = [...this._modulesState];
         this.emit("modulesState", this._modulesState);
     }
-    async addModule(moduleId: string, initialState?: any, moduleName?: string) {
+    async addModule(moduleId: string, initialState?: any, moduleName?: string, visible?: boolean | number) {
         const Constructor = AudioEditor.MODULES_MAP[moduleId];
         if (!Constructor) throw new Error(`Module ${moduleId} not found.`);
         const sharableData: Record<string, any> = {};
@@ -186,7 +186,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         });
         const instance = await Constructor.fromAudioData(this, initialState, sharableData);
         this._modulesInstance = [...this._modulesInstance, instance];
-        this._modulesState = [...this._modulesState, { moduleId, moduleName: moduleName ?? Constructor.MODULE_NAME, visible: true, state: instance.getState() }];
+        this._modulesState = [...this._modulesState, { moduleId, moduleName: moduleName ?? Constructor.MODULE_NAME, visible: visible ?? true, state: instance.getState() }];
         const handleStateChange = (newState: any) => this.setModuleState(this._modulesInstance.indexOf(instance), newState);
         instance.onStateChange = handleStateChange;
         this.emit("modulesState", this._modulesState);

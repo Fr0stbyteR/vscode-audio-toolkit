@@ -2,6 +2,7 @@ import AudioEditor from "../../core/AudioEditor";
 import { AudioToolkitModuleState } from "../../core/AudioToolkitModule";
 import VectorImageProcessor, { VectorDataSlice } from "../../core/VectorImageProcessor";
 import EssentiaModule, { EssentiaModuleSharableData } from "./EssentiaModule";
+import Component from "./LoudnessEBUR128Component";
 
 export interface State extends AudioToolkitModuleState {
     hopSize: number;
@@ -32,6 +33,9 @@ class Module extends EssentiaModule<State> {
     }
     public state: State;
     private _dataSlices: DataSlice[] = [];
+    get Component() {
+        return Component;
+    }
     get dataSlices() {
         return this._dataSlices;
     }
@@ -47,14 +51,14 @@ class Module extends EssentiaModule<State> {
     onDataChange: ((data: DataSlice[]) => any) | undefined;
     calculate() {
         setTimeout(() => {
-            const { momentaryLoudness, shortTermLoudness, integratedLoudness, loudnessRange } = this.essentia.LoudnessEBUR128(this.timeDomainVectors[0], this.timeDomainVectors[1], this.state.hopSize, this.audioEditor.sampleRate, this.state.startAtZero) as ReturnType<this["essentia"]["LoudnessEBUR128"]>;
+            const { momentaryLoudness, shortTermLoudness, integratedLoudness, loudnessRange } = this.essentia.LoudnessEBUR128(this.timeDomainVectors[0], this.timeDomainVectors[1] ?? this.timeDomainVectors[0], this.state.hopSize, this.audioEditor.sampleRate, this.state.startAtZero) as ReturnType<this["essentia"]["LoudnessEBUR128"]>;
             const momentaryLoudnessArray = this.essentia.vectorToArray(momentaryLoudness);
             const shortTermLoudnessArray = this.essentia.vectorToArray(shortTermLoudness);
             const audioSamplesPerSample = this.audioEditor.sampleRate * this.state.hopSize;
             const momentaryLoudnessDataSlice: VectorDataSlice = {
                 startIndex: 0,
                 endIndex: this.audioEditor.length,
-                offsetFromSample: 0,
+                offsetFromSample: this.audioEditor.sampleRate * (this.state.hopSize - 0.4) * 0.5,
                 audioSamplesPerSample,
                 vectors: [momentaryLoudnessArray],
                 resizedVectors: VectorImageProcessor.generateResized([momentaryLoudnessArray], audioSamplesPerSample)
@@ -62,7 +66,7 @@ class Module extends EssentiaModule<State> {
             const shortTermLoudnessDataSlice: VectorDataSlice = {
                 startIndex: 0,
                 endIndex: this.audioEditor.length,
-                offsetFromSample: 0,
+                offsetFromSample: this.audioEditor.sampleRate * (this.state.hopSize - 3) * 0.5,
                 audioSamplesPerSample,
                 vectors: [shortTermLoudnessArray],
                 resizedVectors: VectorImageProcessor.generateResized([shortTermLoudnessArray], audioSamplesPerSample)
