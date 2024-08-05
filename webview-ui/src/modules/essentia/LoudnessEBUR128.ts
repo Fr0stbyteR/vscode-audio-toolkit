@@ -16,9 +16,10 @@ export interface Data {
     loudnessRange: number;
 }
 
-export interface DataSlice extends Pick<Data, "integratedLoudness" | "loudnessRange"> {
+export interface DataSlice extends Pick<Data, "loudnessRange"> {
     momentaryLoudnessDataSlice: VectorDataSlice;
     shortTermLoudnessDataSlice: VectorDataSlice;
+    integratedLoudnessDataSlice: VectorDataSlice;
 }
 
 class Module extends EssentiaModule<State> {
@@ -71,7 +72,15 @@ class Module extends EssentiaModule<State> {
                 vectors: [shortTermLoudnessArray],
                 resizedVectors: VectorImageProcessor.generateResized([shortTermLoudnessArray], audioSamplesPerSample)
             };
-            this._dataSlices = [{ momentaryLoudnessDataSlice, shortTermLoudnessDataSlice, integratedLoudness, loudnessRange }];
+            const integratedLoudnessDataSlice: VectorDataSlice = {
+                startIndex: 0,
+                endIndex: this.audioEditor.length,
+                offsetFromSample: 0,
+                audioSamplesPerSample: this.audioEditor.length,
+                vectors: [new Float32Array([integratedLoudness])],
+                resizedVectors: { resizes: [], sizes: [], resizeOptions: { resizeFactor: VectorImageProcessor.DEFAULT_RESIZE_FACTOR, minWidth: VectorImageProcessor.DEFAULT_MIN_WIDTH } }
+            };
+            this._dataSlices = [{ momentaryLoudnessDataSlice, shortTermLoudnessDataSlice, integratedLoudnessDataSlice, loudnessRange }];
             this.onDataChange?.(this._dataSlices);
         }, 0);
     }

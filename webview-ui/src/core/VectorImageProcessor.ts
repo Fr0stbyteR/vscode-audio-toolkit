@@ -169,7 +169,7 @@ class VectorImageProcessor {
             if ($ >= $drawTo) break;
             $resize = bestResizesIndex[$dataSlice];
             if ($resize === -1) {
-                if ($ < $drawFrom) $vector = ~~(($drawFrom - (startIndex - offsetFromSample)) / audioSamplesPerSample);
+                if ($ < $drawFrom) $vector = ~~Math.max(0, ($drawFrom - (startIndex - offsetFromSample)) / audioSamplesPerSample);
                 else $vector = 0;
                 $ = get$($dataSlice, $resize, $vector);
                 for (let channel = 0; channel < numberOfChannels; channel++) {
@@ -235,7 +235,7 @@ class VectorImageProcessor {
                 }
             } else {
                 const { maxData, minData, audioSamplesPerFrame, offsetFromFrame } = resizedVectors.resizes[bestResizesIndex[$dataSlice]];
-                if ($ < $drawFrom) $vector = ~~(($drawFrom - (startIndex - offsetFromFrame)) / audioSamplesPerFrame);
+                if ($ < $drawFrom) $vector = ~~Math.max(0, ($drawFrom - (startIndex - offsetFromFrame)) / audioSamplesPerFrame);
                 else $vector = 0;
                 $ = get$($dataSlice, $resize, $vector);
                 for (let channel = 0; channel < numberOfChannels; channel++) {
@@ -399,13 +399,13 @@ class VectorImageProcessor {
                         y = calcY(a, channel);
                         ctx.moveTo(x, y);
                         ctx.lineTo(x1, y);
-                        if (isCoarse && y > channelHeight * channel + 15 && y < channelHeight * (channel + 1) - 15) ctx.fillText(db.toString(), x + 14, y);
+                        if (isCoarse && y > channelHeight * channel + 20 && y < channelHeight * (channel + 1) - 10) ctx.fillText(db.toString(), x + 14, y);
                     }
                     if (yMin < -a && -a < yMax) {
                         y = calcY(-a, channel);
                         ctx.moveTo(x, y);
                         ctx.lineTo(x1, y);
-                        if (isCoarse && y > channelHeight * channel + 15 && y < channelHeight * (channel + 1) - 15) ctx.fillText(db.toString(), x + 14, y);
+                        if (isCoarse && y > channelHeight * channel + 20 && y < channelHeight * (channel + 1) - 10) ctx.fillText(db.toString(), x + 14, y);
                     }
                 };
                 while (db >= dbMin) {
@@ -443,7 +443,7 @@ class VectorImageProcessor {
                     y = calcY(a, channel);
                     ctx.moveTo(x, y);
                     ctx.lineTo(x1, y);
-                    if (isCoarse && y > channelHeight * channel + 15 && y < channelHeight * (channel + 1) - 15) ctx.fillText((+(a.toPrecision(7))).toString(), x + 14, y);
+                    if (isCoarse && y > channelHeight * channel + 20 && y < channelHeight * (channel + 1) - 10) ctx.fillText((+(a.toPrecision(7))).toString(), x + 14, y);
                     a += refined;
                 }
             }

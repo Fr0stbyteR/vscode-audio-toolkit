@@ -11,7 +11,11 @@ abstract class EssentiaModule<State extends AudioToolkitModuleState = any> imple
     static MODULE_ID = "essentia.base";
     static MODULE_NAME = "Essentia Base";
     static DEFAULT_STATE: AudioToolkitModuleState = { name: "" };
-    static essentia = new Essentia.Essentia(Essentia.EssentiaWASM.EssentiaWASM);
+    private static _essentia: Essentia;
+    static get essentia() {
+        if (!this._essentia) this._essentia = new Essentia.Essentia(Essentia.EssentiaWASM.EssentiaWASM);
+        return this._essentia;
+    }
     static getTimeDomainVectors(audioEditor: AudioEditor, sharableData?: Record<string, EssentiaModuleSharableData>) {
         if (sharableData) {
             const id = Object.keys(sharableData).find(id => id.startsWith("essentia."));
