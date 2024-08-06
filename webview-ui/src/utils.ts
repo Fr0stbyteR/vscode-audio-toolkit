@@ -164,8 +164,10 @@ export const setCanvasToFullSize = (canvas: HTMLCanvasElement) => {
     const height = ~~(rect.height * ratio);
     if (canvas.width !== width) canvas.width = width;
     if (canvas.height !== height) canvas.height = height;
-    canvas.getContext("2d")?.scale(ratio, ratio);
-    return [width, height];
+    const ctx = canvas.getContext("2d");
+    ctx?.reset();
+    ctx?.scale(ratio, ratio);
+    return [~~rect.width, ~~rect.height];
 };
 export const getFactors = (n: number) => {
     const factors = [1];
