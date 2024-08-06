@@ -205,19 +205,18 @@
         width: 100%;
         overflow: auto;
 
-        & > div:not(:last-child) {
+        & > div {
             display: flex;
             flex-direction: column;
-            margin-bottom: 10px;
+
+            &:not(:last-child) {
+                margin-bottom: 10px;
+            }
             
             & > input[type=color] {
                 background-color: var(--vscode-button-secondaryBackground);
                 padding: 0px;
                 border-width: 0px;
-            }
-
-            & vscode-text-field {
-                width: 100%;
             }
         }
 /*

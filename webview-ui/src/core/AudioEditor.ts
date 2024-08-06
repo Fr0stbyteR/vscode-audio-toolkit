@@ -31,6 +31,7 @@ export interface AudioEditorEventMap {
 }
 
 export interface AudioEditorState {
+    isReady: boolean;
     playing: AudioPlayingState;
     monitoring: boolean;
     recording: boolean;
@@ -79,9 +80,12 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         const audioEditor = new AudioEditor(operableAudioBuffer, timeDomainData, frequencyDomainData, context, { ...this.DEFAULT_CONFIGURATION, ...configuration });
         await audioEditor.initPlayer();
         await audioEditor.initModules(modulesState);
+        audioEditor.setState({ isReady: true });
+        audioEditor.emit("ready");
         return audioEditor;
     }
     readonly state: AudioEditorState = {
+        isReady: false,
         playing: "stopped",
         monitoring: false,
         loop: true,

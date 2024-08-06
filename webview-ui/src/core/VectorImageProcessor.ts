@@ -151,12 +151,11 @@ class VectorImageProcessor {
         let x = 0;
         let y = 0;
         let clip: Path2D;
-        let minInStep: number;
-        let maxInStep: number;
+        let minInStep = 0;
+        let maxInStep = 0;
         let prevVector: Float32Array;
         let nextVector: Float32Array;
         let isFirstSample: boolean;
-        let isLastSample: boolean;
     
         for (let $dataSlice = 0; $dataSlice < dataSlices.length; $dataSlice++) {
             const { startIndex, endIndex, resizedVectors, audioSamplesPerSample, vectors, offsetFromSample } = dataSlices[$dataSlice];
@@ -183,7 +182,6 @@ class VectorImageProcessor {
                     ctx.strokeStyle = phosphorColor;
                     ctx.fillStyle = phosphorColor;
                     isFirstSample = false;
-                    isLastSample = false;
                     if ($$vector > 0) {
                         v = vectors[channel][$$vector - 1];
                         x = calcX($$) - 0.5 * pixelsPerSample;
@@ -222,11 +220,10 @@ class VectorImageProcessor {
                         v = nextVector[0];
                         x = calcX(get$($dataSlice + 1, $resize, 0)) + 0.5 * pixelsPerAudioSample * dataSlices[$dataSlice + 1].audioSamplesPerSample;
                     } else if (beforeAndAfter !== "none") {
-                        isLastSample = true;
                         if (beforeAndAfter !== "inherit") v = beforeAndAfter;
                         x = beforeAndAfter === "inherit" ? width : calcX($$) + 0.5 * pixelsPerSample;
                     }
-                    if (beforeAndAfter !== "none" || !isLastSample) {
+                    if (beforeAndAfter !== "none") {
                         y = calcY(v, channel);
                         ctx.lineTo(x, y);
                     }
@@ -248,7 +245,24 @@ class VectorImageProcessor {
                     ctx.beginPath();
                     ctx.strokeStyle = phosphorColor;
                     ctx.fillStyle = phosphorColor;
-                    while ($$ < endIndex && $$ < $drawTo) {
+                    isFirstSample = false;
+                    if ($$vector > 0) {
+                        v = maxData[channel][$$vector];
+                        x = calcX($$) - 0.5 * pixelsPerSample;
+                    } else if ($dataSlice > 0) {
+                        prevVector = dataSlices[$dataSlice - 1].vectors[channel];
+                        v = prevVector[prevVector.length - 1];
+                        x = calcX(get$($dataSlice - 1, $resize, prevVector.length - 1)) - 0.5 * pixelsPerAudioSample * dataSlices[$dataSlice - 1].audioSamplesPerSample;
+                    } else if (beforeAndAfter !== "none") {
+                        isFirstSample = true;
+                        v = beforeAndAfter === "inherit" ? maxData[channel][$$vector] : beforeAndAfter;
+                        x = beforeAndAfter === "inherit" ? 0 : calcX($$) - 0.5 * pixelsPerSample;
+                    }
+                    if (beforeAndAfter !== "none" || !isFirstSample) {
+                        y = calcY(v, channel);
+                        ctx.moveTo(x, y);
+                    }
+                    while ($$ < endIndex && $$ < $drawTo && $$vector < minData[channel].length) {
                         x = calcX($$);
                         minInStep = minData[channel][$$vector];
                         maxInStep = maxData[channel][$$vector];
@@ -261,6 +275,21 @@ class VectorImageProcessor {
                         }
                         $$vector++;
                         $$ = get$($dataSlice, $resize, $$vector);
+                    }
+                    if ($$vector < minData[channel].length - 1) {
+                        v = minData[channel][$$vector + 1];
+                        x = calcX($$) + 0.5 * pixelsPerSample;
+                    } else if ($dataSlice < dataSlices.length - 1) {
+                        nextVector = dataSlices[$dataSlice + 1].vectors[channel];
+                        v = nextVector[0];
+                        x = calcX(get$($dataSlice + 1, $resize, 0)) + 0.5 * pixelsPerAudioSample * dataSlices[$dataSlice + 1].audioSamplesPerSample;
+                    } else if (beforeAndAfter !== "none") {
+                        v = beforeAndAfter === "inherit" ? minInStep : beforeAndAfter;
+                        x = beforeAndAfter === "inherit" ? width : calcX($$) + 0.5 * pixelsPerSample;
+                    }
+                    if (beforeAndAfter !== "none") {
+                        y = calcY(v, channel);
+                        ctx.lineTo(x, y);
                     }
                     ctx.stroke();
                     ctx.restore();
@@ -468,7 +497,10 @@ class VectorImageProcessor {
         ctx.beginPath();
         let x: number;
         let y: number;
+        let text: string;
         for (const $str in ruler) {
+            text = ruler[$str];
+            if (!text) continue;
             x = (+$str - $drawFrom) * pixelsPerSample;
             ctx.moveTo(x, top);
             ctx.lineTo(x, height);
@@ -485,7 +517,6 @@ class VectorImageProcessor {
         ctx.fillText(audioUnit === "time" ? "hms" : audioUnit === "measure" ? `${beatsPerMinute} bpm` : "samps", 2, top - 14);
         ctx.textAlign = "center";
         ctx.beginPath();
-        let text: string;
         for (const $str in ruler) {
             text = ruler[$str];
             x = (+$str - $drawFrom) * pixelsPerSample;

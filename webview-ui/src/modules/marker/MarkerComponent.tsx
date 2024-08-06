@@ -5,6 +5,7 @@ import { VSCodeButton, VSCodeTextField } from "@vscode/webview-ui-toolkit/react"
 import { setCanvasToFullSize } from "../../utils";
 import { VisualizationOptions } from "../../core/AudioToolkitModule";
 import Marker from "./Marker";
+import VectorImageProcessor from "../../core/VectorImageProcessor";
 
 const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ module, moduleState, viewRange, selRange, playhead, gridColor, gridRulerColor, textColor, monospaceFont, configuration, rerenderTimestamp }) => {
     const audioEditor = useContext(AudioEditorContext)!;
@@ -17,8 +18,8 @@ const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ modu
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        module.paintVerticalRuler(ctx, { width, height, gridLabels: false }, { viewRange, configuration }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
-    }, [module, viewRange, configuration, gridColor, gridRulerColor, textColor, monospaceFont]);
+        VectorImageProcessor.paintVerticalRuler(ctx, module.audioEditor.sampleRate, { width, height, labelsHeight: 0 }, { viewRange, configuration }, { gridColor });
+    }, [module, viewRange, configuration, gridColor]);
     useEffect(paintVerticalRuler, [paintVerticalRuler, rerenderTimestamp]);
     const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
         if (!e.deltaX && !e.deltaY) return;
@@ -175,8 +176,7 @@ const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ modu
     let selected = false;
     let left: string;
     let width: string;
-    const id1 = useId();
-    const id2 = useId();
+    const [id1, id2, id3] = [useId(), useId(), useId()];
     moduleState.data.forEach(({ position, name }, i) => {
         let start = 0;
         let end = 0;
@@ -364,7 +364,7 @@ const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ modu
                     <input type="color" name="marker-color" value={moduleState.color} id={id2} onChange={handleChangeMarkerColor} />
                 </div>
                 <div>
-                    <label htmlFor={id1}>Marker Name</label>
+                    <label htmlFor={id3}>Marker Name</label>
                     <VSCodeTextField placeholder="Marker Name" onInput={handleInputMarkerName} value={markerName} />
                 </div>
                 {

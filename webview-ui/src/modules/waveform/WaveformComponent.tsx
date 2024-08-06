@@ -28,8 +28,8 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (pr
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        VectorImageProcessor.paintVerticalRuler(ctx, module.audioEditor.sampleRate, { width, height, labelsHeight: 0 }, { viewRange, configuration }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
-    }, [module, viewRange, configuration, gridColor, gridRulerColor, textColor, monospaceFont]);
+        VectorImageProcessor.paintVerticalRuler(ctx, module.audioEditor.sampleRate, { width, height, labelsHeight: 0 }, { viewRange, configuration }, { gridColor });
+    }, [module, viewRange, configuration, gridColor]);
     const paintHorizontalRuler = useCallback((canvasRef: React.RefObject<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext("2d");

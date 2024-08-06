@@ -3,27 +3,60 @@ import "@vscode/codicons/dist/codicon.css";
 import "@vscode/codicons/dist/codicon.ttf";
 import "@vscode/codicons/dist/codicon.svg";
 import { VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
-import { FunctionComponent, useEffect, useState } from "react";
-import AudioEditor from "./core/AudioEditor";
+import { FunctionComponent, useCallback, useEffect, useState } from "react";
+import AudioEditor, { AudioEditorConfiguration } from "./core/AudioEditor";
 import { AudioEditorContext, AudioEditorWebviewContext } from "./components/contexts";
 import AudioEditorContainer from "./components/AudioEditorContainer";
 import AudioEditorWebview from "./AudioEditorWebview";
+import { AudioToolkitModulesState } from "./core/AudioToolkitModule";
 
 let isReady = false;
 
 const App: FunctionComponent = () => {
     const [audioEditor, setAudioEditor] = useState<AudioEditor | null>(null);
     const [audioEditorWebview, setAudioEditorWebview] = useState<AudioEditorWebview | null>(null);
+    const initCallback = useCallback(async (webview: AudioEditorWebview, { data, uri, editable }: { data?: Uint8Array; uri?: string; editable?: boolean }, configuration: AudioEditorConfiguration, modulesState: AudioToolkitModulesState | null = webview.getState()) => {
+        const { fftWindowFunction } = configuration;
+        configuration.fftWindowFunction = `${fftWindowFunction.slice(0, 1).toLowerCase()}${fftWindowFunction.slice(1).replaceAll(/[-\s]/g, "")}`;
+        let arrayBuffer: ArrayBuffer | undefined;
+        if (typeof uri === "string") {
+            const response = await fetch(uri);
+            arrayBuffer = await response.arrayBuffer();
+        } else if (data) {
+            arrayBuffer = data.buffer;
+        }
+        if (!arrayBuffer) throw new Error(`Cannot resolve data from ${uri} or data input`);
+        const audioContext = new AudioContext({ latencyHint: 0.0001 });
+        const audioEditor = await AudioEditor.fromData(arrayBuffer, audioContext, configuration, modulesState ?? undefined);
+        webview.audioEditor = audioEditor;
+        setAudioEditor!(audioEditor);
+        audioEditor.on("modulesState", ((state) => {
+            webview.setState(state);
+            if (!audioEditor?.makingEdit) return;
+            webview.makeEditModulesState({ modulesState: state });
+        }));
+        window.focus();
+        const handleKeyDown = async (e: KeyboardEvent) => {
+            if (e.key !== "") return;
+            if (!audioEditor) return;
+            if (audioEditor.context.state === "suspended" && audioEditor.state.playing !== "playing") {
+                await audioEditor.context.resume();
+                audioEditor.play();
+                window.removeEventListener("keydown", handleKeyDown);
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return audioEditor.sampleRate;
+    }, []);
     useEffect(() => {
-        const audioEditorWebview = new AudioEditorWebview();
-        audioEditorWebview.attachReact(setAudioEditor);
+        const audioEditorWebview = new AudioEditorWebview(initCallback);
         setAudioEditorWebview(audioEditorWebview);
         if (!isReady) {
             audioEditorWebview.ready();
             isReady = true;
         }
         return () => audioEditorWebview.dispose();
-    }, []);
+    }, [initCallback]);
     return (
         <main>
             {audioEditor && audioEditorWebview ? (

@@ -1,5 +1,5 @@
 import "./ModuleUsingCanvas.scss";
-import { FunctionComponent, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { FunctionComponent, useCallback, useContext, useEffect, useRef } from "react";
 import { AudioEditorContext } from "./contexts";
 import { AudioToolkitModule, VisualizationOptions } from "../core/AudioToolkitModule";
 
@@ -14,6 +14,7 @@ export interface ModuleUsingCanvasProps extends VisualizationOptions<AudioToolki
     paint: (canvasRef: React.RefObject<HTMLCanvasElement>) => any;
     paintVerticalRuler: (canvasRef: React.RefObject<HTMLCanvasElement>) => any;
     paintHorizontalRuler: (canvasRef: React.RefObject<HTMLCanvasElement>) => any;
+    repaintId?: any;
     configurationContent?: JSX.Element;
 }
 
@@ -24,16 +25,17 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         defaultVerticalZoom, verticalZoom, setVerticalZoom,
         defaultVerticalOffset, verticalOffset, setVerticalOffset,
         showChannelEnableOverlay, configurationContent,
-        viewRange, enabledChannels, selRange, playhead, rerenderTimestamp
+        viewRange, enabledChannels, selRange, playhead,
+        rerenderTimestamp, repaintId
     } = props;
     const audioEditor = useContext(AudioEditorContext)!;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const canvasVerticalRulerRef = useRef<HTMLCanvasElement>(null);
     const canvasHorizontalRulerRef = useRef<HTMLCanvasElement>(null);
     const divMainRef = useRef<HTMLDivElement>(null);
-    useEffect(() => paint(canvasRef), [paint, rerenderTimestamp]);
-    useEffect(() => paintVerticalRuler(canvasVerticalRulerRef), [paintVerticalRuler, rerenderTimestamp]);
-    useEffect(() => paintHorizontalRuler(canvasHorizontalRulerRef), [paintHorizontalRuler, rerenderTimestamp]);
+    useEffect(() => paint(canvasRef), [paint, rerenderTimestamp, repaintId]);
+    useEffect(() => paintVerticalRuler(canvasVerticalRulerRef), [paintVerticalRuler, rerenderTimestamp, repaintId]);
+    useEffect(() => paintHorizontalRuler(canvasHorizontalRulerRef), [paintHorizontalRuler, rerenderTimestamp, repaintId]);
     const handleCanvasMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         e.stopPropagation();
         e.preventDefault();
@@ -188,7 +190,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
     const $playhead = (playhead - viewStart) / viewLength;
     const playheadLeft = `${$playhead * 100}%`;
     return (<>
-        <div className={`visualizer-component-container module-using-canvas-container ${module.moduleId}-container`}>
+        <div className={`visualizer-component-container module-using-canvas-container ${module.moduleId.replace(".", "-")}-container`}>
             <div className="module-using-canvas-background" />
             <div className="module-using-canvas-vertical-ruler-container">
                 <canvas ref={canvasVerticalRulerRef} />
@@ -217,7 +219,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
                 {showChannelEnableOverlay ? enabledChannels.map((enabled, i) => <div key={i} className={enabled ? "" : "disabled"} />) : undefined}
             </div>
         </div>
-        <div className={`visualizer-component-configuration ${module.moduleId}-configuration-container`}>
+        <div className={`visualizer-component-configuration ${module.moduleId.replace(".", "-")}-configuration-container`}>
             {configurationContent}
         </div>
     </>);
