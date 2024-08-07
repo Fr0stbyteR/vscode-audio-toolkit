@@ -11,16 +11,17 @@ interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRa
     configuration: AudioEditorConfiguration;
     windowSize: number[];
     configuring: boolean;
+    monitoring: boolean;
     visualizersState: AudioToolkitModulesState;
 }
 
 const AudioEditorMain: FunctionComponent<Props> = (props) => {
-    const { playhead, viewRange, selRange, windowSize, gridRulerColor, textColor, labelFont, configuration: { audioUnit, beatsPerMeasure, beatsPerMinute, division }, configuring, visualizersState } = props;
+    const { playhead, viewRange, selRange, windowSize, gridRulerColor, textColor, labelFont, configuration: { audioUnit, beatsPerMeasure, beatsPerMinute, division }, configuring, monitoring, visualizersState } = props;
     const audioEditor = useContext(AudioEditorContext)!;
     const divSelRangeRef = useRef<HTMLDivElement>(null);
     const divVerticalRulerRef = useRef<HTMLDivElement>(null);
     const canvasVerticalRulerRef = useRef<HTMLCanvasElement>(null);
-    const [rerenderTimestamp, setRerenderTimestamp] = useState(performance.now());
+    const [rerenderId, setRerenderId] = useState(performance.now());
     const handlePlayheadHandlerMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!divVerticalRulerRef.current) return;
         e.stopPropagation();
@@ -205,7 +206,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
         dividers.splice(visualizerIndex, 1);
         let moveToIndex = visualizerIndex;
         dividers[visualizerIndex - 1].classList.add("active");
-        setRerenderTimestamp(performance.now());
+        setRerenderId(performance.now());
         const handleMouseMove = (e: MouseEvent) => {
             e.stopPropagation();
             e.preventDefault();
@@ -241,7 +242,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
             if (visualizerIndex !== moveToIndex) {
                 audioEditor.moveModule(visualizerIndex, moveToIndex);
             }
-            setRerenderTimestamp(performance.now());
+            setRerenderId(performance.now());
             document.removeEventListener("mousemove", handleMouseMove);
             document.removeEventListener("mouseup", handleMouseUp);
         };
@@ -285,10 +286,10 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
     const handleStopPropagation = (e: React.KeyboardEvent) => {
         e.stopPropagation();
     };
-    useEffect(() => setRerenderTimestamp(performance.now()), [windowSize, visualizersState]);
+    useEffect(() => setRerenderId(performance.now()), [windowSize, visualizersState]);
     // useEffect(() => void vscode.setState(visualizersState), [visualizersState]);
-    useEffect(paintVerticalRuler, [paintVerticalRuler, rerenderTimestamp]);
-    useEffect(() => setRerenderTimestamp(performance.now()), [configuring]);
+    useEffect(paintVerticalRuler, [paintVerticalRuler, rerenderId]);
+    useEffect(() => setRerenderId(performance.now()), [configuring, monitoring]);
 
     const [viewStart, viewEnd] = viewRange;
     const viewLength = viewEnd - viewStart;
@@ -299,15 +300,15 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
     const selWidth = `${($selEnd - $selStart) * 100}%`;
     const $playhead = (playhead - viewStart) / viewLength;
     const playheadLeft = `${$playhead * 100}%`;
-    const moduleCommonProps = { ...props, rerenderTimestamp };
+    const moduleCommonProps = { ...props, rerenderId };
     return (
         <div className="editor-main">
             <div className="editor-main-flex">
-                <div className={`editor-main-playhead-container${configuring ? " configuring" : ""}`} hidden={$playhead < 0 || $playhead > 1}>
+                <div className={`editor-main-playhead-container${configuring ? " configuring" : ""}${monitoring ? " monitoring" : ""}`} hidden={$playhead < 0 || $playhead > 1}>
                     <div className="editor-main-playhead-handler" style={{ left: playheadLeft }} onMouseDown={handlePlayheadHandlerMouseDown} />
                     <div className="editor-main-playhead" style={{ left: playheadLeft }}></div>
                 </div>
-                <div className={`editor-main-vertical-ruler-area${configuring ? " configuring" : ""}`} ref={divVerticalRulerRef} onMouseDown={handlePlayheadHandlerMouseDown} onDoubleClick={handlePlayheadHandlerDoubleClick}>
+                <div className={`editor-main-vertical-ruler-area${configuring ? " configuring" : ""}${monitoring ? " monitoring" : ""}`} ref={divVerticalRulerRef} onMouseDown={handlePlayheadHandlerMouseDown} onDoubleClick={handlePlayheadHandlerDoubleClick}>
                     <canvas ref={canvasVerticalRulerRef} />
                     <div className="editor-main-selrange-handler" ref={divSelRangeRef} style={{ left: selLeft, width: `calc(${selWidth} - 4px)` }} hidden={!selRange} >
                         <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />
@@ -337,7 +338,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                                     <span className="codicon codicon-trash"></span>
                                 </VSCodeButton>
                             </div>
-                            {visible ? <div className={`editor-main-visualizer-component${configuring ? " configuring" : ""}`} onKeyDown={handleStopPropagation} onKeyUp={handleStopPropagation}><Component module={module} moduleIndex={i} moduleState={state} {...moduleCommonProps} /></div> : undefined}
+                            {visible ? <div className={`editor-main-visualizer-component${configuring ? " configuring" : ""}${monitoring ? " monitoring" : ""}`} onKeyDown={handleStopPropagation} onKeyUp={handleStopPropagation}><Component module={module} moduleIndex={i} moduleState={state} {...moduleCommonProps} /></div> : null}
                         </div>
                         <div className={`editor-main-divider${visible ? " draggable" : ""}`} onMouseDown={visible ? (e) => handleDividerMouseDown(e, i) : undefined} />
                     </>);

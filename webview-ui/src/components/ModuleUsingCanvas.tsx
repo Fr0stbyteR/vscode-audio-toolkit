@@ -1,5 +1,5 @@
 import "./ModuleUsingCanvas.scss";
-import { FunctionComponent, useCallback, useContext, useEffect, useRef } from "react";
+import { FunctionComponent, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AudioEditorContext } from "./contexts";
 import { AudioToolkitModule, VisualizationOptions } from "../core/AudioToolkitModule";
 
@@ -10,12 +10,16 @@ export interface ModuleUsingCanvasProps extends VisualizationOptions<AudioToolki
     defaultVerticalOffset: number;
     verticalOffset: number,
     setVerticalOffset: React.Dispatch<React.SetStateAction<number>>,
+    cursorX?: number;
+    cursorY?: number;
+    onCursor?: (x: number, y: number, width: number, height: number) => any;
     showChannelEnableOverlay?: boolean;
     paint: (canvasRef: React.RefObject<HTMLCanvasElement>) => any;
     paintVerticalRuler: (canvasRef: React.RefObject<HTMLCanvasElement>) => any;
     paintHorizontalRuler: (canvasRef: React.RefObject<HTMLCanvasElement>) => any;
     repaintId?: any;
     configurationContent?: JSX.Element;
+    monitorContent?: JSX.Element;
 }
 
 const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => {
@@ -24,18 +28,38 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         paint, paintVerticalRuler, paintHorizontalRuler,
         defaultVerticalZoom, verticalZoom, setVerticalZoom,
         defaultVerticalOffset, verticalOffset, setVerticalOffset,
-        showChannelEnableOverlay, configurationContent,
+        cursorX, cursorY, onCursor,
+        showChannelEnableOverlay, configurationContent, monitorContent,
         viewRange, enabledChannels, selRange, playhead,
-        rerenderTimestamp, repaintId
+        configuring, monitoring, rerenderId, repaintId
     } = props;
     const audioEditor = useContext(AudioEditorContext)!;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const canvasVerticalRulerRef = useRef<HTMLCanvasElement>(null);
     const canvasHorizontalRulerRef = useRef<HTMLCanvasElement>(null);
     const divMainRef = useRef<HTMLDivElement>(null);
-    useEffect(() => paint(canvasRef), [paint, rerenderTimestamp, repaintId]);
-    useEffect(() => paintVerticalRuler(canvasVerticalRulerRef), [paintVerticalRuler, rerenderTimestamp, repaintId]);
-    useEffect(() => paintHorizontalRuler(canvasHorizontalRulerRef), [paintHorizontalRuler, rerenderTimestamp, repaintId]);
+    const [cursorLocked, setCursorLocked] = useState(false);
+    const handleWindowKeyDown = useCallback((e: KeyboardEvent) => {
+        if (monitoring && e.key === "l") setCursorLocked(l => !l);
+    }, [monitoring]);
+    const handleDocumentMouseMove = useCallback((e: MouseEvent) => {
+        if (!canvasRef.current || !onCursor || !monitoring || cursorLocked) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.x;
+        const y = e.clientY - rect.y;
+        onCursor(x, y, ~~rect.width, ~~rect.height);
+    }, [onCursor, monitoring, cursorLocked]);
+    useEffect(() => {
+        window.addEventListener("keydown", handleWindowKeyDown);
+        document.addEventListener("mousemove", handleDocumentMouseMove);
+        return () => {
+            window.removeEventListener("keydown", handleWindowKeyDown);
+            document.removeEventListener("mousemove", handleDocumentMouseMove);
+        };
+    }, [handleDocumentMouseMove, handleWindowKeyDown]);
+    useEffect(() => paint(canvasRef), [paint, rerenderId, repaintId]);
+    useEffect(() => paintVerticalRuler(canvasVerticalRulerRef), [paintVerticalRuler, rerenderId, repaintId]);
+    useEffect(() => paintHorizontalRuler(canvasHorizontalRulerRef), [paintHorizontalRuler, rerenderId, repaintId]);
     const handleCanvasMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         e.stopPropagation();
         e.preventDefault();
@@ -189,6 +213,8 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
     const selWidth = `${($selEnd - $selStart) * 100}%`;
     const $playhead = (playhead - viewStart) / viewLength;
     const playheadLeft = `${$playhead * 100}%`;
+    const cursorXLeft = `${cursorX}px`;
+    const cursorYTop = `${cursorY}px`;
     return (<>
         <div className={`visualizer-component-container module-using-canvas-container ${module.moduleId.replace(".", "-")}-container`}>
             <div className="module-using-canvas-background" />
@@ -212,15 +238,27 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
                 </div>
                 */}
             </div>
+            {
+                monitoring
+                ? <div className="cursor-container">
+                    {canvasRef.current && typeof cursorX === "number" && 0 <= cursorX && cursorX <= canvasRef.current.width ? <div className="cursor-x" style={{ left: cursorXLeft }} /> : null}
+                    {canvasRef.current && typeof cursorY === "number" && 0 <= cursorY && cursorY <= canvasRef.current.height ? <div className="cursor-y" style={{ top: cursorYTop }} /> : null}
+                </div>
+                : null
+            }
             <div className="playhead-container">
-                {$playhead > 1 || $playhead < 0 ? null : <div className="playhead" style={{ left: playheadLeft }} />}
+                {0 <= $playhead && $playhead <= 1 ? <div className="playhead" style={{ left: playheadLeft }} /> : null}
             </div>
             <div className="channel-enable-overlay">
-                {showChannelEnableOverlay ? enabledChannels.map((enabled, i) => <div key={i} className={enabled ? "" : "disabled"} />) : undefined}
+                {showChannelEnableOverlay ? enabledChannels.map((enabled, i) => <div key={i} className={enabled ? "" : "disabled"} />) : null}
             </div>
         </div>
-        <div className={`visualizer-component-configuration ${module.moduleId.replace(".", "-")}-configuration-container`}>
+        <div className={`visualizer-component-configuration module-using-canvas-configuration ${module.moduleId.replace(".", "-")}-configuration-container`}>
             {configurationContent}
+        </div>
+        <div className={`visualizer-component-monitor module-using-canvas-monitor ${module.moduleId.replace(".", "-")}-monitor-container`}>
+            {monitorContent}
+            <div className="hover-tips">Press L to {cursorLocked ? "unlock" : "lock"} the cursor</div>
         </div>
     </>);
 };

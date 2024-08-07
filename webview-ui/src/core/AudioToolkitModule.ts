@@ -27,7 +27,8 @@ export interface VisualizationOptions<T extends AudioToolkitModule, S = ReturnTy
     moduleState: S;
     configuration: AudioEditorConfiguration;
     configuring: boolean;
-    rerenderTimestamp: number;
+    monitoring: boolean;
+    rerenderId: number;
 }
 
 export interface AudioToolkitModule<State extends AudioToolkitModuleState = any> {

@@ -11,7 +11,7 @@ export interface ResizedMatrix {
     /** the offset from the nearest frame before the startIndex, in samples */
     offsetFromFrame: number;
     audioSamplesPerFrame: number;
-    binsPerPixel: number;
+    binsPerCell: number;
     data: Float32Array[][];
     imageBitmaps?: ImageBitmap[][];
 }
@@ -22,7 +22,7 @@ export interface ResizedMatrices {
     resizeOptions: MatrixResizeOptions;
 }
 
-export interface MatrixDrawOptions {
+export interface MatrixPaintOptions {
     width: number;
     height: number;
     verticalZoom: number;
@@ -49,6 +49,17 @@ export interface MatrixDataSlice {
      */
     resizedMatrices: ResizedMatrices;
 }
+export interface MatrixCursorInfo {
+    x: number;
+    y: number;
+    value: number;
+    fromIndex: number;
+    /** Exclusive */
+    toIndex: number;
+    fromBin: number;
+    /** Exclusive */
+    toBin: number;
+};
 
 class MatrixImageProcessor {
     static DEFAULT_RESIZE_FACTOR = 4;
@@ -59,12 +70,12 @@ class MatrixImageProcessor {
     static generateResized(matrices: Float32Array[][], audioSamplesPerFrame: number, { resizeFactor = this.DEFAULT_MIN_PIXEL_WIDTH, minWidth = this.DEFAULT_MIN_PIXEL_WIDTH, minHeight = this.DEFAULT_MIN_PIXEL_HEIGHT }: Partial<MatrixResizeOptions> = {}) {
         const SharedArrayBuffer = globalThis.SharedArrayBuffer || globalThis.ArrayBuffer;
         const originalSize: [number, number] = [matrices[0].length, matrices[0][0].length];
-        let binsPerPixel = 1;
+        let binsPerCell = 1;
         const [ow, oh] = originalSize;
         const channels = matrices.length;
         const sizes = [originalSize];
         const offsetFromFrame = 0;
-        const resizes: ResizedMatrix[] = [{ offsetFromFrame, audioSamplesPerFrame, binsPerPixel, data: matrices }];
+        const resizes: ResizedMatrix[] = [{ offsetFromFrame, audioSamplesPerFrame, binsPerCell, data: matrices }];
         const resized: ResizedMatrices = { sizes, resizeOptions: { resizeFactor, minWidth, minHeight }, resizes };
         // return resized;
         let w: number;
@@ -79,16 +90,16 @@ class MatrixImageProcessor {
         for (w = ow; w >= minWidth; w = Math.ceil(w / resizeFactor)) {
             if (w !== ow) audioSamplesPerFrame *= resizeFactor;
             ph = oh;
-            binsPerPixel = 1;
+            binsPerCell = 1;
             for (h = oh; h >= minHeight; h = Math.ceil(h / resizeFactor)) {
                 if (w === ow && h === oh) continue;
-                if (h !== oh) binsPerPixel *= resizeFactor;
+                if (h !== oh) binsPerCell *= resizeFactor;
                 size = [w, h];
                 sizes.push(size);
                 const resize: ResizedMatrix = {
                     offsetFromFrame,
                     audioSamplesPerFrame,
-                    binsPerPixel,
+                    binsPerCell,
                     data: new Array(channels).fill(null).map(() => new Array(w).fill(null).map(() => new Float32Array(new SharedArrayBuffer(h * Float32Array.BYTES_PER_ELEMENT)).fill(-Infinity)))
                 };
                 resizes.push(resize);
@@ -116,7 +127,7 @@ class MatrixImageProcessor {
     static getBestResizes(dataSlices: MatrixDataSlice[], targetAudioSamplesPerPixel: number, targetBinsPerPixel: number) {
         return dataSlices.map(({ resizedMatrices }) => {
             const width = resizedMatrices.sizes.filter((_, i) => resizedMatrices.resizes[i].audioSamplesPerFrame < targetAudioSamplesPerPixel).map((([w]) => w)).sort((a, b) => a - b)[0] ?? resizedMatrices.sizes[0][0];
-            const height = resizedMatrices.sizes.filter(([w, h], i) => resizedMatrices.resizes[i].binsPerPixel < targetBinsPerPixel && w === width).map(([_, h]) => h).sort((a, b) => a - b)[0] ?? resizedMatrices.sizes[0][1];
+            const height = resizedMatrices.sizes.filter(([w, h], i) => resizedMatrices.resizes[i].binsPerCell < targetBinsPerPixel && w === width).map(([_, h]) => h).sort((a, b) => a - b)[0] ?? resizedMatrices.sizes[0][1];
             return resizedMatrices.sizes.findIndex(([w, h]) => w === width && h === height);
         });
     }
@@ -151,9 +162,9 @@ class MatrixImageProcessor {
         const { MAX_BITMAP_SIZE } = this;
         const bitmaps: { bitmap: ImageBitmap, drawParams: [number, number, number, number, number, number, number, number] }[][] = new Array(numberOfChannels).fill(null).map(() => []);
         const targetAudioSamplesPerPixel = ($drawTo - $drawFrom) / destWidth;
-        const targetBinsPerPixel = ($drawToBin - $drawToBin) / destHeight;
+        const targetBinsPerCell = ($drawToBin - $drawToBin) / destHeight;
         let samplesPerPixel: number;
-        let binsPerPixel: number;
+        let binsPerCell: number;
         /** bitmap start position in samples */
         let $bitmapStart = 0;
         /** bitmap start position in samples per channel */
@@ -174,7 +185,7 @@ class MatrixImageProcessor {
         let offsetFromFrameStart: number;
         // let offsetToFFTFrameEnd: number;
         let sliceStart: number;
-        const bestResizes = this.getBestResizes(dataSlices, targetAudioSamplesPerPixel, targetBinsPerPixel);
+        const bestResizesIndex = this.getBestResizes(dataSlices, targetAudioSamplesPerPixel, targetBinsPerCell);
         for (let i = 0; i < dataSlices.length; i++) {
             const { startIndex, endIndex, resizedMatrices } = dataSlices[i];
             [ow, oh] = dataSlices[i].resizedMatrices.sizes[0];
@@ -184,16 +195,16 @@ class MatrixImageProcessor {
                 continue;
             }
             if ($bitmapStart >= $drawTo) break;
-            const resize = resizedMatrices.resizes[bestResizes[i]];
-            [w, h] = resizedMatrices.sizes[bestResizes[i]];
+            const resize = resizedMatrices.resizes[bestResizesIndex[i]];
+            [w, h] = resizedMatrices.sizes[bestResizesIndex[i]];
             if (!resize.imageBitmaps) resize.imageBitmaps = [];
             samplesPerPixel = resize.audioSamplesPerFrame;
-            binsPerPixel = resize.binsPerPixel;
+            binsPerCell = resize.binsPerCell;
             const calcCoords = () => [
                 sx = (Math.max(0, $drawFrom - $bitmapStartPerChannel) + offsetFromFrameStart) / samplesPerPixel,
-                sy = Math.max(0, oh - $drawToBin) / binsPerPixel,
+                sy = Math.max(0, oh - $drawToBin) / binsPerCell,
                 (Math.min($drawTo, $bitmapEndPerChannel) - $bitmapStartPerChannel + offsetFromFrameStart) / samplesPerPixel - sx,
-                (oh - Math.max(0, $drawFromBin)) / binsPerPixel - sy,
+                (oh - Math.max(0, $drawFromBin)) / binsPerCell - sy,
                 Math.max(0, ($bitmapStartPerChannel - $drawFrom) / ($drawTo - $drawFrom) * destWidth),
                 Math.max(0, ($drawToBin - oh) / ($drawToBin - $drawFromBin) * destHeight),
                 (Math.min($drawTo, $bitmapEndPerChannel) - Math.max($drawFrom, $bitmapStartPerChannel)) / ($drawTo - $drawFrom) * destWidth,
@@ -238,7 +249,7 @@ class MatrixImageProcessor {
     static async paint(
         ctx: CanvasRenderingContext2D,
         dataSlices: MatrixDataSlice[],
-        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 }: Partial<MatrixDrawOptions>,
+        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 }: Partial<MatrixPaintOptions>,
         { viewRange }: Pick<VisualizationOptions<any>, "viewRange">,
         { separatorColor = "grey" }: Partial<Pick<VisualizationStyleOptions, "separatorColor">> = {}
     ) {
@@ -246,18 +257,15 @@ class MatrixImageProcessor {
         const [ow, oh] = dataSlices[0].resizedMatrices.sizes[0];
         const $drawFromBin = verticalOffset / 2 * oh / verticalZoom;
         const $drawToBin = (verticalOffset / 2 + 1) * oh / verticalZoom;
+        const channelHeight = height / numberOfChannels;
 
         ctx.save();
         ctx.clearRect(0, 0, width, height);
 
-        // Grids
-        const gridChannels = numberOfChannels;
-        const channelHeight = height / gridChannels;
-
         ctx.beginPath();
         ctx.setLineDash([4, 2]);
         ctx.strokeStyle = separatorColor;
-        for (let i = 1; i < gridChannels; i++) {
+        for (let i = 1; i < numberOfChannels; i++) {
             ctx.moveTo(0, i * channelHeight);
             ctx.lineTo(width, i * channelHeight);
         }
@@ -266,7 +274,6 @@ class MatrixImageProcessor {
         ctx.lineWidth = 1;
         // Horizontal Range
         const [$drawFrom, $drawTo] = viewRange; // Draw start-end
-        const pixelsPerSample = width / ($drawTo - $drawFrom);
         const bitmapsData = await this.getBitmaps(dataSlices, width, channelHeight, $drawFrom, $drawTo, $drawFromBin, $drawToBin, numberOfChannels);
         for (let channel = 0; channel < numberOfChannels; channel++) {
             ctx.save();
@@ -327,6 +334,54 @@ class MatrixImageProcessor {
         }
         return resized;
     }
+    static getInfoFromCursor(
+        dataSlices: MatrixDataSlice[],
+        x: number, y: number,
+        { width, height, verticalZoom = 1, verticalOffset = 0 }: Partial<MatrixPaintOptions> & Pick<MatrixPaintOptions, "width" | "height">,
+        { viewRange }: Pick<VisualizationOptions<any>, "viewRange">
+    ): MatrixCursorInfo {
+        const numberOfChannels = dataSlices[0].resizedMatrices.resizes[0].data.length;
+        const channelHeight = height / numberOfChannels;
+        const [ow, oh] = dataSlices[0].resizedMatrices.sizes[0];
+        const $drawFromBin = verticalOffset / 2 * oh / verticalZoom;
+        const $drawToBin = (verticalOffset / 2 + 1) * oh / verticalZoom;
+        const [$drawFrom, $drawTo] = viewRange; // Draw start-end
+        const pixelsPerAudioSample = width / ($drawTo - $drawFrom);
+        const targetAudioSamplesPerPixel = 1 / pixelsPerAudioSample;
+        const pixelsPerBin = channelHeight / ($drawToBin - $drawFromBin);
+        const targetBinsPerPixel = 1 / pixelsPerBin;
+        const $ = Math.max($drawFrom, Math.min($drawTo - 1, $drawFrom + x * targetAudioSamplesPerPixel));
+        const $bin = Math.max($drawFromBin, Math.min($drawToBin - 1, $drawToBin - 1 - y * targetBinsPerPixel));
+        const channel = Math.max(0, Math.min(numberOfChannels - 1, ~~(y / channelHeight)));
+        const calcX = ($: number) => ($ - $drawFrom) * pixelsPerAudioSample;
+        const calcY = ($bin: number, channel: number) => ($drawToBin - 1 - $bin) * pixelsPerBin;
+        const get$ = ($dataSlice: number, $resize: number, $vector: number) => {
+            const { startIndex, resizedMatrices } = dataSlices[$dataSlice];
+            const resize = resizedMatrices.resizes[$resize];
+            return startIndex - resize.offsetFromFrame + $vector * resize.audioSamplesPerFrame;
+        };
+        const get$bin = ($dataSlice: number, $resize: number, $cell: number) => {
+            const { resizedMatrices } = dataSlices[$dataSlice];
+            const resize = resizedMatrices.resizes[$resize];
+            return $cell * resize.binsPerCell;
+        };
+        const bestResizesIndex = this.getBestResizes(dataSlices, targetAudioSamplesPerPixel, targetBinsPerPixel);
+        const $dataSlice = dataSlices.findIndex(({ startIndex, endIndex }) => startIndex <= $ && $ < endIndex);
+        const $resize = bestResizesIndex[$dataSlice];
+        const { startIndex, endIndex, resizedMatrices } = dataSlices[$dataSlice];
+        const { data, audioSamplesPerFrame, binsPerCell, offsetFromFrame } = resizedMatrices.resizes[$resize];
+        const [w, h] = resizedMatrices.sizes[$resize];
+        const $vector = Math.max(0, Math.min(w - 1, ~~(($ - (startIndex - offsetFromFrame)) / audioSamplesPerFrame)));
+        const $cell = Math.max(0, Math.min(h - 1, ~~($bin / binsPerCell)));
+        const fromIndex = get$($dataSlice, $resize, $vector);
+        const toIndex = Math.min(endIndex, $drawTo, fromIndex + audioSamplesPerFrame);
+        const fromBin = get$bin($dataSlice, $resize, $cell);
+        const toBin = Math.min(oh, $drawToBin, fromBin + binsPerCell);
+        const value = data[channel][$vector][$cell];
+        const xx = calcX(fromIndex) + 0.5 * pixelsPerAudioSample * audioSamplesPerFrame;
+        const yy = calcY(fromBin, channel) + 0.5 * pixelsPerBin * binsPerCell;
+        return { x: xx, y: yy, fromIndex, toIndex, fromBin, toBin, value };
+    }
     /**
      * @param resized
      * @param splitSample
@@ -346,21 +401,21 @@ class MatrixImageProcessor {
         let resizeFactorWidth: number;
         let audioSamplesPerFrame: number;
         let offsetFromFrame: number;
-        let binsPerPixel: number;
+        let binsPerCell: number;
         // let resizeFactorHeight: number;
         for (let i = 1; i < sizes.length; i++) {
             [w, h] = sizes[i];
             audioSamplesPerFrame = resizes[i].audioSamplesPerFrame;
             offsetFromFrame = resizes[i].offsetFromFrame;
-            binsPerPixel = resizes[i].binsPerPixel;
+            binsPerCell = resizes[i].binsPerCell;
             resizeFactorWidth = ~~(ow / w);
             // resizeFactorHeight = ~~(oh / h);
             w1 = Math.ceil((splitSample + offsetFromFrame) / audioSamplesPerFrame);
             w2 = Math.ceil(w - (splitSample + offsetFromFrame) / audioSamplesPerFrame);
             sizes1[i] = [w1, h];
             sizes2[i] = [w2, h];
-            resized1.resizes[i] = { offsetFromFrame, audioSamplesPerFrame, binsPerPixel, data: resizes[i].data.map(spectrogram => spectrogram.slice(0, w1)) };
-            resized2.resizes[i] = { offsetFromFrame: (splitSample + offsetFromFrame) % audioSamplesPerFrame, audioSamplesPerFrame, binsPerPixel, data: resizes[i].data.map(spectrogram => spectrogram.slice(split2From, w)) };
+            resized1.resizes[i] = { offsetFromFrame, audioSamplesPerFrame, binsPerCell, data: resizes[i].data.map(spectrogram => spectrogram.slice(0, w1)) };
+            resized2.resizes[i] = { offsetFromFrame: (splitSample + offsetFromFrame) % audioSamplesPerFrame, audioSamplesPerFrame, binsPerCell, data: resizes[i].data.map(spectrogram => spectrogram.slice(split2From, w)) };
         }
         return [resized1, resized2];
     }

@@ -10,9 +10,11 @@ import Waveform from "../modules/waveform/Waveform";
 interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRange">, Partial<VisualizationStyleOptions> {
     windowSize: number[];
     configuring: boolean,
+    monitoring: boolean,
     setConfiguring: React.Dispatch<React.SetStateAction<boolean>>;
+    setMonitoring: React.Dispatch<React.SetStateAction<boolean>>;
 }
-const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRange, phosphorColor, playheadColor, windowSize, configuring, setConfiguring }) => {
+const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRange, phosphorColor, playheadColor, windowSize, configuring, monitoring, setConfiguring, setMonitoring }) => {
     const audioEditor = useContext(AudioEditorContext)!;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const divViewRangeRef = useRef<HTMLDivElement>(null);
@@ -138,7 +140,7 @@ const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRang
     const $playhead = playhead / length;
     const playheadLeft = `${$playhead * 100}%`;
     return (
-        <div className={`editor-map${configuring ? " configuring" : ""}`}>
+        <div className={`editor-map${configuring ? " configuring" : ""}${monitoring ? " monitoring" : ""}`}>
             <div className="editor-map-canvas-container" onWheel={handleWheel}>
                 <canvas ref={canvasRef} />
                 <div className="editor-map-playhead" style={{ left: playheadLeft }}></div>
@@ -157,6 +159,11 @@ const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRang
                 <span className="editor-map-toggle-configuration">
                     <VSCodeButton tabIndex={-1} aria-label="Toggle Configuration" className={configuring ? "active" : ""} title="Toggle Configuration" appearance="icon" onClick={() => setConfiguring(v => !v)}>
                         <span className="codicon codicon-symbol-property"></span>
+                    </VSCodeButton>
+                </span>
+                <span className="editor-map-toggle-monitoring">
+                    <VSCodeButton tabIndex={-1} aria-label="Toggle Data Monitoring" className={monitoring ? "active" : ""} title="Toggle Data Monitoring" appearance="icon" onClick={() => setMonitoring(v => !v)}>
+                        <span className="codicon codicon-info"></span>
                     </VSCodeButton>
                 </span>
             </div>

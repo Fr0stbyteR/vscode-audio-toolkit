@@ -41,18 +41,10 @@ export interface VectorDataSlice {
     vectors: Float32Array[];
     resizedVectors: ResizedVectors;
 }
-export type VectorCursorInfo = {
+export interface VectorCursorInfo {
     x: number;
     y: number;
-    value: number;
-    fromIndex: number;
-    /** Exclusive */
-    toIndex: number;
-} | {
-    x: number;
-    y: number;
-    minValue: number;
-    maxValue: number;
+    value: number | [number, number];
     fromIndex: number;
     /** Exclusive */
     toIndex: number;
@@ -549,17 +541,17 @@ class VectorImageProcessor {
         x: number, y: number,
         { width, height, verticalZoom = 1, verticalOffset = 0 }: Partial<VectorPaintOptions> & Pick<VectorPaintOptions, "width" | "height">,
         { viewRange }: Pick<VisualizationOptions<any>, "viewRange">
-    ) {
+    ): VectorCursorInfo {
         const numberOfChannels = dataSlices[0].vectors.length;
         const yMin = (verticalOffset - 1) / verticalZoom;
         const yMax = (verticalOffset + 1) / verticalZoom;
         const channelHeight = height / numberOfChannels;
         const [$drawFrom, $drawTo] = viewRange;
         const pixelsPerAudioSample = width / ($drawTo - $drawFrom);
-        const $ = $drawFrom + x / pixelsPerAudioSample;
-        const channel = ~~(y / channelHeight);
-        const calcY = (v: number, channel: number) => channelHeight * (channel + 1 - (v - yMin) / (yMax - yMin));
+        const $ = Math.max($drawFrom, Math.min($drawTo - 1, $drawFrom + x / pixelsPerAudioSample));
+        const channel = Math.max(0, Math.min(numberOfChannels - 1, ~~(y / channelHeight)));
         const calcX = ($: number) => ($ - $drawFrom) * pixelsPerAudioSample;
+        const calcY = (v: number, channel: number) => channelHeight * (channel + 1 - (v - yMin) / (yMax - yMin));
         const get$ = ($dataSlice: number, $resize: number, $vector: number) => {
             const { startIndex, audioSamplesPerSample, resizedVectors, offsetFromSample } = dataSlices[$dataSlice];
             if ($resize === -1) return startIndex - offsetFromSample + $vector * audioSamplesPerSample;
@@ -573,14 +565,16 @@ class VectorImageProcessor {
         if ($resize === -1) {
             const $vector = Math.max(0, Math.min(vectors[channel].length - 1, ~~(($ - (startIndex - offsetFromSample)) / audioSamplesPerSample)));
             const fromIndex = get$($dataSlice, $resize, $vector);
+            const toIndex = Math.min(endIndex, $drawTo, fromIndex + audioSamplesPerSample);
             const value = vectors[channel][$vector];
-            const x = calcX(fromIndex);
-            const y = calcY(value, channel);
-            return { x, y, value, fromIndex, toIndex: Math.min(endIndex, $drawTo, fromIndex + audioSamplesPerSample) };
+            const xx = calcX(fromIndex) + 0.5 * pixelsPerAudioSample * audioSamplesPerSample;
+            const yy = calcY(value, channel);
+            return { x: xx, y: yy, value, fromIndex, toIndex };
         } else {
             const { maxData, minData, audioSamplesPerFrame, offsetFromFrame } = resizedVectors.resizes[bestResizesIndex[$dataSlice]];
             const $vector = Math.max(0, Math.min(maxData[channel].length - 1, ~~(($ - (startIndex - offsetFromFrame)) / audioSamplesPerFrame)));
             const fromIndex = get$($dataSlice, $resize, $vector);
+            const toIndex = Math.min(endIndex, $drawTo, fromIndex + audioSamplesPerFrame);
             const minValue = minData[channel][$vector];
             const maxValue = maxData[channel][$vector];
             const x = calcX(fromIndex);
@@ -589,7 +583,7 @@ class VectorImageProcessor {
             const d2yMax = Math.abs(yMax - y);
             const d2yMin = Math.abs(yMin - y);
             const yy = d2yMax >= d2yMin ? yMax : yMin;
-            return { x, y: yy, minValue, maxValue, fromIndex, toIndex: Math.min(endIndex, $drawTo, fromIndex + audioSamplesPerSample) };
+            return { x, y: yy, value: [minValue, maxValue], fromIndex, toIndex };
         }
     }
 }

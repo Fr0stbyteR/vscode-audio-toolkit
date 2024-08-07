@@ -7,7 +7,7 @@ import { VisualizationOptions } from "../../core/AudioToolkitModule";
 import Marker from "./Marker";
 import VectorImageProcessor from "../../core/VectorImageProcessor";
 
-const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ module, moduleState, viewRange, selRange, playhead, gridColor, gridRulerColor, textColor, monospaceFont, configuration, rerenderTimestamp }) => {
+const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ module, moduleState, viewRange, selRange, playhead, gridColor, gridRulerColor, textColor, monospaceFont, configuration, rerenderId }) => {
     const audioEditor = useContext(AudioEditorContext)!;
     const [selectedMarker, setSelectedMarker] = useState<number>(-1);
     const [markerName, setMarkerName] = useState(moduleState.data[selectedMarker]?.name ?? `#${moduleState.data.length + 1}`);
@@ -20,7 +20,7 @@ const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ modu
         const [width, height] = setCanvasToFullSize(canvas);
         VectorImageProcessor.paintVerticalRuler(ctx, module.audioEditor.sampleRate, { width, height, labelsHeight: 0 }, { viewRange, configuration }, { gridColor });
     }, [module, viewRange, configuration, gridColor]);
-    useEffect(paintVerticalRuler, [paintVerticalRuler, rerenderTimestamp]);
+    useEffect(paintVerticalRuler, [paintVerticalRuler, rerenderId]);
     const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
         if (!e.deltaX && !e.deltaY) return;
         let divMainFlexContainer = e.currentTarget.parentElement;
@@ -372,10 +372,11 @@ const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ modu
                     ? <div>
                         <VSCodeButton className="marker-button-delete" tabIndex={-1} aria-label="Delete Marker" title="Delete Marker" appearance="secondary" onClick={handleClickDeleteMarker}>Delete</VSCodeButton>
                     </div>
-                    : undefined
+                    : null
                 }
             </div>
         </div>
+        <div className="visualizer-component-monitor"></div>
     </>);
 };
 

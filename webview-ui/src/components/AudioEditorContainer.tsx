@@ -20,6 +20,7 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
     const [enabledChannels, setEnabledChannels] = useState(audioEditor.state.enabledChannels);
     const [configuration, setConfiguration] = useState(audioEditor.configuration);
     const [configuring, setConfiguring] = useState(false);
+    const [monitoring, setMonitoring] = useState(false);
     const [windowSize, setWindowSize] = useState([window.innerWidth, window.innerHeight]);
     const [modulesState, setModulesState] = useState<AudioToolkitModulesState>(audioEditor.modulesState);
     const phosphorColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-menu-selectionBackground");
@@ -39,6 +40,7 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
         playheadColor,
         configuration,
         configuring,
+        monitoring,
         gridColor,
         gridRulerColor,
         labelFont: monospaceFont,
@@ -88,7 +90,7 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
     return (
         <div className="audio-editor-container">
             <div className="audio-editor-left-container">
-                <AudioEditorMap {...componentProps} {...{ setConfiguring }} />
+                <AudioEditorMap {...componentProps} {...{ setConfiguring, setMonitoring }} />
                 <AudioEditorMain {...componentProps} />
                 <AudioEditorControls {...componentProps} />
                 <AudioEditorMonitor {...componentProps} />

@@ -25,6 +25,12 @@
             &.configuring {
                 width: calc(100% - var(--visualizer-right-spacing) - var(--visualizer-configuration-spacing) - 24px);
             }
+            &.monitoring {
+                width: calc(100% - var(--visualizer-right-spacing) - var(--visualizer-monitor-spacing) - 24px);
+            }
+            &.configuring.monitoring {
+                width: calc(100% - var(--visualizer-right-spacing) - var(--visualizer-configuration-spacing) - var(--visualizer-monitor-spacing) - 24px);
+            }
             & > div.editor-main-playhead-handler {
                 display: block;
                 position: absolute;
@@ -187,6 +193,12 @@
 
             &.configuring {
                 width: calc(100% - var(--visualizer-right-spacing) - var(--visualizer-configuration-spacing) - 24px);
+            }
+            &.monitoring {
+                width: calc(100% - var(--visualizer-right-spacing) - var(--visualizer-monitor-spacing) - 24px);
+            }
+            &.configuring.monitoring {
+                width: calc(100% - var(--visualizer-right-spacing) - var(--visualizer-configuration-spacing) - var(--visualizer-monitor-spacing) - 24px);
             }
             & > canvas {
                 position: absolute;

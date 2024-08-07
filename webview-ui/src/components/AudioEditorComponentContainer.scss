@@ -15,12 +15,25 @@
 
     & > div.visualizer-component-configuration {
         height: 100%;
-        flex: 0 0 var(--visualizer-configuration-spacing);
+        flex: 0 0 calc(var(--visualizer-configuration-spacing) - 1px);
+        border-left: 1px var(--vscode-menu-separatorBackground) solid;
         position: relative;
         display: none;
     }
     
     &.configuring > div.visualizer-component-configuration {
+        display: block;
+    }
+
+    & > div.visualizer-component-monitor {
+        height: 100%;
+        flex: 0 0 calc(var(--visualizer-monitor-spacing) - 1px);
+        border-left: 1px var(--vscode-menu-separatorBackground) solid;
+        position: relative;
+        display: none;
+    }
+    
+    &.monitoring > div.visualizer-component-monitor {
         display: block;
     }
 }

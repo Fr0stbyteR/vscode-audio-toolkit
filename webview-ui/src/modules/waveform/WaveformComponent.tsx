@@ -5,7 +5,7 @@ import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { setCanvasToFullSize } from "../../utils";
 import { VisualizationOptions } from "../../core/AudioToolkitModule";
 import Waveform from "./Waveform";
-import VectorImageProcessor from "../../core/VectorImageProcessor";
+import VectorImageProcessor, { VectorCursorInfo } from "../../core/VectorImageProcessor";
 import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
 
 const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (props) => {
@@ -16,6 +16,9 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (pr
     const showChannelEnableOverlay = true;
     const [verticalZoom, setVerticalZoom] = useState(defaultVerticalZoom);
     const [verticalOffset, setVerticalOffset] = useState(defaultVerticalOffset);
+    const [cursorX, setCursorX] = useState<number | undefined>();
+    const [cursorY, setCursorY] = useState<number | undefined>();
+    const [cursorInfo, setCursorInfo] = useState<VectorCursorInfo | null>(null);
     const paint = useCallback((canvasRef: React.RefObject<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext("2d");
@@ -37,6 +40,19 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (pr
         const [width, height] = setCanvasToFullSize(canvas);
         VectorImageProcessor.paintHorizontalRuler(ctx, module.audioEditor.numberOfChannels, { width, height, verticalZoom, verticalOffset, labelMode: "decibel", labelsWidth: 80 }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
     }, [module, verticalZoom, verticalOffset, gridColor, gridRulerColor, textColor, monospaceFont]);
+    const onCursor = useCallback((x: number, y: number, width: number, height: number) => {
+        if (y < 0 || y > height) setCursorY(undefined);
+        if (x < 0 || x > width) {
+            setCursorX(undefined);
+            setCursorY(undefined);
+            setCursorInfo(null);
+            return;
+        }
+        const info = VectorImageProcessor.getInfoFromCursor(module.dataSlices, x, y, { width, height, verticalZoom, verticalOffset}, { viewRange });
+        setCursorX(info.x);
+        setCursorY(info.y);
+        setCursorInfo(info);
+    }, [module, verticalOffset, verticalZoom, viewRange]);
     const configurationContent = (
         <div className="waveform-channel-enabler">
             {
@@ -50,11 +66,20 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (pr
             }
         </div>
     );
+    const monitorContent = cursorInfo ? (
+        <div className="default-layout">
+            <div>Sample index:</div>
+            <div>{cursorInfo.fromIndex} to {cursorInfo.toIndex}</div>
+            <div style={{ color: phosphorColor }}>Value:</div>
+            <div style={{ color: phosphorColor }}>{typeof cursorInfo.value === "number" ? cursorInfo.value.toFixed(3) : cursorInfo.value.map(v => v.toFixed(3)).join(" to ")}</div>
+        </div>
+    ) : undefined;
     const moduleUsingCanvasProps = {
         defaultVerticalOffset, verticalOffset, setVerticalOffset,
         defaultVerticalZoom, verticalZoom, setVerticalZoom,
+        cursorX, cursorY, onCursor,
         paint, paintVerticalRuler, paintHorizontalRuler,
-        showChannelEnableOverlay, configurationContent,
+        showChannelEnableOverlay, configurationContent, monitorContent,
         ...props
     };
     return (

@@ -107,4 +107,10 @@
     &.configuring > .editor-map-controls {
         flex: 0 0 calc(var(--visualizer-right-spacing) + var(--visualizer-configuration-spacing));
     }
+    &.monitoring > .editor-map-controls {
+        flex: 0 0 calc(var(--visualizer-right-spacing) + var(--visualizer-monitor-spacing));
+    }
+    &.configuring.monitoring > .editor-map-controls {
+        flex: 0 0 calc(var(--visualizer-right-spacing) + var(--visualizer-configuration-spacing) + var(--visualizer-monitor-spacing));
+    }
 }
