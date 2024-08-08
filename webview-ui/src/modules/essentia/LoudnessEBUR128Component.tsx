@@ -1,4 +1,3 @@
-import "./LoudnessEBUR128Component.scss";
 import { FunctionComponent, useCallback, useEffect, useId, useState } from "react";
 import { setCanvasToFullSize } from "../../utils";
 import { VisualizationOptions } from "../../core/AudioToolkitModule";
@@ -80,7 +79,7 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
         <div className={`default-layout ${module.moduleId.replace(".", "-")}-configuration`}>
             <div>
                 <label htmlFor={id1}>Hop Size (sec)</label>
-                <input type="number" min={0.001} step={0.001} max={0.1} onChange={e => setHopSize(e.currentTarget.valueAsNumber)} value={hopSize} />
+                <input id={id1} type="number" min={0.001} step={0.001} max={0.1} onChange={e => setHopSize(e.currentTarget.valueAsNumber)} value={hopSize} />
             </div>
             <div>
                 <VSCodeCheckbox checked={startAtZero} onChange={e => setStartAtZero((e.currentTarget as HTMLInputElement).checked)}>Start at Zero</VSCodeCheckbox>
@@ -94,21 +93,21 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
             </div>
             <div>
                 <label htmlFor={id2}>Color</label>
-                <input type="color" value={moduleState.momentaryLoudnessColor} id={id2} onChange={e => module.setState({ ...moduleState, momentaryLoudnessColor: (e.currentTarget as HTMLInputElement).value })} />
+                <input id={id2} type="color" value={moduleState.momentaryLoudnessColor} onChange={e => module.setState({ ...moduleState, momentaryLoudnessColor: e.currentTarget.value })} />
             </div>
             <div>
                 <VSCodeCheckbox checked={moduleState.paintShortTermLoudness} onChange={e => module.setState({ ...moduleState, paintShortTermLoudness: (e.currentTarget as HTMLInputElement).checked })}>Show short-term loudness</VSCodeCheckbox>
             </div>
             <div>
                 <label htmlFor={id3}>Color</label>
-                <input type="color" value={moduleState.shortTermLoudnessColor} id={id3} onChange={e => module.setState({ ...moduleState, shortTermLoudnessColor: (e.currentTarget as HTMLInputElement).value })} />
+                <input id={id3} type="color" value={moduleState.shortTermLoudnessColor} onChange={e => module.setState({ ...moduleState, shortTermLoudnessColor: e.currentTarget.value })} />
             </div>
             <div>
                 <VSCodeCheckbox checked={moduleState.paintIntegratedLoudness} onChange={e => module.setState({ ...moduleState, paintIntegratedLoudness: (e.currentTarget as HTMLInputElement).checked })}>Show integrated loudness</VSCodeCheckbox>
             </div>
             <div>
                 <label htmlFor={id4}>Color</label>
-                <input type="color" value={moduleState.integratedLoudnessColor} id={id4} onChange={e => module.setState({ ...moduleState, integratedLoudnessColor: (e.currentTarget as HTMLInputElement).value })} />
+                <input id={id4} type="color" value={moduleState.integratedLoudnessColor} onChange={e => module.setState({ ...moduleState, integratedLoudnessColor: e.currentTarget.value })} />
             </div>
         </div>
     );

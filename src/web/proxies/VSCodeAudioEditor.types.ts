@@ -14,7 +14,7 @@ export type AudioToolkitModulesState = { moduleId: string, moduleName: string; v
 
 export interface AudioToolkitModuleState {
     name: string;
-    [key: string]: any;
+    // [key: string]: any;
 }
 
 export interface AudioToolkitEdit {

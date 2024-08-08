@@ -31,6 +31,8 @@ export interface VectorPaintOptions {
     labelsWidth: number;
     labelMode: "linear" | "decibel";
     labelUnit: string;
+    confidenceDataSlices: VectorDataSlice[];
+    confidenceThreshold: number;
 }
 
 export interface VectorDataSlice {
@@ -111,7 +113,7 @@ class VectorImageProcessor {
     static paint(
         ctx: CanvasRenderingContext2D,
         dataSlices: VectorDataSlice[],
-        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, beforeAndAfter = "inherit", paintOver = false, paintSeparator = !paintOver }: Partial<VectorPaintOptions>,
+        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, beforeAndAfter = "inherit", paintOver = false, paintSeparator = !paintOver, confidenceDataSlices, confidenceThreshold = 0 }: Partial<VectorPaintOptions>,
         { viewRange }: Pick<VisualizationOptions<any>, "viewRange">,
         { phosphorColor = "rgb(67, 217, 150)", separatorColor = "grey" }: Partial<Pick<VisualizationStyleOptions, "phosphorColor" | "separatorColor">> 
     ) {
@@ -165,6 +167,7 @@ class VectorImageProcessor {
         let prevVector: Float32Array;
         let nextVector: Float32Array;
         let isFirstSample: boolean;
+        let pathStarted = false;
     
         for (let $dataSlice = 0; $dataSlice < dataSlices.length; $dataSlice++) {
             const { startIndex, endIndex, resizedVectors, audioSamplesPerSample, vectors, offsetFromSample } = dataSlices[$dataSlice];
@@ -190,7 +193,7 @@ class VectorImageProcessor {
                     ctx.beginPath();
                     ctx.strokeStyle = phosphorColor;
                     ctx.fillStyle = phosphorColor;
-                    isFirstSample = false;
+                    pathStarted = true;
                     if ($$vector > 0) {
                         v = vectors[channel][$$vector - 1];
                         x = calcX($$) - 0.5 * pixelsPerSample;
@@ -199,25 +202,30 @@ class VectorImageProcessor {
                         v = prevVector[prevVector.length - 1];
                         x = calcX(get$($dataSlice - 1, $resize, prevVector.length - 1)) - 0.5 * pixelsPerAudioSample * dataSlices[$dataSlice - 1].audioSamplesPerSample;
                     } else if (beforeAndAfter !== "none") {
-                        isFirstSample = true;
                         v = beforeAndAfter === "inherit" ? vectors[channel][$$vector] : beforeAndAfter;
                         x = beforeAndAfter === "inherit" ? 0 : calcX($$) - 0.5 * pixelsPerSample;
+                    } else {
+                        pathStarted = false;
                     }
-                    if (beforeAndAfter !== "none" || !isFirstSample) {
+                    if (pathStarted) {
                         y = calcY(v, channel);
                         ctx.moveTo(x, y);
                     }
                     while ($$ < endIndex && $$ < $drawTo && $$vector < vectors[channel].length) {
-                        v = vectors[channel][$$vector];
-                        x = calcX($$) + 0.5 * pixelsPerSample;
-                        y = calcY(v, channel);
-                        if (beforeAndAfter === "none" && isFirstSample) {
-                            ctx.moveTo(x, y);
-                            isFirstSample = false;
-                        } else {
-                            ctx.lineTo(x, y);
+                        if (!confidenceDataSlices || confidenceDataSlices[$dataSlice].vectors[channel][$$vector] >= confidenceThreshold) {
+                            v = vectors[channel][$$vector];
+                            x = calcX($$) + 0.5 * pixelsPerSample;
+                            y = calcY(v, channel);
+                            if (pathStarted) {
+                                ctx.lineTo(x, y);
+                            } else {
+                                ctx.moveTo(x, y);
+                                pathStarted = true;
+                            }
+                            if (pixelsPerSample > 10) ctx.fillRect(x - 2, y - 2, 4, 4);
+                        } else if (confidenceDataSlices) {
+                            pathStarted = false;
                         }
-                        if (pixelsPerSample > 10) ctx.fillRect(x - 2, y - 2, 4, 4);
                         $$vector++;
                         $$ = get$($dataSlice, $resize, $$vector);
                     }
@@ -231,8 +239,10 @@ class VectorImageProcessor {
                     } else if (beforeAndAfter !== "none") {
                         if (beforeAndAfter !== "inherit") v = beforeAndAfter;
                         x = beforeAndAfter === "inherit" ? width : calcX($$) + 0.5 * pixelsPerSample;
+                    } else {
+                        pathStarted = false;
                     }
-                    if (beforeAndAfter !== "none") {
+                    if (pathStarted) {
                         y = calcY(v, channel);
                         ctx.lineTo(x, y);
                     }
@@ -263,24 +273,33 @@ class VectorImageProcessor {
                         v = prevVector[prevVector.length - 1];
                         x = calcX(get$($dataSlice - 1, $resize, prevVector.length - 1)) - 0.5 * pixelsPerAudioSample * dataSlices[$dataSlice - 1].audioSamplesPerSample;
                     } else if (beforeAndAfter !== "none") {
-                        isFirstSample = true;
                         v = beforeAndAfter === "inherit" ? maxData[channel][$$vector] : beforeAndAfter;
                         x = beforeAndAfter === "inherit" ? 0 : calcX($$) - 0.5 * pixelsPerSample;
+                    } else {
+                        pathStarted = false;
                     }
-                    if (beforeAndAfter !== "none" || !isFirstSample) {
+                    if (pathStarted) {
                         y = calcY(v, channel);
                         ctx.moveTo(x, y);
                     }
                     while ($$ < endIndex && $$ < $drawTo && $$vector < minData[channel].length) {
-                        x = calcX($$);
-                        minInStep = minData[channel][$$vector];
-                        maxInStep = maxData[channel][$$vector];
-                        y = calcY(maxInStep, channel);
-                        if (x <= 0) ctx.moveTo(x, y);
-                        else ctx.lineTo(x, y);
-                        if (minInStep !== maxInStep) {
-                            y = calcY(minInStep, channel);
-                            ctx.lineTo(x, y);
+                        if (!confidenceDataSlices || confidenceDataSlices[$dataSlice].resizedVectors.resizes[bestResizesIndex[$dataSlice]].minData[channel][$$vector] >= confidenceThreshold) {
+                            x = calcX($$);
+                            minInStep = minData[channel][$$vector];
+                            maxInStep = maxData[channel][$$vector];
+                            y = calcY(maxInStep, channel);
+                            if (pathStarted) {
+                                ctx.lineTo(x, y);
+                            } else {
+                                ctx.moveTo(x, y);
+                                pathStarted = true;
+                            }
+                            if (minInStep !== maxInStep) {
+                                y = calcY(minInStep, channel);
+                                ctx.lineTo(x, y);
+                            }
+                        } else {
+                            pathStarted = false;
                         }
                         $$vector++;
                         $$ = get$($dataSlice, $resize, $$vector);
@@ -295,8 +314,10 @@ class VectorImageProcessor {
                     } else if (beforeAndAfter !== "none") {
                         v = beforeAndAfter === "inherit" ? minInStep : beforeAndAfter;
                         x = beforeAndAfter === "inherit" ? width : calcX($$) + 0.5 * pixelsPerSample;
+                    } else {
+                        pathStarted = false;
                     }
-                    if (beforeAndAfter !== "none") {
+                    if (pathStarted) {
                         y = calcY(v, channel);
                         ctx.lineTo(x, y);
                     }

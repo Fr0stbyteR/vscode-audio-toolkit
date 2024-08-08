@@ -1,4 +1,3 @@
-// import "./LoudnessEBUR128Component.scss";
 import { FunctionComponent, useCallback, useEffect, useId, useState } from "react";
 import { setCanvasToFullSize } from "../../utils";
 import { VisualizationOptions } from "../../core/AudioToolkitModule";
@@ -82,11 +81,11 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
         <div className={`default-layout ${module.moduleId.replace(".", "-")}-configuration`}>
             <div>
                 <label htmlFor={id1}>Frame Size (samples)</label>
-                <input type="number" min={1} step={1} max={module.audioEditor.sampleRate * 16} onChange={e => setFrameSize(e.currentTarget.valueAsNumber)} value={frameSize} />
+                <input id={id1} type="number" min={1} step={1} max={module.audioEditor.sampleRate * 16} onChange={e => setFrameSize(e.currentTarget.valueAsNumber)} value={frameSize} />
             </div>
             <div>
                 <label htmlFor={id2}>Hop Size (samples)</label>
-                <input type="number" min={1} step={1} max={module.audioEditor.sampleRate * 16} onChange={e => setHopSize(e.currentTarget.valueAsNumber)} value={hopSize} />
+                <input id={id2} type="number" min={1} step={1} max={module.audioEditor.sampleRate * 16} onChange={e => setHopSize(e.currentTarget.valueAsNumber)} value={hopSize} />
             </div>
             <div>
                 <VSCodeButton tabIndex={-1} title="Submit for Calculate" appearance="primary" onClick={handleClickCalculate}>Calculate</VSCodeButton>
@@ -94,7 +93,7 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
             <VSCodeDivider />
             <div>
                 <label htmlFor={id3}>Color</label>
-                <input type="color" value={moduleState.color} id={id2} onChange={e => module.setState({ ...moduleState, color: (e.currentTarget as HTMLInputElement).value })} />
+                <input id={id3} type="color" value={moduleState.color} onChange={e => module.setState({ ...moduleState, color: e.currentTarget.value })} />
             </div>
         </div>
     );

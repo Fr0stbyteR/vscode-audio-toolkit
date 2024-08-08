@@ -16,17 +16,11 @@ export interface State extends AudioToolkitModuleState {
     integratedLoudnessColor: string;
 }
 
-export interface Data {
-    momentaryLoudness: Float32Array;
-    shortTermLoudness: Float32Array;
-    integratedLoudness: number;
-    loudnessRange: number;
-}
-
-export interface DataSlice extends Pick<Data, "loudnessRange"> {
+export interface DataSlice {
     momentaryLoudnessDataSlice: VectorDataSlice;
     shortTermLoudnessDataSlice: VectorDataSlice;
     integratedLoudnessDataSlice: VectorDataSlice;
+    loudnessRange: number;
 }
 
 class Module extends EssentiaModule<State, DataSlice[]> {
@@ -68,7 +62,6 @@ class Module extends EssentiaModule<State, DataSlice[]> {
         super(audioEditor, timeDomainVectors);
         this.state = initialState;
     }
-    declare onDataChange: ((data: DataSlice[]) => any) | undefined;
     calculate() {
         this.handleCalculate(async (onUpdate) => {
             onUpdate(0, "Calculating...");
