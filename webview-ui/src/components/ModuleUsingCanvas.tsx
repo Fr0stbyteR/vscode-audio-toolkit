@@ -2,8 +2,10 @@ import "./ModuleUsingCanvas.scss";
 import { FunctionComponent, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AudioEditorContext } from "./contexts";
 import { AudioToolkitModule, VisualizationOptions } from "../core/AudioToolkitModule";
+import { VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
 
 export interface ModuleUsingCanvasProps extends VisualizationOptions<AudioToolkitModule> {
+    calculating?: boolean | [number, string];
     defaultVerticalZoom: number;
     verticalZoom: number,
     setVerticalZoom: React.Dispatch<React.SetStateAction<number>>,
@@ -24,7 +26,7 @@ export interface ModuleUsingCanvasProps extends VisualizationOptions<AudioToolki
 
 const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => {
     const {
-        module,
+        module, calculating,
         paint, paintVerticalRuler, paintHorizontalRuler,
         defaultVerticalZoom, verticalZoom, setVerticalZoom,
         defaultVerticalOffset, verticalOffset, setVerticalOffset,
@@ -252,6 +254,8 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
             <div className="channel-enable-overlay">
                 {showChannelEnableOverlay ? enabledChannels.map((enabled, i) => <div key={i} className={enabled ? "" : "disabled"} />) : null}
             </div>
+            {calculating ? <div className="calculating-overlay"><div><VSCodeProgressRing /><div>{Array.isArray(calculating) ? `${calculating[0]}% - ${calculating[1]} ...` : ""}</div></div></div> : null}
+            
         </div>
         <div className={`visualizer-component-configuration module-using-canvas-configuration ${module.moduleId.replace(".", "-")}-configuration-container`}>
             {configurationContent}

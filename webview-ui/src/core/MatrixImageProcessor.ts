@@ -53,6 +53,7 @@ export interface MatrixCursorInfo {
     x: number;
     y: number;
     value: number;
+    channel: number;
     fromIndex: number;
     /** Exclusive */
     toIndex: number;
@@ -350,11 +351,11 @@ class MatrixImageProcessor {
         const targetAudioSamplesPerPixel = 1 / pixelsPerAudioSample;
         const pixelsPerBin = channelHeight / ($drawToBin - $drawFromBin);
         const targetBinsPerPixel = 1 / pixelsPerBin;
-        const $ = Math.max($drawFrom, Math.min($drawTo - 1, $drawFrom + x * targetAudioSamplesPerPixel));
-        const $bin = Math.max($drawFromBin, Math.min($drawToBin - 1, $drawToBin - 1 - y * targetBinsPerPixel));
         const channel = Math.max(0, Math.min(numberOfChannels - 1, ~~(y / channelHeight)));
+        const $ = Math.max($drawFrom, Math.min($drawTo - 1, $drawFrom + x * targetAudioSamplesPerPixel));
+        const $bin = Math.max($drawFromBin, Math.min($drawToBin - 1, $drawToBin - 1 - (y - channel * channelHeight) * targetBinsPerPixel));
         const calcX = ($: number) => ($ - $drawFrom) * pixelsPerAudioSample;
-        const calcY = ($bin: number, channel: number) => ($drawToBin - 1 - $bin) * pixelsPerBin;
+        const calcY = ($bin: number, channel: number) => ($drawToBin - 1 - $bin) * pixelsPerBin + channel * channelHeight;
         const get$ = ($dataSlice: number, $resize: number, $vector: number) => {
             const { startIndex, resizedMatrices } = dataSlices[$dataSlice];
             const resize = resizedMatrices.resizes[$resize];
@@ -380,7 +381,7 @@ class MatrixImageProcessor {
         const value = data[channel][$vector][$cell];
         const xx = calcX(fromIndex) + 0.5 * pixelsPerAudioSample * audioSamplesPerFrame;
         const yy = calcY(fromBin, channel) + 0.5 * pixelsPerBin * binsPerCell;
-        return { x: xx, y: yy, fromIndex, toIndex, fromBin, toBin, value };
+        return { x: xx, y: yy, channel, fromIndex, toIndex, fromBin, toBin, value };
     }
     /**
      * @param resized

@@ -209,6 +209,27 @@
                 }
             }    
         }
+        & > div.calculating-overlay {
+            display: flex;
+            position: absolute;
+            height: 100%;
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.2);
+
+            & > div {
+                display: flex;
+                margin: auto;
+                position: relative;
+                flex-direction: column;
+
+                & > vscode-progress-ring {
+                    margin: auto auto 10px auto;
+                }
+                & > div {
+                    margin: 0px auto auto auto;
+                }
+            }
+        }
     }
 
     & > div.module-using-canvas-configuration > div.default-layout {

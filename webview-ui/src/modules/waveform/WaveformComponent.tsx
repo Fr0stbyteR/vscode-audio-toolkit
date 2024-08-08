@@ -70,6 +70,7 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (pr
         <div className="default-layout">
             <div>Sample index:</div>
             <div>{cursorInfo.fromIndex} to {cursorInfo.toIndex}</div>
+            <div>Channel: {cursorInfo.channel + 1}</div>
             <div style={{ color: phosphorColor }}>Value:</div>
             <div style={{ color: phosphorColor }}>{typeof cursorInfo.value === "number" ? cursorInfo.value.toFixed(3) : cursorInfo.value.map(v => v.toFixed(3)).join(" to ")}</div>
         </div>

@@ -44,6 +44,7 @@ export interface VectorDataSlice {
 export interface VectorCursorInfo {
     x: number;
     y: number;
+    channel: number;
     value: number | [number, number];
     fromIndex: number;
     /** Exclusive */
@@ -569,7 +570,7 @@ class VectorImageProcessor {
             const value = vectors[channel][$vector];
             const xx = calcX(fromIndex) + 0.5 * pixelsPerAudioSample * audioSamplesPerSample;
             const yy = calcY(value, channel);
-            return { x: xx, y: yy, value, fromIndex, toIndex };
+            return { x: xx, y: yy, channel, value, fromIndex, toIndex };
         } else {
             const { maxData, minData, audioSamplesPerFrame, offsetFromFrame } = resizedVectors.resizes[bestResizesIndex[$dataSlice]];
             const $vector = Math.max(0, Math.min(maxData[channel].length - 1, ~~(($ - (startIndex - offsetFromFrame)) / audioSamplesPerFrame)));
@@ -582,8 +583,8 @@ class VectorImageProcessor {
             const yMin = calcY(minValue, channel);
             const d2yMax = Math.abs(yMax - y);
             const d2yMin = Math.abs(yMin - y);
-            const yy = d2yMax >= d2yMin ? yMax : yMin;
-            return { x, y: yy, value: [minValue, maxValue], fromIndex, toIndex };
+            const yy = d2yMax <= d2yMin ? yMax : yMin;
+            return { x, y: yy, channel, value: [minValue, maxValue], fromIndex, toIndex };
         }
     }
 }

@@ -20,11 +20,17 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
     const [hopSize, setHopSize] = useState(moduleState.hopSize);
     const [startAtZero, setStartAtZero] = useState(moduleState.startAtZero);
     const [dataSlices, setDataSlices] = useState<typeof module.dataSlices | null>(module.dataSlices);
+    const [calculating, setCalcualting] = useState<boolean | [number, string]>(module.isCalculating);
     const handleDataChange = useCallback((dataSlices: typeof module.dataSlices) => setDataSlices(dataSlices), [module]);
+    const handleCalculating = useCallback((calculating: boolean | [number, string]) => setCalcualting(calculating), []);
     useEffect(() => {
         module.onDataChange = handleDataChange;
-        return () => module.onDataChange = undefined;
-    }, [handleDataChange, module]);
+        module.onCalculating = handleCalculating;
+        return () => {
+            module.onDataChange = undefined;
+            module.onCalculating = undefined;
+        };
+    }, [handleCalculating, handleDataChange, module]);
     const paint = useCallback((canvasRef: React.RefObject<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext("2d");
@@ -125,6 +131,7 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
         </div>
     ) : undefined;
     const moduleUsingCanvasProps = {
+        calculating,
         defaultVerticalOffset, verticalOffset, setVerticalOffset,
         defaultVerticalZoom, verticalZoom, setVerticalZoom,
         cursorX, cursorY, onCursor,

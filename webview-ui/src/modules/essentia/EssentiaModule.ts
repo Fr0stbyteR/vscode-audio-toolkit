@@ -5,6 +5,7 @@ import EssentiaWorker from "./EssentiaWorker";
 import { EssentiaPointer } from "./EssentiaWorker.types";
 
 export interface EssentiaModuleSharableData {
+    essentiaWorker: EssentiaWorker
     timeDomainVectors: EssentiaPointer[];
 }
 
@@ -23,6 +24,43 @@ abstract class EssentiaModule<State extends AudioToolkitModuleState = any> imple
             if (id) return sharableData[id].timeDomainVectors;
         }
         return Promise.all(audioEditor.timeDomainData.map(array => this.essentiaWorker.arrayToVector(array)));
+    }
+    static resolveEssentiaWorker(sharableData?: Record<string, EssentiaModuleSharableData>) {
+        if (sharableData) {
+            const id = Object.keys(sharableData).find(id => id.startsWith("essentia."));
+            if (id) this._essentiaWorker = sharableData[id].essentiaWorker;
+        }
+        return this.essentiaWorker;
+    }
+    protected _isCalculating: boolean | [number, string] = false;
+    get isCalculating() {
+        return this._isCalculating;
+    }
+    protected set isCalculating(b: boolean | [number, string]) {
+        this._isCalculating = b;
+        this.onCalculating?.(b);
+    }
+    declare onStateChange: ((newState: State) => any) | undefined;
+    declare onCalculating: ((isCalculating: boolean | [number, string]) => any) | undefined;
+    declare onDataChange: ((data: any) => any) | undefined;
+    onCalculationUpdate = (increment: number, message: string) => {
+        const { isCalculating } = this;
+        this.isCalculating = isCalculating === false ? false : [isCalculating === true ? increment : isCalculating[0] + increment, message];
+    };
+    onCalculationError = (error: string) => {
+        const { isCalculating } = this;
+        this.isCalculating = typeof isCalculating === "boolean" ? [0, error] : [isCalculating[0], error];
+    };
+    protected async handleCalculate(calculation: (onUpdate: (increment: number, message: string) => any, onError: (error: string) => any) => any) {
+        try {
+            this.isCalculating = true;
+            await calculation(this.onCalculationUpdate, this.onCalculationError);
+        } catch (error) {
+            this.onCalculationError?.((error as Error).toString());
+            console.error(error);
+        } finally {
+            this.isCalculating = false;
+        }
     }
     get Component(): FunctionComponent<VisualizationOptions<any, any>> {
         throw new Error("Method not implemented.");
@@ -44,11 +82,9 @@ abstract class EssentiaModule<State extends AudioToolkitModuleState = any> imple
     setState(newState: State) {
         throw new Error("Method not implemented.");
     }
-    getSharableData() {
-        return { timeDomainVectors: this.timeDomainVectors };
+    getSharableData(): EssentiaModuleSharableData {
+        return { timeDomainVectors: this.timeDomainVectors, essentiaWorker: this.essentiaWorker };
     }
-    onStateChange: ((newState: State) => any) | undefined;
-
 }
 
 export default EssentiaModule;

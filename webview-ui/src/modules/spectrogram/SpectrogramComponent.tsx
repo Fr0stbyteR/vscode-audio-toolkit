@@ -65,6 +65,7 @@ const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>>
             {
                 cursorInfo
                 ? <>
+                    <div>Channel: {cursorInfo.channel + 1}</div>
                     <div>Sample index:</div>
                     <div>{cursorInfo.fromIndex} to {cursorInfo.fromIndex + configuration.fftSize}</div>
                     <div>FFT bin:</div>

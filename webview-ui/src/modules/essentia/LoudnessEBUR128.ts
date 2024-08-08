@@ -31,7 +31,7 @@ export interface DataSlice extends Pick<Data, "loudnessRange"> {
 
 class Module extends EssentiaModule<State> {
     static MODULE_ID = "essentia.loudnessebur128";
-    static MODULE_NAME = "LoudnessEBUR128";
+    static MODULE_NAME = "Essentia LoudnessEBUR128";
     static DEFAULT_STATE: State = {
         name: "",
         hopSize: 0.1,
@@ -44,10 +44,11 @@ class Module extends EssentiaModule<State> {
         integratedLoudnessColor: "#8888FF"
     };
     static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = this.DEFAULT_STATE, sharableData?: Record<string, EssentiaModuleSharableData>) {
+        super.resolveEssentiaWorker(sharableData);
         const state = { ...this.DEFAULT_STATE, ...initialState };
         const timeDomainVectors = await super.getTimeDomainVectors(audioEditor, sharableData);
         const module = new Module(audioEditor, timeDomainVectors, state);
-        module.calculate();
+        setTimeout(() => module.calculate(), 0);
         return module;
     }
     public state: State;
@@ -67,45 +68,50 @@ class Module extends EssentiaModule<State> {
         super(audioEditor, timeDomainVectors);
         this.state = initialState;
     }
-    onDataChange: ((data: DataSlice[]) => any) | undefined;
-    async calculate() {
-        const { timeDomainVectors, essentiaWorker } = this;
-        const { sampleRate, length } = this.audioEditor;
-        const { hopSize, startAtZero } = this.state;
-        const { momentaryLoudness, shortTermLoudness, integratedLoudness, loudnessRange } = await essentiaWorker.LoudnessEBUR128(timeDomainVectors[0], timeDomainVectors[1] ?? timeDomainVectors[0], hopSize, sampleRate, startAtZero);
-        const audioSamplesPerSample = sampleRate * hopSize;
-        let offsetFromSample = startAtZero ? 0 : sampleRate * (hopSize - 0.4) * 0.5;
-        let resizedVectors = await essentiaWorker.generateResizedVector([momentaryLoudness], audioSamplesPerSample);
-        resizedVectors.resizes.forEach(resize => resize.offsetFromFrame = offsetFromSample);
-        const momentaryLoudnessDataSlice: VectorDataSlice = {
-            startIndex: 0,
-            endIndex: length,
-            offsetFromSample,
-            audioSamplesPerSample,
-            vectors: [momentaryLoudness],
-            resizedVectors
-        };
-        offsetFromSample = startAtZero ? 0 : sampleRate * (hopSize - 3) * 0.5;
-        resizedVectors = await essentiaWorker.generateResizedVector([shortTermLoudness], audioSamplesPerSample);
-        resizedVectors.resizes.forEach(resize => resize.offsetFromFrame = offsetFromSample);
-        const shortTermLoudnessDataSlice: VectorDataSlice = {
-            startIndex: 0,
-            endIndex: length,
-            offsetFromSample,
-            audioSamplesPerSample,
-            vectors: [shortTermLoudness],
-            resizedVectors
-        };
-        const integratedLoudnessDataSlice: VectorDataSlice = {
-            startIndex: 0,
-            endIndex: length,
-            offsetFromSample: 0,
-            audioSamplesPerSample: length,
-            vectors: [new Float32Array([integratedLoudness])],
-            resizedVectors: { resizes: [], sizes: [], resizeOptions: { resizeFactor: VectorImageProcessor.DEFAULT_RESIZE_FACTOR, minWidth: VectorImageProcessor.DEFAULT_MIN_WIDTH } }
-        };
-        this._dataSlices = [{ momentaryLoudnessDataSlice, shortTermLoudnessDataSlice, integratedLoudnessDataSlice, loudnessRange }];
-        this.onDataChange?.(this._dataSlices);
+    declare onDataChange: ((data: DataSlice[]) => any) | undefined;
+    calculate() {
+        this.handleCalculate(async (onUpdate) => {
+            onUpdate(0, "Calculating...");
+            const { timeDomainVectors, essentiaWorker } = this;
+            const { sampleRate, length } = this.audioEditor;
+            const { hopSize, startAtZero } = this.state;
+            const { momentaryLoudness, shortTermLoudness, integratedLoudness, loudnessRange } = await essentiaWorker.LoudnessEBUR128(timeDomainVectors[0], timeDomainVectors[1] ?? timeDomainVectors[0], hopSize, sampleRate, startAtZero);
+            const audioSamplesPerSample = sampleRate * hopSize;
+            let offsetFromSample = startAtZero ? 0 : sampleRate * (hopSize - 0.4) * 0.5;
+            let resizedVectors = await essentiaWorker.generateResizedVector([momentaryLoudness], audioSamplesPerSample);
+            resizedVectors.resizes.forEach(resize => resize.offsetFromFrame = offsetFromSample);
+            onUpdate(80 , "Generating image");
+            const momentaryLoudnessDataSlice: VectorDataSlice = {
+                startIndex: 0,
+                endIndex: length,
+                offsetFromSample,
+                audioSamplesPerSample,
+                vectors: [momentaryLoudness],
+                resizedVectors
+            };
+            offsetFromSample = startAtZero ? 0 : sampleRate * (hopSize - 3) * 0.5;
+            resizedVectors = await essentiaWorker.generateResizedVector([shortTermLoudness], audioSamplesPerSample);
+            resizedVectors.resizes.forEach(resize => resize.offsetFromFrame = offsetFromSample);
+            const shortTermLoudnessDataSlice: VectorDataSlice = {
+                startIndex: 0,
+                endIndex: length,
+                offsetFromSample,
+                audioSamplesPerSample,
+                vectors: [shortTermLoudness],
+                resizedVectors
+            };
+            const integratedLoudnessDataSlice: VectorDataSlice = {
+                startIndex: 0,
+                endIndex: length,
+                offsetFromSample: 0,
+                audioSamplesPerSample: length,
+                vectors: [new Float32Array([integratedLoudness])],
+                resizedVectors: { resizes: [], sizes: [], resizeOptions: { resizeFactor: VectorImageProcessor.DEFAULT_RESIZE_FACTOR, minWidth: VectorImageProcessor.DEFAULT_MIN_WIDTH } }
+            };
+            this._dataSlices = [{ momentaryLoudnessDataSlice, shortTermLoudnessDataSlice, integratedLoudnessDataSlice, loudnessRange }];
+            onUpdate(20, "Done");
+            this.onDataChange?.(this._dataSlices);
+        });
     }
     getState() {
         return this.state;
