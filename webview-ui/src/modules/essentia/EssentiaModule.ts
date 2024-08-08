@@ -4,12 +4,13 @@ import AudioEditor from "../../core/AudioEditor";
 import EssentiaWorker from "./EssentiaWorker";
 import { EssentiaPointer } from "./EssentiaWorker.types";
 
-export interface EssentiaModuleSharableData {
-    essentiaWorker: EssentiaWorker
+export interface EssentiaModuleSharableData<Data = any> {
+    essentiaWorker: EssentiaWorker;
     timeDomainVectors: EssentiaPointer[];
+    dataSlices: Data;
 }
 
-abstract class EssentiaModule<State extends AudioToolkitModuleState = any> implements AudioToolkitModule<State> {
+abstract class EssentiaModule<State extends AudioToolkitModuleState = any, Data extends any = any> implements AudioToolkitModule<State> {
     static MODULE_ID = "essentia.base";
     static MODULE_NAME = "Essentia Base";
     static DEFAULT_STATE: AudioToolkitModuleState = { name: "" };
@@ -40,6 +41,11 @@ abstract class EssentiaModule<State extends AudioToolkitModuleState = any> imple
         this._isCalculating = b;
         this.onCalculating?.(b);
     }
+    protected _dataSlices: Data | undefined;
+    get dataSlices(): Data | undefined {
+        return this._dataSlices;
+    }
+
     declare onStateChange: ((newState: State) => any) | undefined;
     declare onCalculating: ((isCalculating: boolean | [number, string]) => any) | undefined;
     declare onDataChange: ((data: any) => any) | undefined;
@@ -83,7 +89,11 @@ abstract class EssentiaModule<State extends AudioToolkitModuleState = any> imple
         throw new Error("Method not implemented.");
     }
     getSharableData(): EssentiaModuleSharableData {
-        return { timeDomainVectors: this.timeDomainVectors, essentiaWorker: this.essentiaWorker };
+        return {
+            timeDomainVectors: this.timeDomainVectors,
+            essentiaWorker: this.essentiaWorker,
+            dataSlices: this.dataSlices
+        };
     }
 }
 

@@ -11,14 +11,7 @@ export interface State extends AudioToolkitModuleState {
     color: string;
 }
 
-export interface Data {
-    momentaryLoudness: Float32Array;
-    shortTermLoudness: Float32Array;
-    integratedLoudness: number;
-    loudnessRange: number;
-}
-
-class Module extends EssentiaModule<State> {
+class Module extends EssentiaModule<State, VectorDataSlice[]> {
     static MODULE_ID = "essentia.levelextractor";
     static MODULE_NAME = "Essentia LevelExtractor";
     static DEFAULT_STATE: State = {
@@ -27,23 +20,22 @@ class Module extends EssentiaModule<State> {
         hopSize: 44100,
         color: "#FFFFFF",
     };
-    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = this.DEFAULT_STATE, sharableData?: Record<string, EssentiaModuleSharableData>) {
+    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = this.DEFAULT_STATE, sharableData?: Record<string, EssentiaModuleSharableData<VectorDataSlice[]>>) {
         super.resolveEssentiaWorker(sharableData);
         const state: State = { ...this.DEFAULT_STATE, ...initialState, frameSize: 2 * audioEditor.sampleRate, hopSize: audioEditor.sampleRate };
         const timeDomainVectors = await super.getTimeDomainVectors(audioEditor, sharableData);
         const module = new Module(audioEditor, timeDomainVectors, state);
-        setTimeout(() => module.calculate(), 0);
+        if (sharableData?.[this.MODULE_ID]?.dataSlices) {
+            module._dataSlices = [...sharableData[this.MODULE_ID].dataSlices];
+        } else {
+            module.calculate();
+        }
         return module;
     }
     public state: State;
-    private _dataSlices: VectorDataSlice[] = [];
     get Component() {
         return Component;
     }
-    get dataSlices() {
-        return this._dataSlices;
-    }
-
     private constructor(
         public audioEditor: AudioEditor,
         protected timeDomainVectors: EssentiaPointer[],
@@ -86,7 +78,7 @@ class Module extends EssentiaModule<State> {
         return this.state;
     }
     setState(newState: State) {
-        const needCalculate = !this._dataSlices.length || newState.hopSize !== this.state.hopSize || newState.frameSize !== this.state.frameSize;
+        const needCalculate = !this._dataSlices?.length || newState.hopSize !== this.state.hopSize || newState.frameSize !== this.state.frameSize;
         this.state = newState;
         this.onStateChange?.(newState);
         if (needCalculate) this.calculate();

@@ -19,7 +19,7 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
     const [repaintId, setRepaintId] = useState(performance.now());
     const [hopSize, setHopSize] = useState(moduleState.hopSize);
     const [startAtZero, setStartAtZero] = useState(moduleState.startAtZero);
-    const [dataSlices, setDataSlices] = useState<typeof module.dataSlices | null>(module.dataSlices);
+    const [dataSlices, setDataSlices] = useState<typeof module.dataSlices>(module.dataSlices);
     const [calculating, setCalcualting] = useState<boolean | [number, string]>(module.isCalculating);
     const handleDataChange = useCallback((dataSlices: typeof module.dataSlices) => setDataSlices(dataSlices), [module]);
     const handleCalculating = useCallback((calculating: boolean | [number, string]) => setCalcualting(calculating), []);

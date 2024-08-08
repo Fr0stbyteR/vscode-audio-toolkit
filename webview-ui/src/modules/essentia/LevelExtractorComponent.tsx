@@ -9,7 +9,7 @@ import { VSCodeButton, VSCodeDivider } from "@vscode/webview-ui-toolkit/react";
 
 const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
     const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
-    const max = module.dataSlices.length ? Math.max.apply(Math, module.dataSlices.map(ds => ds.resizedVectors.resizes.length ? ds.resizedVectors.resizes[ds.resizedVectors.resizes.length - 1].maxData : ds.vectors).flat().map(f => Math.max.apply(Math, f as any))) : 100;
+    const max = module.dataSlices?.length ? Math.max.apply(Math, module.dataSlices.map(ds => ds.resizedVectors.resizes.length ? ds.resizedVectors.resizes[ds.resizedVectors.resizes.length - 1].maxData : ds.vectors).flat().map(f => Math.max.apply(Math, f as any))) : 100;
     const [defaultVerticalZoom, setDefaultVerticalZoom] = useState(1.75 / max);
     const defaultVerticalOffset = 1;
     const [verticalZoom, setVerticalZoom] = useState(defaultVerticalZoom);
@@ -20,11 +20,11 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
     const [repaintId, setRepaintId] = useState(performance.now());
     const [hopSize, setHopSize] = useState(moduleState.hopSize);
     const [frameSize, setFrameSize] = useState(moduleState.frameSize);
-    const [dataSlices, setDataSlices] = useState<typeof module.dataSlices | null>(module.dataSlices);
+    const [dataSlices, setDataSlices] = useState<typeof module.dataSlices>(module.dataSlices);
     const [calculating, setCalcualting] = useState<boolean | [number, string]>(module.isCalculating);
     const handleDataChange = useCallback((dataSlices: typeof module.dataSlices) => {
         setDataSlices(dataSlices);
-        const max = Math.max.apply(Math, dataSlices.map(ds => ds.resizedVectors.resizes.length ? ds.resizedVectors.resizes[ds.resizedVectors.resizes.length - 1].maxData : ds.vectors).flat().map(f => Math.max.apply(Math, f as any)));
+        const max = Math.max.apply(Math, dataSlices!.map(ds => ds.resizedVectors.resizes.length ? ds.resizedVectors.resizes[ds.resizedVectors.resizes.length - 1].maxData : ds.vectors).flat().map(f => Math.max.apply(Math, f as any)));
         setDefaultVerticalZoom(1.75 / max);
         setVerticalZoom(1.75 / max);
     }, [module]);

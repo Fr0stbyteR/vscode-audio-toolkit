@@ -1,11 +1,12 @@
 import "./AudioEditorMap.scss";
-import { FunctionComponent, useCallback, useContext, useEffect, useRef } from "react";
+import { FunctionComponent, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AudioEditorContext } from "./contexts";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { AudioEditorState } from "../core/AudioEditor";
 import { setCanvasToFullSize } from "../utils";
 import { VisualizationStyleOptions } from "../core/AudioToolkitModule";
 import Waveform from "../modules/waveform/Waveform";
+import VectorImageProcessor from "../core/VectorImageProcessor";
 
 interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRange">, Partial<VisualizationStyleOptions> {
     windowSize: number[];
@@ -18,13 +19,21 @@ const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRang
     const audioEditor = useContext(AudioEditorContext)!;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const divViewRangeRef = useRef<HTMLDivElement>(null);
+    const module = audioEditor.modulesInstance[0] as Waveform;
+    const [dataSlices, setDataSlices] = useState<typeof module.dataSlices>(module.dataSlices);
+    const handleDataChange = useCallback((dataSlices: typeof module.dataSlices) => setDataSlices(dataSlices), [module]);
+    useEffect(() => {
+        module.onDataChange = handleDataChange;
+        return () => module.onDataChange = undefined;
+    }, [handleDataChange, module]);
     const paint = useCallback(() => {
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
+        if (!dataSlices?.length) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        (audioEditor.modulesInstance[0] as Waveform).paint(ctx, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange: [0, audioEditor.length] }, { playheadColor, phosphorColor });
-    }, [audioEditor, playheadColor, phosphorColor]);
+        VectorImageProcessor.paint(ctx, dataSlices, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange: [0, audioEditor.length] }, { phosphorColor });
+    }, [dataSlices, audioEditor, phosphorColor]);
     useEffect(paint, [paint, windowSize, phosphorColor, playheadColor]);
     const handleMoveMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!canvasRef.current || !divViewRangeRef.current) return;

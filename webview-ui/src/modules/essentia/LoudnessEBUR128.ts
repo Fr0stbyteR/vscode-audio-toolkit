@@ -29,7 +29,7 @@ export interface DataSlice extends Pick<Data, "loudnessRange"> {
     integratedLoudnessDataSlice: VectorDataSlice;
 }
 
-class Module extends EssentiaModule<State> {
+class Module extends EssentiaModule<State, DataSlice[]> {
     static MODULE_ID = "essentia.loudnessebur128";
     static MODULE_NAME = "Essentia LoudnessEBUR128";
     static DEFAULT_STATE: State = {
@@ -43,21 +43,21 @@ class Module extends EssentiaModule<State> {
         shortTermLoudnessColor: "#88FF88",
         integratedLoudnessColor: "#8888FF"
     };
-    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = this.DEFAULT_STATE, sharableData?: Record<string, EssentiaModuleSharableData>) {
+    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = this.DEFAULT_STATE, sharableData?: Record<string, EssentiaModuleSharableData<DataSlice[]>>) {
         super.resolveEssentiaWorker(sharableData);
         const state = { ...this.DEFAULT_STATE, ...initialState };
         const timeDomainVectors = await super.getTimeDomainVectors(audioEditor, sharableData);
         const module = new Module(audioEditor, timeDomainVectors, state);
-        setTimeout(() => module.calculate(), 0);
+        if (sharableData?.[this.MODULE_ID]?.dataSlices) {
+            module._dataSlices = [...sharableData[this.MODULE_ID].dataSlices];
+        } else {
+            module.calculate();
+        }
         return module;
     }
     public state: State;
-    private _dataSlices: DataSlice[] = [];
     get Component() {
         return Component;
-    }
-    get dataSlices() {
-        return this._dataSlices;
     }
 
     private constructor(
@@ -117,7 +117,7 @@ class Module extends EssentiaModule<State> {
         return this.state;
     }
     setState(newState: State) {
-        const needCalculate = !this._dataSlices.length || newState.hopSize !== this.state.hopSize || newState.startAtZero !== this.state.startAtZero;
+        const needCalculate = !this._dataSlices?.length || newState.hopSize !== this.state.hopSize || newState.startAtZero !== this.state.startAtZero;
         this.state = newState;
         this.onStateChange?.(newState);
         if (needCalculate) this.calculate();

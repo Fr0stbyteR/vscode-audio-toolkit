@@ -1,5 +1,5 @@
 import "./WaveformComponent.scss";
-import { FunctionComponent, useCallback, useContext, useState } from "react";
+import { FunctionComponent, useCallback, useContext, useEffect, useState } from "react";
 import { AudioEditorContext } from "../../components/contexts";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { setCanvasToFullSize } from "../../utils";
@@ -19,13 +19,26 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (pr
     const [cursorX, setCursorX] = useState<number | undefined>();
     const [cursorY, setCursorY] = useState<number | undefined>();
     const [cursorInfo, setCursorInfo] = useState<VectorCursorInfo | null>(null);
+    const [dataSlices, setDataSlices] = useState<typeof module.dataSlices>(module.dataSlices);
+    const [calculating, setCalcualting] = useState<boolean | [number, string]>(module.isCalculating);
+    const handleDataChange = useCallback((dataSlices: typeof module.dataSlices) => setDataSlices(dataSlices), [module]);
+    const handleCalculating = useCallback((calculating: boolean | [number, string]) => setCalcualting(calculating), []);
+    useEffect(() => {
+        module.onDataChange = handleDataChange;
+        module.onCalculating = handleCalculating;
+        return () => {
+            module.onDataChange = undefined;
+            module.onCalculating = undefined;
+        };
+    }, [handleCalculating, handleDataChange, module]);
     const paint = useCallback((canvasRef: React.RefObject<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
+        if (!dataSlices?.length) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        VectorImageProcessor.paint(ctx, module.dataSlices, { width, height, verticalZoom, verticalOffset }, { viewRange }, { phosphorColor });
-    }, [module, verticalZoom, verticalOffset, viewRange, phosphorColor]);
+        VectorImageProcessor.paint(ctx, dataSlices, { width, height, verticalZoom, verticalOffset }, { viewRange }, { phosphorColor });
+    }, [dataSlices, verticalZoom, verticalOffset, viewRange, phosphorColor]);
     const paintVerticalRuler = useCallback((canvasRef: React.RefObject<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext("2d");
@@ -48,11 +61,12 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (pr
             setCursorInfo(null);
             return;
         }
-        const info = VectorImageProcessor.getInfoFromCursor(module.dataSlices, x, y, { width, height, verticalZoom, verticalOffset}, { viewRange });
+        if (!dataSlices?.length) return;
+        const info = VectorImageProcessor.getInfoFromCursor(dataSlices, x, y, { width, height, verticalZoom, verticalOffset}, { viewRange });
         setCursorX(info.x);
         setCursorY(info.y);
         setCursorInfo(info);
-    }, [module, verticalOffset, verticalZoom, viewRange]);
+    }, [dataSlices, verticalOffset, verticalZoom, viewRange]);
     const configurationContent = (
         <div className="waveform-channel-enabler">
             {
@@ -76,6 +90,7 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (pr
         </div>
     ) : undefined;
     const moduleUsingCanvasProps = {
+        calculating,
         defaultVerticalOffset, verticalOffset, setVerticalOffset,
         defaultVerticalZoom, verticalZoom, setVerticalZoom,
         cursorX, cursorY, onCursor,
