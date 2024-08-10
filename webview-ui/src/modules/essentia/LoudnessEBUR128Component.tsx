@@ -1,10 +1,10 @@
-import { FunctionComponent, useCallback, useEffect, useId, useState } from "react";
+import { FunctionComponent, useCallback, useEffect, useState } from "react";
 import { setCanvasToFullSize } from "../../utils";
 import { VisualizationOptions } from "../../core/AudioToolkitModule";
 import Module from "./LoudnessEBUR128";
 import VectorImageProcessor from "../../core/VectorImageProcessor";
 import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
-import { VSCodeButton, VSCodeCheckbox, VSCodeDivider } from "@vscode/webview-ui-toolkit/react";
+import ConfigurationContent from "./ConfigurationContent";
 
 const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
     const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
@@ -16,8 +16,7 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
     const [cursorY, setCursorY] = useState<number | undefined>();
     const [cursorInfo, setCursorInfo] = useState<{ momentary: number | [number, number], shortTerm: number | [number, number] } | null>(null);
     const [repaintId, setRepaintId] = useState(performance.now());
-    const [hopSize, setHopSize] = useState(moduleState.hopSize);
-    const [startAtZero, setStartAtZero] = useState(moduleState.startAtZero);
+    const [essentiaState, setEssentiaState] = useState(Module.getEssentiaState(moduleState));
     const [dataSlices, setDataSlices] = useState<typeof module.dataSlices>(module.dataSlices);
     const [calculating, setCalcualting] = useState<boolean | [number, string]>(module.isCalculating);
     const handleDataChange = useCallback((dataSlices: typeof module.dataSlices) => setDataSlices(dataSlices), [module]);
@@ -71,46 +70,9 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
         setCursorY(info.y);
         setCursorInfo({ momentary: info.value, shortTerm });
     }, [dataSlices, verticalOffset, verticalZoom, viewRange]);
-    const handleClickCalculate = useCallback(() => {
-        module.setState({ ...moduleState, hopSize, startAtZero });
-    }, [hopSize, startAtZero, module, moduleState]);
-    const [id1, id2, id3, id4] = [useId(), useId(), useId(), useId()];
-    const configurationContent = (
-        <div className={`default-layout ${module.moduleId.replace(".", "-")}-configuration`}>
-            <div>
-                <label htmlFor={id1}>Hop Size (sec)</label>
-                <input id={id1} type="number" min={0.001} step={0.001} max={0.1} onChange={e => setHopSize(e.currentTarget.valueAsNumber)} value={hopSize} />
-            </div>
-            <div>
-                <VSCodeCheckbox checked={startAtZero} onChange={e => setStartAtZero((e.currentTarget as HTMLInputElement).checked)}>Start at Zero</VSCodeCheckbox>
-            </div>
-            <div>
-                <VSCodeButton tabIndex={-1} title="Submit for Calculate" appearance="primary" onClick={handleClickCalculate}>Calculate</VSCodeButton>
-            </div>
-            <VSCodeDivider />
-            <div>
-                <VSCodeCheckbox checked={moduleState.paintMomentaryLoudness} onChange={e => module.setState({ ...moduleState, paintMomentaryLoudness: (e.currentTarget as HTMLInputElement).checked })}>Show momentary loudness</VSCodeCheckbox>
-            </div>
-            <div>
-                <label htmlFor={id2}>Color</label>
-                <input id={id2} type="color" value={moduleState.momentaryLoudnessColor} onChange={e => module.setState({ ...moduleState, momentaryLoudnessColor: e.currentTarget.value })} />
-            </div>
-            <div>
-                <VSCodeCheckbox checked={moduleState.paintShortTermLoudness} onChange={e => module.setState({ ...moduleState, paintShortTermLoudness: (e.currentTarget as HTMLInputElement).checked })}>Show short-term loudness</VSCodeCheckbox>
-            </div>
-            <div>
-                <label htmlFor={id3}>Color</label>
-                <input id={id3} type="color" value={moduleState.shortTermLoudnessColor} onChange={e => module.setState({ ...moduleState, shortTermLoudnessColor: e.currentTarget.value })} />
-            </div>
-            <div>
-                <VSCodeCheckbox checked={moduleState.paintIntegratedLoudness} onChange={e => module.setState({ ...moduleState, paintIntegratedLoudness: (e.currentTarget as HTMLInputElement).checked })}>Show integrated loudness</VSCodeCheckbox>
-            </div>
-            <div>
-                <label htmlFor={id4}>Color</label>
-                <input id={id4} type="color" value={moduleState.integratedLoudnessColor} onChange={e => module.setState({ ...moduleState, integratedLoudnessColor: e.currentTarget.value })} />
-            </div>
-        </div>
-    );
+    const setModuleState = useCallback((state: typeof module.state) => module.setState(state), [module]);
+    const optionsMetadata = module.getOptionsMetadata();
+    const configurationContent = <ConfigurationContent {...{ moduleId: module.moduleId, essentiaState, setEssentiaState, moduleState, setModuleState, optionsMetadata }} />;
     const monitorContent = dataSlices?.length ? (
         <div className="default-layout">
             {

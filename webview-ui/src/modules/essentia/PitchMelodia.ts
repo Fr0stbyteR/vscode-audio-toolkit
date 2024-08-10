@@ -3,49 +3,73 @@ import { AudioToolkitModuleState } from "../../core/AudioToolkitModule";
 import { VectorDataSlice } from "../../core/VectorImageProcessor";
 import EssentiaModule, { EssentiaModuleSharableData } from "./EssentiaModule";
 import { EssentiaPointer } from "./EssentiaWorker.types";
-import Component from "./PitchYinProbabilisticComponent";
+import Component from "./PitchMelodiaComponent";
 
 export interface EssentiaState {
     frameSize: number;
     hopSize: number;
-    lowRMSThreshold: number;
-    outputUnvoiced: "zero" | "abs" | "negative";
-    preciseTime: boolean;
+    binResolution: number;
+    filterIterations: number;
+    guessUnvoiced: boolean;
+    harmonicWeight: number;
+    magnitudeCompression: number;
+    magnitudeThreshold: number;
+    minFrequency: number;
+    maxFrequency: number;
+    minDuration: number;
+    numberHarmonics: number,
+    peakDistributionThreshold: number;
+    peakFrameThreshold: number;
+    pitchContinuity: number;
+    timeContinuity: number;
+    referenceFrequency: number;
 }
 
 export interface State extends AudioToolkitModuleState, EssentiaState {
     color: string;
-    probabilitiesColor: string;
+    confidenceColor: string;
     paintThreshold: number;
-    paintProbabilities: boolean;
+    paintConfidence: boolean;
 }
 
 export interface DataSlice {
     pitch: VectorDataSlice;
-    voicedProbabilities: VectorDataSlice;
+    pitchConfidence: VectorDataSlice;
 }
 
 class Module extends EssentiaModule<State, DataSlice[]> {
-    static MODULE_ID = "essentia.pitchyinprobabilistic";
-    static MODULE_NAME = "Essentia PitchYinProbabilistic";
+    static MODULE_ID = "essentia.pitchmelodia";
+    static MODULE_NAME = "Essentia PitchMelodia";
     static DEFAULT_ESSENTIA_STATE: EssentiaState = {
         frameSize: 2048,
-        hopSize: 256,
-        lowRMSThreshold: 0.1,
-        outputUnvoiced: "negative",
-        preciseTime: false
+        hopSize: 128,
+        binResolution: 10,
+        filterIterations: 3,
+        guessUnvoiced: false,
+        harmonicWeight: 0.8,
+        magnitudeCompression: 1,
+        magnitudeThreshold: 40,
+        minFrequency: 40,
+        maxFrequency: 20000,
+        minDuration: 100,
+        numberHarmonics: 20,
+        peakDistributionThreshold: 0.9,
+        peakFrameThreshold: 0.9,
+        pitchContinuity: 27.5625,
+        timeContinuity: 100,
+        referenceFrequency: 55
     };
     static DEFAULT_STATE: State = {
         name: "",
         ...this.DEFAULT_ESSENTIA_STATE,
         color: "#FFFFFF",
-        probabilitiesColor: "#888888",
-        paintThreshold: 0.25,
-        paintProbabilities: true
+        confidenceColor: "#888888",
+        paintThreshold: 0.01,
+        paintConfidence: true
     };
     static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, EssentiaModuleSharableData<DataSlice[]>>) {
         super.resolveEssentiaWorker(sharableData);
-        const state: State = { ...this.DEFAULT_STATE, ...initialState };
+        const state: State = { ...this.DEFAULT_STATE, pitchContinuity: audioEditor.sampleRate / 1600, ...initialState };
         const timeDomainVectors = await super.getTimeDomainVectors(audioEditor, sharableData);
         const module = new Module(audioEditor, timeDomainVectors, state);
         if (sharableData?.[this.MODULE_ID]?.dataSlices) {
@@ -77,13 +101,13 @@ class Module extends EssentiaModule<State, DataSlice[]> {
             onUpdate(0, "Calculating channel 1");
             const { timeDomainVectors, essentiaWorker } = this;
             const { sampleRate, length, numberOfChannels } = this.audioEditor;
-            const { hopSize, frameSize, lowRMSThreshold, outputUnvoiced, preciseTime } = this.state;
+            const { binResolution, filterIterations, frameSize, guessUnvoiced, harmonicWeight, hopSize, magnitudeCompression, magnitudeThreshold, maxFrequency, minDuration, minFrequency, numberHarmonics, peakDistributionThreshold, peakFrameThreshold, pitchContinuity, referenceFrequency, timeContinuity } = this.state;
             const pitchVectors: Float32Array[] = [];
-            const probVectors: Float32Array[] = [];
+            const confVectors: Float32Array[] = [];
             for (let channel = 0; channel < numberOfChannels; channel++) {
-                const { pitch, voicedProbabilities } = await essentiaWorker.PitchYinProbabilistic(timeDomainVectors[channel], frameSize, hopSize, lowRMSThreshold, outputUnvoiced, preciseTime, sampleRate);
+                const { pitch, pitchConfidence } = await essentiaWorker.PitchMelodia(timeDomainVectors[channel], binResolution, filterIterations, frameSize, guessUnvoiced, harmonicWeight, hopSize, magnitudeCompression, magnitudeThreshold, maxFrequency, minDuration, minFrequency, numberHarmonics, peakDistributionThreshold, peakFrameThreshold, pitchContinuity, referenceFrequency, sampleRate, timeContinuity);
                 pitchVectors[channel] = pitch;
-                probVectors[channel] = voicedProbabilities;
+                confVectors[channel] = pitchConfidence;
                 onUpdate(80 / numberOfChannels, channel === numberOfChannels - 1 ? "Generating image" : `Calculating channel ${channel + 2}`);
             }
             const audioSamplesPerSample = hopSize;
@@ -98,16 +122,16 @@ class Module extends EssentiaModule<State, DataSlice[]> {
                 vectors: pitchVectors,
                 resizedVectors
             };
-            resizedVectors = await essentiaWorker.generateResizedVector(probVectors, audioSamplesPerSample);
-            const voicedProbabilities: VectorDataSlice = {
+            resizedVectors = await essentiaWorker.generateResizedVector(confVectors, audioSamplesPerSample);
+            const pitchConfidence: VectorDataSlice = {
                 startIndex: 0,
                 endIndex: length,
                 offsetFromSample,
                 audioSamplesPerSample,
-                vectors: probVectors,
+                vectors: confVectors,
                 resizedVectors
             };
-            this._dataSlices = [{ pitch, voicedProbabilities }];
+            this._dataSlices = [{ pitch, pitchConfidence }];
             onUpdate(20, "Done");
             this.onDataChange?.(this._dataSlices);
         });
@@ -126,13 +150,25 @@ class Module extends EssentiaModule<State, DataSlice[]> {
             name: ["Name"],
             frameSize: ["Frame Size (samples)", 1, 1],
             hopSize: ["Hop Size (samples)", 1, 1],
-            lowRMSThreshold: ["Low RMS Threshold", 0.001, 0.001, 1],
-            outputUnvoiced: ["Output unvoiced", "negative", "abs", "negative"],
-            preciseTime: ["Precise Time"],
+            binResolution: ["Salience function bin resolution (cents)", 1, 1, 100],
+            filterIterations: ["Filter iterations", 1, 1, 100],
+            guessUnvoiced: ["Guess Unvoiced"],
+            harmonicWeight: ["Harmonic Weight", 0.01, 0.01, 0.99],
+            magnitudeCompression: ["Magnitude Compression", 0.01, 0.01, 1],
+            magnitudeThreshold: ["Magnitude Threshold (dB)", 0, 0.1],
+            minFrequency: ["Minimum Frequency (Hz)", 1, this.audioEditor.sampleRate / 2, 1],
+            maxFrequency: ["Maximum Frequency (Hz)", 1, this.audioEditor.sampleRate / 2, 1],
+            minDuration: ["Minimum allowed contour duration [ms]", 1, 1],
+            numberHarmonics: ["Number of considered harmonics", 1, 1],
+            peakDistributionThreshold: ["Peak distribution threshold (fraction of the standard deviation)", 0, 0.01, 2],
+            peakFrameThreshold: ["Peak frame threshold (fraction of the highest peak salience in a frame)", 0, 0.01, 1],
+            pitchContinuity: ["Pitch continuity (cents)", 0, 0.01],
+            timeContinuity: ["Time continuity (ms)", 0.1, 0.1],
+            referenceFrequency: ["Reference frequency corresponding to the 0th cent bin (Hz)", 1, 0.1],
             color: ["Color"],
             paintThreshold: ["Paint Voiced Threshold", 0.01, 0.01, 1],
-            paintProbabilities: ["Show Probabilities"],
-            probabilitiesColor: ["Probabilities Color"]
+            paintConfidence: ["Show Confidence"],
+            confidenceColor: ["Confidence Color"]
         };
     }
 }

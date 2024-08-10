@@ -27,6 +27,7 @@ declare class Essentia extends EssentiaBase {
     vectorToArray(inputVector: VectorFloat): Float32Array;
     LoudnessEBUR128(leftSignal: VectorFloat, rightSignal: VectorFloat, hopSize?: number, sampleRate?: number, startAtZero?: boolean): { momentaryLoudness: VectorFloat, shortTermLoudness: VectorFloat, integratedLoudness: number, loudnessRange: number };
     LevelExtractor(signal: VectorFloat, frameSize?: number, hopSize?: number): { loudness: VectorFloat };
+    PitchMelodia(signal: VectorFloat, binResolution?: number, filterIterations?: number, frameSize?: number, guessUnvoiced?: boolean, harmonicWeight?: number, hopSize?: number, magnitudeCompression?: number, magnitudeThreshold?: number, maxFrequency?: number, minDuration?: number, minFrequency?: number, numberHarmonics?: number, peakDistributionThreshold?: number, peakFrameThreshold?: number, pitchContinuity?: number, referenceFrequency?: number, sampleRate?: number, timeContinuity?: number): { pitch: VectorFloat; pitchConfidence: VectorFloat };
     PitchYinProbabilistic(signal: VectorFloat, frameSize?: number, hopSize?: number, lowRMSThreshold?: number, outputUnvoiced?: string, preciseTime?: boolean, sampleRate?: number): { pitch: VectorFloat; voicedProbabilities: VectorFloat };
 }
 interface Essentia extends EssentiaClass {}

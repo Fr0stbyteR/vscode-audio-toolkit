@@ -5,9 +5,12 @@ import EssentiaModule, { EssentiaModuleSharableData } from "./EssentiaModule";
 import { EssentiaPointer } from "./EssentiaWorker.types";
 import Component from "./LoudnessEBUR128Component";
 
-export interface State extends AudioToolkitModuleState {
+export interface EssentiaState {
     hopSize: number;
     startAtZero: boolean;
+}
+
+export interface State extends AudioToolkitModuleState, EssentiaState {
     paintMomentaryLoudness: boolean;
     paintShortTermLoudness: boolean;
     paintIntegratedLoudness: boolean;
@@ -26,18 +29,21 @@ export interface DataSlice {
 class Module extends EssentiaModule<State, DataSlice[]> {
     static MODULE_ID = "essentia.loudnessebur128";
     static MODULE_NAME = "Essentia LoudnessEBUR128";
+    static DEFAULT_ESSENTIA_STATE: EssentiaState = {
+        hopSize: 0.1,
+        startAtZero: false
+    };
     static DEFAULT_STATE: State = {
         name: "",
-        hopSize: 0.1,
-        startAtZero: false,
+        ...this.DEFAULT_ESSENTIA_STATE,
         paintMomentaryLoudness: true,
-        paintShortTermLoudness: true,
-        paintIntegratedLoudness: true,
         momentaryLoudnessColor: "#FF8888",
+        paintShortTermLoudness: true,
         shortTermLoudnessColor: "#88FF88",
+        paintIntegratedLoudness: true,
         integratedLoudnessColor: "#8888FF"
     };
-    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = this.DEFAULT_STATE, sharableData?: Record<string, EssentiaModuleSharableData<DataSlice[]>>) {
+    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, EssentiaModuleSharableData<DataSlice[]>>) {
         super.resolveEssentiaWorker(sharableData);
         const state = { ...this.DEFAULT_STATE, ...initialState };
         const timeDomainVectors = await super.getTimeDomainVectors(audioEditor, sharableData);
@@ -48,6 +54,11 @@ class Module extends EssentiaModule<State, DataSlice[]> {
             module.calculate();
         }
         return module;
+    }
+    static getEssentiaState(moduleState: State) {
+        const state: Partial<EssentiaState> = {};
+        Object.keys(Module.DEFAULT_ESSENTIA_STATE).forEach(k => (state as any)[k] = (moduleState as any)[k]);
+        return state as EssentiaState;
     }
     public state: State;
     get Component() {
@@ -110,10 +121,23 @@ class Module extends EssentiaModule<State, DataSlice[]> {
         return this.state;
     }
     setState(newState: State) {
-        const needCalculate = !this._dataSlices?.length || newState.hopSize !== this.state.hopSize || newState.startAtZero !== this.state.startAtZero;
+        const needCalculate = !this._dataSlices?.length || !Object.keys(Module.DEFAULT_ESSENTIA_STATE).every(k => (newState as any)[k] === (this.state as any)[k]);
         this.state = newState;
         this.onStateChange?.(newState);
         if (needCalculate) this.calculate();
+    }
+    getOptionsMetadata(): { [K in keyof State]: [string, ...any] } {
+        return {
+            name: ["Name"],
+            hopSize: ["Hop Size (sec)", 0.001, 0.001, 1],
+            startAtZero: ["Start at zero"],
+            paintMomentaryLoudness: ["Show momentary loudness"],
+            momentaryLoudnessColor: ["Color"],
+            paintShortTermLoudness: ["Show short-term loudness"],
+            shortTermLoudnessColor: ["Color"],
+            paintIntegratedLoudness: ["Show integrated loudness"],
+            integratedLoudnessColor: ["Color"],
+        };
     }
 }
 

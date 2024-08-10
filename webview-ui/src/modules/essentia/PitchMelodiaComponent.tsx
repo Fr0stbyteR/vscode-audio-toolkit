@@ -1,31 +1,25 @@
 import { FunctionComponent, useCallback, useEffect, useState } from "react";
 import { setCanvasToFullSize } from "../../utils";
 import { VisualizationOptions } from "../../core/AudioToolkitModule";
-import Module from "./LevelExtractor";
-import VectorImageProcessor, { VectorCursorInfo } from "../../core/VectorImageProcessor";
+import Module from "./PitchMelodia";
+import VectorImageProcessor from "../../core/VectorImageProcessor";
 import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
 import ConfigurationContent from "./ConfigurationContent";
 
 const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
     const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
-    const max = module.dataSlices?.length ? Math.max.apply(Math, module.dataSlices.map(ds => ds.resizedVectors.resizes.length ? ds.resizedVectors.resizes[ds.resizedVectors.resizes.length - 1].maxData : ds.vectors).flat().map(f => Math.max.apply(Math, f as any))) : 100;
-    const [defaultVerticalZoom, setDefaultVerticalZoom] = useState(1.75 / max);
+    const defaultVerticalZoom = 2 / 4000;
     const defaultVerticalOffset = 1;
     const [verticalZoom, setVerticalZoom] = useState(defaultVerticalZoom);
     const [verticalOffset, setVerticalOffset] = useState(defaultVerticalOffset);
     const [cursorX, setCursorX] = useState<number | undefined>();
     const [cursorY, setCursorY] = useState<number | undefined>();
-    const [cursorInfo, setCursorInfo] = useState<VectorCursorInfo | null>(null);
+    const [cursorInfo, setCursorInfo] = useState<{ channel: number; pitch: number | [number, number]; probability: number | [number, number] } | null>(null);
     const [repaintId, setRepaintId] = useState(performance.now());
     const [essentiaState, setEssentiaState] = useState(Module.getEssentiaState(moduleState));
     const [dataSlices, setDataSlices] = useState<typeof module.dataSlices>(module.dataSlices);
     const [calculating, setCalcualting] = useState<boolean | [number, string]>(module.isCalculating);
-    const handleDataChange = useCallback((dataSlices: typeof module.dataSlices) => {
-        setDataSlices(dataSlices);
-        const max = Math.max.apply(Math, dataSlices!.map(ds => ds.resizedVectors.resizes.length ? ds.resizedVectors.resizes[ds.resizedVectors.resizes.length - 1].maxData : ds.vectors).flat().map(f => Math.max.apply(Math, f as any)));
-        setDefaultVerticalZoom(1.75 / max);
-        setVerticalZoom(1.75 / max);
-    }, [module]);
+    const handleDataChange = useCallback((dataSlices: typeof module.dataSlices) => setDataSlices(dataSlices), [module]);
     const handleCalculating = useCallback((calculating: boolean | [number, string]) => setCalcualting(calculating), []);
     useEffect(() => {
         module.onDataChange = handleDataChange;
@@ -42,7 +36,9 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
         if (!dataSlices?.length) return;
         const [width, height] = setCanvasToFullSize(canvas);
         ctx.clearRect(0, 0, width, height);
-        VectorImageProcessor.paint(ctx, dataSlices, { width, height, verticalZoom, verticalOffset, beforeAndAfter: "inherit" }, { viewRange }, { phosphorColor: moduleState.color });
+        const { color, confidenceColor, paintConfidence } = moduleState;
+        if (paintConfidence) VectorImageProcessor.paint(ctx, dataSlices.map(ds => ds.pitchConfidence), { width, height, verticalZoom: 2 / 1, verticalOffset: 1, beforeAndAfter: "inherit" }, { viewRange }, { phosphorColor: confidenceColor });
+        VectorImageProcessor.paint(ctx, dataSlices.map(ds => ds.pitch), { width, height, verticalZoom, verticalOffset, beforeAndAfter: "none", confidenceDataSlices: dataSlices.map(ds => ds.pitchConfidence), confidenceThreshold: moduleState.paintThreshold, paintOver: paintConfidence }, { viewRange }, { phosphorColor: color });
     }, [dataSlices, moduleState, verticalZoom, verticalOffset, viewRange]);
     const paintVerticalRuler = useCallback((canvasRef: React.RefObject<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
@@ -56,7 +52,7 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        VectorImageProcessor.paintHorizontalRuler(ctx, module.audioEditor.numberOfChannels, { width, height, verticalZoom, verticalOffset, labelMode: "linear", labelUnit: "Loudness", labelsWidth: 80 }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
+        VectorImageProcessor.paintHorizontalRuler(ctx, module.audioEditor.numberOfChannels, { width, height, verticalZoom, verticalOffset, labelMode: "linear", labelUnit: "dB", labelsWidth: 80 }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
     }, [module, verticalZoom, verticalOffset, gridColor, gridRulerColor, textColor, monospaceFont]);
     const onCursor = useCallback((x: number, y: number, width: number, height: number) => {
         if (y < 0 || y > height) setCursorY(undefined);
@@ -67,10 +63,11 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
             return;
         }
         if (!dataSlices?.length) return;
-        const info = VectorImageProcessor.getInfoFromCursor(dataSlices, x, y, { width, height, verticalZoom, verticalOffset}, { viewRange });
+        const info = VectorImageProcessor.getInfoFromCursor(dataSlices.map(ds => ds.pitch), x, y, { width, height, verticalZoom, verticalOffset}, { viewRange });
+        const { value: probability } = VectorImageProcessor.getInfoFromCursor(dataSlices.map(ds => ds.pitchConfidence), x, y, { width, height, verticalZoom, verticalOffset}, { viewRange });
         setCursorX(info.x);
         setCursorY(info.y);
-        setCursorInfo(info);
+        setCursorInfo({ channel: info.channel, pitch: info.value, probability });
     }, [dataSlices, verticalOffset, verticalZoom, viewRange]);
     const setModuleState = useCallback((state: typeof module.state) => module.setState(state), [module]);
     const optionsMetadata = module.getOptionsMetadata();
@@ -81,8 +78,10 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
                 cursorInfo
                 ? <>
                     <div>Channel: {cursorInfo.channel + 1}</div>
-                    <div style={{ color: moduleState.color }}>Loudness</div>
-                    <div style={{ color: moduleState.color }}>{typeof cursorInfo.value === "number" ? cursorInfo.value.toFixed(3) : cursorInfo.value.map(v => v.toFixed(3)).join(" to ")}</div>
+                    <div style={{ color: moduleState.color }}>Pitch:</div>
+                    <div style={{ color: moduleState.color }}>{typeof cursorInfo.pitch === "number" ? `${cursorInfo.pitch.toFixed(3)} Hz` : cursorInfo.pitch.map(v => `${v.toFixed(3)} Hz`).join(" to ")}</div>
+                    <div style={{ color: moduleState.confidenceColor }}>Voiced Probability:</div>
+                    <div style={{ color: moduleState.confidenceColor }}>{typeof cursorInfo.probability === "number" ? `${(cursorInfo.probability * 100).toFixed(3)}%` : cursorInfo.probability.map(v => `${(v * 100).toFixed(3)}%`).join(" to ")}</div>
                 </>
                 : null
             }
