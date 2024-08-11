@@ -1,7 +1,7 @@
 import AudioEditor from "../../core/AudioEditor";
 import { AudioToolkitModuleState } from "../../core/AudioToolkitModule";
 import VectorImageProcessor, { VectorDataSlice } from "../../core/VectorImageProcessor";
-import EssentiaModule, { EssentiaModuleSharableData } from "./EssentiaModule";
+import EssentiaModule, { EssentiaModuleSharableData, EssentiaVectorDataSlice } from "./EssentiaModule";
 import { EssentiaPointer } from "./EssentiaWorker.types";
 import Component from "./LoudnessEBUR128Component";
 
@@ -20,13 +20,13 @@ export interface State extends AudioToolkitModuleState, EssentiaState {
 }
 
 export interface DataSlice {
-    momentaryLoudnessDataSlice: VectorDataSlice;
-    shortTermLoudnessDataSlice: VectorDataSlice;
+    momentaryLoudnessDataSlice: EssentiaVectorDataSlice;
+    shortTermLoudnessDataSlice: EssentiaVectorDataSlice;
     integratedLoudnessDataSlice: VectorDataSlice;
-    loudnessRange: number;
+    loudnessRangeDataSlice: VectorDataSlice;
 }
 
-class Module extends EssentiaModule<State, DataSlice[]> {
+class Module extends EssentiaModule<State, EssentiaState, DataSlice[]> {
     static MODULE_ID = "essentia.loudnessebur128";
     static MODULE_NAME = "Essentia LoudnessEBUR128";
     static DEFAULT_ESSENTIA_STATE: EssentiaState = {
@@ -55,12 +55,6 @@ class Module extends EssentiaModule<State, DataSlice[]> {
         }
         return module;
     }
-    static getEssentiaState(moduleState: State) {
-        const state: Partial<EssentiaState> = {};
-        Object.keys(Module.DEFAULT_ESSENTIA_STATE).forEach(k => (state as any)[k] = (moduleState as any)[k]);
-        return state as EssentiaState;
-    }
-    public state: State;
     get Component() {
         return Component;
     }
@@ -85,23 +79,25 @@ class Module extends EssentiaModule<State, DataSlice[]> {
             let resizedVectors = await essentiaWorker.generateResizedVector([momentaryLoudness], audioSamplesPerSample);
             resizedVectors.resizes.forEach(resize => resize.offsetFromFrame = offsetFromSample);
             onUpdate(80 , "Generating image");
-            const momentaryLoudnessDataSlice: VectorDataSlice = {
+            const momentaryLoudnessDataSlice: EssentiaVectorDataSlice = {
                 startIndex: 0,
                 endIndex: length,
                 offsetFromSample,
                 audioSamplesPerSample,
-                vectors: [momentaryLoudness],
+                vectors: [await essentiaWorker.vectorToArray(momentaryLoudness)],
+                vectorsPointer: [momentaryLoudness],
                 resizedVectors
             };
             offsetFromSample = startAtZero ? 0 : sampleRate * (hopSize - 3) * 0.5;
             resizedVectors = await essentiaWorker.generateResizedVector([shortTermLoudness], audioSamplesPerSample);
             resizedVectors.resizes.forEach(resize => resize.offsetFromFrame = offsetFromSample);
-            const shortTermLoudnessDataSlice: VectorDataSlice = {
+            const shortTermLoudnessDataSlice: EssentiaVectorDataSlice = {
                 startIndex: 0,
                 endIndex: length,
                 offsetFromSample,
                 audioSamplesPerSample,
-                vectors: [shortTermLoudness],
+                vectors: [await essentiaWorker.vectorToArray(shortTermLoudness)],
+                vectorsPointer: [shortTermLoudness],
                 resizedVectors
             };
             const integratedLoudnessDataSlice: VectorDataSlice = {
@@ -112,19 +108,18 @@ class Module extends EssentiaModule<State, DataSlice[]> {
                 vectors: [new Float32Array([integratedLoudness])],
                 resizedVectors: { resizes: [], sizes: [], resizeOptions: { resizeFactor: VectorImageProcessor.DEFAULT_RESIZE_FACTOR, minWidth: VectorImageProcessor.DEFAULT_MIN_WIDTH } }
             };
-            this._dataSlices = [{ momentaryLoudnessDataSlice, shortTermLoudnessDataSlice, integratedLoudnessDataSlice, loudnessRange }];
+            const loudnessRangeDataSlice: VectorDataSlice = {
+                startIndex: 0,
+                endIndex: length,
+                offsetFromSample: 0,
+                audioSamplesPerSample: length,
+                vectors: [new Float32Array([loudnessRange])],
+                resizedVectors: { resizes: [], sizes: [], resizeOptions: { resizeFactor: VectorImageProcessor.DEFAULT_RESIZE_FACTOR, minWidth: VectorImageProcessor.DEFAULT_MIN_WIDTH } }
+            };
+            this._dataSlices = [{ momentaryLoudnessDataSlice, shortTermLoudnessDataSlice, integratedLoudnessDataSlice, loudnessRangeDataSlice }];
             onUpdate(20, "Done");
             this.onDataChange?.(this._dataSlices);
         });
-    }
-    getState() {
-        return this.state;
-    }
-    setState(newState: State) {
-        const needCalculate = !this._dataSlices?.length || !Object.keys(Module.DEFAULT_ESSENTIA_STATE).every(k => (newState as any)[k] === (this.state as any)[k]);
-        this.state = newState;
-        this.onStateChange?.(newState);
-        if (needCalculate) this.calculate();
     }
     getOptionsMetadata(): { [K in keyof State]: [string, ...any] } {
         return {

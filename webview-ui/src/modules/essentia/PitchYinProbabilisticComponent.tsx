@@ -16,7 +16,7 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
     const [cursorY, setCursorY] = useState<number | undefined>();
     const [cursorInfo, setCursorInfo] = useState<{ channel: number; pitch: number | [number, number]; probability: number | [number, number] } | null>(null);
     const [repaintId, setRepaintId] = useState(performance.now());
-    const [essentiaState, setEssentiaState] = useState(Module.getEssentiaState(moduleState));
+    const [essentiaState, setEssentiaState] = useState(module.getEssentiaState(moduleState));
     const [dataSlices, setDataSlices] = useState<typeof module.dataSlices>(module.dataSlices);
     const [calculating, setCalcualting] = useState<boolean | [number, string]>(module.isCalculating);
     const handleDataChange = useCallback((dataSlices: typeof module.dataSlices) => setDataSlices(dataSlices), [module]);

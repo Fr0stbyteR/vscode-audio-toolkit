@@ -27,10 +27,10 @@ class Worker extends ProxyWorker<IEssentiaWorker> implements IEssentiaWorker {
         for (const algo of algorithmNames) {
             (this as any)[algo] = (...args: any[]) => {
                 const r = (essentia as any)[algo](...args.map(a => a instanceof Float32Array ? essentia.arrayToVector(a) : this.isEssentiaPointer(a) ? this.$2o(a) : a));
-                if (r instanceof VectorFloat) return essentia.vectorToArray(r);
+                if (r instanceof VectorFloat) return this.o2$(r);
                 if (r instanceof Object) {
                     for (const key in r) {
-                        if (r[key] instanceof VectorFloat) r[key] = essentia.vectorToArray(r[key]);
+                        if (r[key] instanceof VectorFloat) r[key] = this.o2$(r[key]);
                     }
                 }
                 return r;

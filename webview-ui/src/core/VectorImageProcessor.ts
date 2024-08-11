@@ -32,7 +32,7 @@ export interface VectorPaintOptions {
     labelMode: "linear" | "decibel";
     labelUnit: string;
     confidenceDataSlices: VectorDataSlice[];
-    confidenceThreshold: number;
+    confidenceThreshold: number | undefined;
 }
 
 export interface VectorDataSlice {
@@ -113,7 +113,7 @@ class VectorImageProcessor {
     static paint(
         ctx: CanvasRenderingContext2D,
         dataSlices: VectorDataSlice[],
-        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, beforeAndAfter = "inherit", paintOver = false, paintSeparator = !paintOver, confidenceDataSlices, confidenceThreshold = 0 }: Partial<VectorPaintOptions>,
+        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, beforeAndAfter = "inherit", paintOver = false, paintSeparator = !paintOver, confidenceDataSlices, confidenceThreshold }: Partial<VectorPaintOptions>,
         { viewRange }: Pick<VisualizationOptions<any>, "viewRange">,
         { phosphorColor = "rgb(67, 217, 150)", separatorColor = "grey" }: Partial<Pick<VisualizationStyleOptions, "phosphorColor" | "separatorColor">> 
     ) {
@@ -171,6 +171,7 @@ class VectorImageProcessor {
     
         for (let $dataSlice = 0; $dataSlice < dataSlices.length; $dataSlice++) {
             const { startIndex, endIndex, resizedVectors, audioSamplesPerSample, vectors, offsetFromSample } = dataSlices[$dataSlice];
+            const confidenceVectors = confidenceDataSlices?.[$dataSlice].vectors;
             pixelsPerSample = pixelsPerAudioSample * audioSamplesPerSample;
             samples = endIndex - startIndex;
             if ($ + samples <= $drawFrom) {
@@ -212,8 +213,8 @@ class VectorImageProcessor {
                         ctx.moveTo(x, y);
                     }
                     while ($$ < endIndex && $$ < $drawTo && $$vector < vectors[channel].length) {
-                        if (!confidenceDataSlices || confidenceDataSlices[$dataSlice].vectors[channel][$$vector] >= confidenceThreshold) {
-                            v = vectors[channel][$$vector];
+                        v = vectors[channel][$$vector];
+                        if ((typeof confidenceThreshold === "undefined") || v >= confidenceThreshold || (confidenceVectors && confidenceVectors[channel][$$vector] >= confidenceThreshold)) {
                             x = calcX($$) + 0.5 * pixelsPerSample;
                             y = calcY(v, channel);
                             if (pathStarted) {
@@ -223,7 +224,7 @@ class VectorImageProcessor {
                                 pathStarted = true;
                             }
                             if (pixelsPerSample > 10) ctx.fillRect(x - 2, y - 2, 4, 4);
-                        } else if (confidenceDataSlices) {
+                        } else {
                             pathStarted = false;
                         }
                         $$vector++;
@@ -251,6 +252,7 @@ class VectorImageProcessor {
                 }
             } else {
                 const { maxData, minData, audioSamplesPerFrame, offsetFromFrame } = resizedVectors.resizes[bestResizesIndex[$dataSlice]];
+                const confidenceMinData = confidenceDataSlices?.[$dataSlice].resizedVectors.resizes[bestResizesIndex[$dataSlice]].minData;
                 if ($ < $drawFrom) $vector = ~~Math.max(0, ($drawFrom - (startIndex - offsetFromFrame)) / audioSamplesPerFrame);
                 else $vector = 0;
                 $ = get$($dataSlice, $resize, $vector);
@@ -283,10 +285,10 @@ class VectorImageProcessor {
                         ctx.moveTo(x, y);
                     }
                     while ($$ < endIndex && $$ < $drawTo && $$vector < minData[channel].length) {
-                        if (!confidenceDataSlices || confidenceDataSlices[$dataSlice].resizedVectors.resizes[bestResizesIndex[$dataSlice]].minData[channel][$$vector] >= confidenceThreshold) {
+                        minInStep = minData[channel][$$vector];
+                        maxInStep = maxData[channel][$$vector];
+                        if ((typeof confidenceThreshold === "undefined") || minInStep >= confidenceThreshold || (confidenceMinData && confidenceMinData[channel][$$vector] >= confidenceThreshold)) {
                             x = calcX($$);
-                            minInStep = minData[channel][$$vector];
-                            maxInStep = maxData[channel][$$vector];
                             y = calcY(maxInStep, channel);
                             if (pathStarted) {
                                 ctx.lineTo(x, y);

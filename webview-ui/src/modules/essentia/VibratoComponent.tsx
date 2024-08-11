@@ -1,20 +1,20 @@
 import { FunctionComponent, useCallback, useEffect, useState } from "react";
 import { setCanvasToFullSize } from "../../utils";
 import { VisualizationOptions } from "../../core/AudioToolkitModule";
-import Module from "./PitchMelodia";
-import VectorImageProcessor from "../../core/VectorImageProcessor";
+import Module from "./Vibrato";
+import VectorImageProcessor, { VectorDataSlice } from "../../core/VectorImageProcessor";
 import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
 import ConfigurationContent from "./ConfigurationContent";
 
 const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
     const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
-    const defaultVerticalZoom = 2 / 4000;
+    const defaultVerticalZoom = 2 / (moduleState.paintOption === "extend" ? moduleState.maxExtend : moduleState.maxFrequency);
     const defaultVerticalOffset = 1;
     const [verticalZoom, setVerticalZoom] = useState(defaultVerticalZoom);
     const [verticalOffset, setVerticalOffset] = useState(defaultVerticalOffset);
     const [cursorX, setCursorX] = useState<number | undefined>();
     const [cursorY, setCursorY] = useState<number | undefined>();
-    const [cursorInfo, setCursorInfo] = useState<{ channel: number; pitch: number | [number, number]; probability: number | [number, number] } | null>(null);
+    const [cursorInfo, setCursorInfo] = useState<{ channel: number; extend: number | [number, number]; frequency: number | [number, number] } | null>(null);
     const [repaintId, setRepaintId] = useState(performance.now());
     const [essentiaState, setEssentiaState] = useState(module.getEssentiaState(moduleState));
     const [dataSlices, setDataSlices] = useState<typeof module.dataSlices>(module.dataSlices);
@@ -36,9 +36,12 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
         if (!dataSlices?.length) return;
         const [width, height] = setCanvasToFullSize(canvas);
         ctx.clearRect(0, 0, width, height);
-        const { color, confidenceColor, paintConfidence } = moduleState;
-        if (paintConfidence) VectorImageProcessor.paint(ctx, dataSlices.map(ds => ds.pitchConfidence), { width, height, verticalZoom: 2 / 1, verticalOffset: 1, beforeAndAfter: "inherit" }, { viewRange }, { phosphorColor: confidenceColor });
-        VectorImageProcessor.paint(ctx, dataSlices.map(ds => ds.pitch), { width, height, verticalZoom, verticalOffset, beforeAndAfter: "none", confidenceDataSlices: dataSlices.map(ds => ds.pitchConfidence), confidenceThreshold: moduleState.paintThreshold, paintOver: paintConfidence }, { viewRange }, { phosphorColor: color });
+        const { color, paintOption } = moduleState;
+        let ds: VectorDataSlice[];
+        if (paintOption === "extend") ds = dataSlices.map(ds => ds.vibratoExtend);
+        else ds = dataSlices.map(ds => ds.vibratoFrequency);
+        // else ds = dataSlices.map(ds => ({ ...ds.vibratoExtend, vectors: ds.vibratoExtend.vectors.map((v, i) => [v, ds.vibratoFrequency.vectors[i]]).flat(), resizedVectors: { ...ds.vibratoExtend.resizedVectors, resizes: ds.vibratoExtend.resizedVectors.resizes.map((v, i) => [v, ds.vibratoFrequency.resizedVectors.resizes[i]]).flat() } }));
+        VectorImageProcessor.paint(ctx, ds, { width, height, verticalZoom, verticalOffset, beforeAndAfter: "none", confidenceThreshold: 0.001 }, { viewRange }, { phosphorColor: color });
     }, [dataSlices, moduleState, verticalZoom, verticalOffset, viewRange]);
     const paintVerticalRuler = useCallback((canvasRef: React.RefObject<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
@@ -52,8 +55,9 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        VectorImageProcessor.paintHorizontalRuler(ctx, module.audioEditor.numberOfChannels, { width, height, verticalZoom, verticalOffset, labelMode: "linear", labelUnit: "dB", labelsWidth: 80 }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
-    }, [module, verticalZoom, verticalOffset, gridColor, gridRulerColor, textColor, monospaceFont]);
+        const labelUnit = moduleState.paintOption === "extend" ? "cents" : "Hz";
+        VectorImageProcessor.paintHorizontalRuler(ctx, module.audioEditor.numberOfChannels, { width, height, verticalZoom, verticalOffset, labelMode: "linear", labelUnit, labelsWidth: 80 }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
+    }, [module, moduleState, verticalZoom, verticalOffset, gridColor, gridRulerColor, textColor, monospaceFont]);
     const onCursor = useCallback((x: number, y: number, width: number, height: number) => {
         if (y < 0 || y > height) setCursorY(undefined);
         if (x < 0 || x > width) {
@@ -63,13 +67,18 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
             return;
         }
         if (!dataSlices?.length) return;
-        const info = VectorImageProcessor.getInfoFromCursor(dataSlices.map(ds => ds.pitch), x, y, { width, height, verticalZoom, verticalOffset}, { viewRange });
-        const { value: probability } = VectorImageProcessor.getInfoFromCursor(dataSlices.map(ds => ds.pitchConfidence), x, y, { width, height, verticalZoom, verticalOffset}, { viewRange });
+        const ds = dataSlices.map(ds => ({ ...ds.vibratoExtend, vectors: ds.vibratoExtend.vectors.map((v, i) => [v, ds.vibratoFrequency.vectors[i]]).flat(), resizedVectors: { ...ds.vibratoExtend.resizedVectors, resizes: ds.vibratoExtend.resizedVectors.resizes.map((v, i) => [v, ds.vibratoFrequency.resizedVectors.resizes[i]]).flat() } }));
+
+        const info = VectorImageProcessor.getInfoFromCursor(dataSlices.map(ds => ds.vibratoExtend), x, y, { width, height, verticalZoom, verticalOffset}, { viewRange });
+        const { value: frequency } = VectorImageProcessor.getInfoFromCursor(dataSlices.map(ds => ds.vibratoFrequency), x, y, { width, height, verticalZoom, verticalOffset}, { viewRange });
         setCursorX(info.x);
         setCursorY(info.y);
-        setCursorInfo({ channel: info.channel, pitch: info.value, probability });
+        setCursorInfo({ channel: info.channel, extend: info.value, frequency });
     }, [dataSlices, verticalOffset, verticalZoom, viewRange]);
-    const setModuleState = useCallback((state: typeof module.state) => module.setState(state), [module]);
+    const setModuleState = useCallback((state: typeof module.state) => {
+        if (state.paintOption !== moduleState.paintOption) setVerticalZoom(2 / (state.paintOption === "extend" ? state.maxExtend : state.maxFrequency));
+        module.setState(state);
+    }, [module, moduleState]);
     const optionsMetadata = module.getOptionsMetadata();
     const configurationContent = <ConfigurationContent {...{ moduleId: module.moduleId, essentiaState, setEssentiaState, moduleState, setModuleState, optionsMetadata }} />;
     const monitorContent = dataSlices?.length ? (
@@ -78,10 +87,10 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
                 cursorInfo
                 ? <>
                     <div>Channel: {cursorInfo.channel + 1}</div>
-                    <div style={{ color: moduleState.color }}>Pitch:</div>
-                    <div style={{ color: moduleState.color }}>{typeof cursorInfo.pitch === "number" ? `${cursorInfo.pitch.toFixed(3)} Hz` : cursorInfo.pitch.map(v => `${v.toFixed(3)} Hz`).join(" to ")}</div>
-                    <div style={{ color: moduleState.confidenceColor }}>Voiced Probability:</div>
-                    <div style={{ color: moduleState.confidenceColor }}>{typeof cursorInfo.probability === "number" ? `${(cursorInfo.probability * 100).toFixed(3)}%` : cursorInfo.probability.map(v => `${(v * 100).toFixed(3)}%`).join(" to ")}</div>
+                    <div style={{ color: moduleState.color }}>Extend:</div>
+                    <div style={{ color: moduleState.color }}>{typeof cursorInfo.extend === "number" ? `${(cursorInfo.extend).toFixed(0)} cents` : cursorInfo.extend.map(v => `${v.toFixed(0)} cents`).join(" to ")}</div>
+                    <div style={{ color: moduleState.color }}>Frequency:</div>
+                    <div style={{ color: moduleState.color }}>{typeof cursorInfo.frequency === "number" ? `${cursorInfo.frequency.toFixed(3)} Hz` : cursorInfo.frequency.map(v => `${v.toFixed(3)} Hz`).join(" to ")}</div>
                 </>
                 : null
             }

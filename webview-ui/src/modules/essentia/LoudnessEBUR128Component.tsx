@@ -1,4 +1,4 @@
-import { FunctionComponent, useCallback, useEffect, useState } from "react";
+import { FunctionComponent, useCallback, useEffect, useId, useState } from "react";
 import { setCanvasToFullSize } from "../../utils";
 import { VisualizationOptions } from "../../core/AudioToolkitModule";
 import Module from "./LoudnessEBUR128";
@@ -16,7 +16,7 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
     const [cursorY, setCursorY] = useState<number | undefined>();
     const [cursorInfo, setCursorInfo] = useState<{ momentary: number | [number, number], shortTerm: number | [number, number] } | null>(null);
     const [repaintId, setRepaintId] = useState(performance.now());
-    const [essentiaState, setEssentiaState] = useState(Module.getEssentiaState(moduleState));
+    const [essentiaState, setEssentiaState] = useState(module.getEssentiaState(moduleState));
     const [dataSlices, setDataSlices] = useState<typeof module.dataSlices>(module.dataSlices);
     const [calculating, setCalcualting] = useState<boolean | [number, string]>(module.isCalculating);
     const handleDataChange = useCallback((dataSlices: typeof module.dataSlices) => setDataSlices(dataSlices), [module]);
@@ -88,7 +88,7 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
             <div style={{ color: moduleState.integratedLoudnessColor }}>Integrated loudness:</div>
             <div style={{ color: moduleState.integratedLoudnessColor }}>{dataSlices[0].integratedLoudnessDataSlice.vectors[0][0].toFixed(3)} dB</div>
             <div>Loudness Range:</div>
-            <div>{dataSlices[0].loudnessRange.toFixed(3)} dB</div>
+            <div>{dataSlices[0].loudnessRangeDataSlice.vectors[0][0].toFixed(3)} dB</div>
         </div>
     ) : undefined;
     const moduleUsingCanvasProps = {

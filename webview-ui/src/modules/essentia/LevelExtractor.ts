@@ -1,7 +1,6 @@
 import AudioEditor from "../../core/AudioEditor";
 import { AudioToolkitModuleState } from "../../core/AudioToolkitModule";
-import { VectorDataSlice } from "../../core/VectorImageProcessor";
-import EssentiaModule, { EssentiaModuleSharableData } from "./EssentiaModule";
+import EssentiaModule, { EssentiaModuleSharableData, EssentiaVectorDataSlice } from "./EssentiaModule";
 import { EssentiaPointer } from "./EssentiaWorker.types";
 import Component from "./LevelExtractorComponent";
 
@@ -14,7 +13,7 @@ export interface State extends AudioToolkitModuleState, EssentiaState {
     color: string;
 }
 
-class Module extends EssentiaModule<State, VectorDataSlice[]> {
+class Module extends EssentiaModule<State, EssentiaState, EssentiaVectorDataSlice[]> {
     static MODULE_ID = "essentia.levelextractor";
     static MODULE_NAME = "Essentia LevelExtractor";
     static DEFAULT_ESSENTIA_STATE: EssentiaState = {
@@ -26,7 +25,7 @@ class Module extends EssentiaModule<State, VectorDataSlice[]> {
         ...this.DEFAULT_ESSENTIA_STATE,
         color: "#FFFFFF"
     };
-    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, EssentiaModuleSharableData<VectorDataSlice[]>>) {
+    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, EssentiaModuleSharableData<EssentiaVectorDataSlice[]>>) {
         super.resolveEssentiaWorker(sharableData);
         const state: State = { ...this.DEFAULT_STATE, frameSize: 2 * audioEditor.sampleRate, hopSize: audioEditor.sampleRate, ...initialState };
         const timeDomainVectors = await super.getTimeDomainVectors(audioEditor, sharableData);
@@ -38,12 +37,6 @@ class Module extends EssentiaModule<State, VectorDataSlice[]> {
         }
         return module;
     }
-    static getEssentiaState(moduleState: State) {
-        const state: Partial<EssentiaState> = {};
-        Object.keys(Module.DEFAULT_ESSENTIA_STATE).forEach(k => (state as any)[k] = (moduleState as any)[k]);
-        return state as EssentiaState;
-    }
-    public state: State;
     get Component() {
         return Component;
     }
@@ -62,36 +55,30 @@ class Module extends EssentiaModule<State, VectorDataSlice[]> {
             const { sampleRate, length, numberOfChannels } = this.audioEditor;
             const { hopSize, frameSize } = this.state;
             const vectors: Float32Array[] = [];
+            const vectorsPointer: EssentiaPointer[] = [];
             for (let channel = 0; channel < numberOfChannels; channel++) {
                 const { loudness } = await essentiaWorker.LevelExtractor(timeDomainVectors[channel], frameSize, hopSize);
-                vectors[channel] = loudness;
+                vectorsPointer[channel] = loudness;
+                vectors[channel] = await essentiaWorker.vectorToArray(loudness);
                 onUpdate(80 / numberOfChannels, channel === numberOfChannels - 1 ? "Generating image" : `Calculating channel ${channel + 2}`);
             }
             const audioSamplesPerSample = hopSize;
             const offsetFromSample = 0;
             const resizedVectors = await essentiaWorker.generateResizedVector(vectors, audioSamplesPerSample);
             // resizedVectors.resizes.forEach(resize => resize.offsetFromFrame = offsetFromSample);
-            const dataSlice: VectorDataSlice = {
+            const dataSlice: EssentiaVectorDataSlice = {
                 startIndex: 0,
                 endIndex: length,
                 offsetFromSample,
                 audioSamplesPerSample,
                 vectors,
+                vectorsPointer,
                 resizedVectors
             };
             this._dataSlices = [dataSlice];
             onUpdate(20, "Done");
             this.onDataChange?.(this._dataSlices);
         });
-    }
-    getState() {
-        return this.state;
-    }
-    setState(newState: State) {
-        const needCalculate = !this._dataSlices?.length || !Object.keys(Module.DEFAULT_ESSENTIA_STATE).every(k => (newState as any)[k] === (this.state as any)[k]);
-        this.state = newState;
-        this.onStateChange?.(newState);
-        if (needCalculate) this.calculate();
     }
     getOptionsMetadata(): { [K in keyof State]: [string, ...any] } {
         return {

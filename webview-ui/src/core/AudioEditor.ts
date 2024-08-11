@@ -180,14 +180,18 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         this._modulesState = [...this._modulesState];
         this.emit("modulesState", this._modulesState);
     }
-    async addModule(moduleId: string, initialState?: any, moduleName?: string, visible?: boolean | number) {
-        const Constructor = AudioEditor.MODULES_MAP[moduleId];
-        if (!Constructor) throw new Error(`Module ${moduleId} not found.`);
+    getSharableData() {
         const sharableData: Record<string, any> = {};
         this._modulesInstance.forEach((i) => {
             if (sharableData[i.moduleId]) return;
             sharableData[i.moduleId] = i.getSharableData();
         });
+        return sharableData;
+    }
+    async addModule(moduleId: string, initialState?: any, moduleName?: string, visible?: boolean | number) {
+        const Constructor = AudioEditor.MODULES_MAP[moduleId];
+        if (!Constructor) throw new Error(`Module ${moduleId} not found.`);
+        const sharableData = this.getSharableData();
         const instance = await Constructor.fromAudioData(this, initialState, sharableData);
         this._modulesInstance = [...this._modulesInstance, instance];
         this._modulesState = [...this._modulesState, { moduleId, moduleName: moduleName ?? Constructor.MODULE_NAME, visible: visible ?? true, state: instance.getState() }];

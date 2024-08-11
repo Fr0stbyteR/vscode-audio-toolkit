@@ -1,7 +1,6 @@
 import AudioEditor from "../../core/AudioEditor";
 import { AudioToolkitModuleState } from "../../core/AudioToolkitModule";
-import { VectorDataSlice } from "../../core/VectorImageProcessor";
-import EssentiaModule, { EssentiaModuleSharableData } from "./EssentiaModule";
+import EssentiaModule, { EssentiaModuleSharableData, EssentiaVectorDataSlice } from "./EssentiaModule";
 import { EssentiaPointer } from "./EssentiaWorker.types";
 import Component from "./PitchYinProbabilisticComponent";
 
@@ -21,11 +20,11 @@ export interface State extends AudioToolkitModuleState, EssentiaState {
 }
 
 export interface DataSlice {
-    pitch: VectorDataSlice;
-    voicedProbabilities: VectorDataSlice;
+    pitch: EssentiaVectorDataSlice;
+    voicedProbabilities: EssentiaVectorDataSlice;
 }
 
-class Module extends EssentiaModule<State, DataSlice[]> {
+class Module extends EssentiaModule<State, EssentiaState, DataSlice[]> {
     static MODULE_ID = "essentia.pitchyinprobabilistic";
     static MODULE_NAME = "Essentia PitchYinProbabilistic";
     static DEFAULT_ESSENTIA_STATE: EssentiaState = {
@@ -55,12 +54,6 @@ class Module extends EssentiaModule<State, DataSlice[]> {
         }
         return module;
     }
-    static getEssentiaState(moduleState: State) {
-        const state: Partial<EssentiaState> = {};
-        Object.keys(Module.DEFAULT_ESSENTIA_STATE).forEach(k => (state as any)[k] = (moduleState as any)[k]);
-        return state as EssentiaState;
-    }
-    public state: State;
     get Component() {
         return Component;
     }
@@ -79,47 +72,44 @@ class Module extends EssentiaModule<State, DataSlice[]> {
             const { sampleRate, length, numberOfChannels } = this.audioEditor;
             const { hopSize, frameSize, lowRMSThreshold, outputUnvoiced, preciseTime } = this.state;
             const pitchVectors: Float32Array[] = [];
+            const pitchVectorsPointer: EssentiaPointer[] = [];
             const probVectors: Float32Array[] = [];
+            const probVectorsPointer: EssentiaPointer[] = [];
             for (let channel = 0; channel < numberOfChannels; channel++) {
                 const { pitch, voicedProbabilities } = await essentiaWorker.PitchYinProbabilistic(timeDomainVectors[channel], frameSize, hopSize, lowRMSThreshold, outputUnvoiced, preciseTime, sampleRate);
-                pitchVectors[channel] = pitch;
-                probVectors[channel] = voicedProbabilities;
+                pitchVectorsPointer[channel] = pitch;
+                pitchVectors[channel] = await essentiaWorker.vectorToArray(pitch);
+                probVectorsPointer[channel] = voicedProbabilities;
+                probVectors[channel] = await essentiaWorker.vectorToArray(voicedProbabilities);
                 onUpdate(80 / numberOfChannels, channel === numberOfChannels - 1 ? "Generating image" : `Calculating channel ${channel + 2}`);
             }
             const audioSamplesPerSample = hopSize;
             const offsetFromSample = 0;
             let resizedVectors = await essentiaWorker.generateResizedVector(pitchVectors, audioSamplesPerSample);
             // resizedVectors.resizes.forEach(resize => resize.offsetFromFrame = offsetFromSample);
-            const pitch: VectorDataSlice = {
+            const pitch: EssentiaVectorDataSlice = {
                 startIndex: 0,
                 endIndex: length,
                 offsetFromSample,
                 audioSamplesPerSample,
                 vectors: pitchVectors,
+                vectorsPointer: pitchVectorsPointer,
                 resizedVectors
             };
             resizedVectors = await essentiaWorker.generateResizedVector(probVectors, audioSamplesPerSample);
-            const voicedProbabilities: VectorDataSlice = {
+            const voicedProbabilities: EssentiaVectorDataSlice = {
                 startIndex: 0,
                 endIndex: length,
                 offsetFromSample,
                 audioSamplesPerSample,
                 vectors: probVectors,
+                vectorsPointer: probVectorsPointer,
                 resizedVectors
             };
             this._dataSlices = [{ pitch, voicedProbabilities }];
             onUpdate(20, "Done");
             this.onDataChange?.(this._dataSlices);
         });
-    }
-    getState() {
-        return this.state;
-    }
-    setState(newState: State) {
-        const needCalculate = !this._dataSlices?.length || !Object.keys(Module.DEFAULT_ESSENTIA_STATE).every(k => (newState as any)[k] === (this.state as any)[k]);
-        this.state = newState;
-        this.onStateChange?.(newState);
-        if (needCalculate) this.calculate();
     }
     getOptionsMetadata(): { [K in keyof State]: [string, ...any] } {
         return {

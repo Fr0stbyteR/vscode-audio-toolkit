@@ -22,6 +22,8 @@ export interface EssentiaState {
     pitchContinuity: number;
     timeContinuity: number;
     referenceFrequency: number;
+    voiceVibrato: boolean;
+    voicingTolerance: number;
 }
 
 export interface State extends AudioToolkitModuleState, EssentiaState {
@@ -37,8 +39,8 @@ export interface DataSlice {
 }
 
 class Module extends EssentiaModule<State, EssentiaState, DataSlice[]> {
-    static MODULE_ID = "essentia.pitchmelodia";
-    static MODULE_NAME = "Essentia PitchMelodia";
+    static MODULE_ID = "essentia.predominantpitchmelodia";
+    static MODULE_NAME = "Essentia PredominantPitchMelodia";
     static DEFAULT_ESSENTIA_STATE: EssentiaState = {
         frameSize: 2048,
         hopSize: 128,
@@ -56,7 +58,9 @@ class Module extends EssentiaModule<State, EssentiaState, DataSlice[]> {
         peakFrameThreshold: 0.9,
         pitchContinuity: 27.5625,
         timeContinuity: 100,
-        referenceFrequency: 55
+        referenceFrequency: 55,
+        voiceVibrato: false,
+        voicingTolerance: 0.2
     };
     static DEFAULT_STATE: State = {
         name: "",
@@ -155,6 +159,8 @@ class Module extends EssentiaModule<State, EssentiaState, DataSlice[]> {
             pitchContinuity: ["Pitch continuity (cents)", 0, 0.01],
             timeContinuity: ["Time continuity (ms)", 0.1, 0.1],
             referenceFrequency: ["Reference frequency corresponding to the 0th cent bin (Hz)", 1, 0.1],
+            voiceVibrato: ["Detect Voice Vibrato"],
+            voicingTolerance: ["Voicing Tolerance (fraction of the standard deviation)", -1, 0.01, 1.4],
             color: ["Color"],
             paintThreshold: ["Paint Voiced Threshold", 0.01, 0.01, 1],
             paintConfidence: ["Show Confidence"],

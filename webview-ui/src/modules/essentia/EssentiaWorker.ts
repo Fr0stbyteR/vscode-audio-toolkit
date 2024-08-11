@@ -9,6 +9,8 @@ export default class EssentiaWorker extends ProxyMain<{}, IEssentiaWorker> {
         "LevelExtractor",
         "PitchMelodia",
         "PitchYinProbabilistic",
+        "PredominantPitchMelodia",
+        "Vibrato",
         "generateResizedVector",
         "vectorToArray",
         "arrayToVector"
