@@ -5,7 +5,7 @@ import EssentiaModule, { EssentiaMatrixDataSlice, EssentiaModuleSharableData, Es
 import { EssentiaPointer } from "./EssentiaWorker.types";
 import Component from "./LowLevelSpectralExtractorComponent";
 
-type R = ReturnType<IEssentia["LowLevelSpectralExtractor"]>;
+type R = ReturnType<IEssentia["LowLevelSpectralEqloudExtractor"]>;
 export type DataSlice = {
     [K in keyof R]: EssentiaMatrixDataSlice | EssentiaVectorDataSlice;
 };
@@ -21,52 +21,27 @@ export interface State extends AudioToolkitModuleState, EssentiaState {
 }
 
 const FEATURE_IDS: (keyof R)[] = [
-    "barkbands",
-    "barkbands_kurtosis",
-    "barkbands_skewness",
-    "barkbands_spread",
-    "hfc",
-    "mfcc",
-    "pitch",
-    "pitch_instantaneous_confidence",
-    "pitch_salience",
-    "silence_rate_20dB",
-    "silence_rate_30dB",
-    "silence_rate_60dB",
-    "spectral_complexity",
-    "spectral_crest",
-    "spectral_decrease",
-    "spectral_energy",
-    "spectral_energyband_low",
-    "spectral_energyband_middle_low",
-    "spectral_energyband_middle_high",
-    "spectral_energyband_high",
-    "spectral_flatness_db",
-    "spectral_flux",
-    "spectral_rms",
-    "spectral_rolloff",
-    "spectral_strongpeak",
-    "zerocrossingrate",
-    "inharmonicity",
-    "tristimulus",
-    "oddtoevenharmonicenergyratio"
+    "dissonance",
+    "sccoeffs",
+    "scvalleys",
+    "spectral_centroid",
+    "spectral_kurtosis",
+    "spectral_skewness",
+    "spectral_spread"
 ];
 const FEATURE_NAMES_MAP = {
     ...FEATURE_IDS.reduce<Partial<Record<keyof R, string>>>((acc, cur) => {
         acc[cur] = cur.split("_").map(s => `${s[0].toUpperCase()}${s.slice(1)}`).join(" ");
         return acc;
     }, {}),
-    mfcc: "MFCC",
-    hfc: "HFC",
-    pitch: "PitchYinFFT",
-    zerocrossingrate: "Zero-crossing Rate",
-    oddtoevenharmonicenergyratio: "Odd to Even Harmonic Energy Ratio"
+    sccoeffs: "Spectral Contrast Coefficients",
+    scvalleys: "Spectral Contrast Valleys",
     
 } as Record<keyof R, string>;
 
-export class LowLevelSpectralExtractorModule extends EssentiaModule<State, EssentiaState, DataSlice[]> {
-    static MODULE_ID = "essentia.lowlevelspectralextractor";
-    static MODULE_NAME = "Essentia LowLevelSpectralExtractor";
+export class LowLevelSpectralEqloudExtractorModule extends EssentiaModule<State, EssentiaState, DataSlice[]> {
+    static MODULE_ID = "essentia.lowlevelspectraleqloudextractor";
+    static MODULE_NAME = "Essentia LowLevelSpectralEqloudExtractor";
     static DEFAULT_ESSENTIA_STATE: EssentiaState = {
         frameSize: 2048,
         hopSize: 1024,
@@ -75,14 +50,14 @@ export class LowLevelSpectralExtractorModule extends EssentiaModule<State, Essen
         name: "",
         ...this.DEFAULT_ESSENTIA_STATE,
         color: "#FFFFFF",
-        paintFeature: "mfcc"
+        paintFeature: "spectral_centroid"
     };
     static FEATURES = FEATURE_IDS;
     static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, EssentiaModuleSharableData<DataSlice[]>>) {
         super.resolveEssentiaWorker(sharableData);
         const state: State = { ...this.DEFAULT_STATE, ...initialState };
         const sharableModuleId = sharableData ? Object.keys(sharableData).find((k) => {
-            if (!k.startsWith(LowLevelSpectralExtractorModule.MODULE_ID)) return false;
+            if (!k.startsWith(LowLevelSpectralEqloudExtractorModule.MODULE_ID)) return false;
             if (!sharableData[k]?.dataSlices) return false;
             const sharedState = sharableData[k]?.state;
             if (!sharedState) return false;
@@ -112,7 +87,7 @@ export class LowLevelSpectralExtractorModule extends EssentiaModule<State, Essen
         this.state = initialState;
     }
     featureOutputsMatrix(key: keyof R) {
-        return key === "barkbands" || key === "mfcc" || key === "tristimulus";
+        return key === "sccoeffs" || key === "scvalleys";
     }
     calculate() {
         this.handleCalculate(async (onUpdate) => {
@@ -127,7 +102,7 @@ export class LowLevelSpectralExtractorModule extends EssentiaModule<State, Essen
             const allVectors: { [K in keyof R]?: Float32Array[] } = {};
             const allPointers: { [K in keyof R]?: EssentiaPointer[] } = {};
             for (let channel = 0; channel < numberOfChannels; channel++) {
-                const result = await essentiaWorker.LowLevelSpectralExtractor(timeDomainVectors[channel], frameSize, hopSize, sampleRate);
+                const result = await essentiaWorker.LowLevelSpectralEqloudExtractor(timeDomainVectors[channel], frameSize, hopSize, sampleRate);
                 if (channel === 0) {
                     keys = Object.keys(result) as any;
                     for (const key of keys) {
@@ -193,93 +168,76 @@ export class LowLevelSpectralExtractorModule extends EssentiaModule<State, Essen
             color: ["Color"],
             paintFeature: [
                 "Feature to paint",
-                ...LowLevelSpectralExtractorModule.FEATURES
+                ...LowLevelSpectralEqloudExtractorModule.FEATURES
             ]
         };
     }
     verticalZoom = (() => {
         const nyquistZoom = 2 / (this.audioEditor.sampleRate / 2);
         return {
-            ...LowLevelSpectralExtractorModule.FEATURES.reduce<{ [K in keyof R]?: number }>((acc, cur) => {
+            ...LowLevelSpectralEqloudExtractorModule.FEATURES.reduce<{ [K in keyof R]?: number }>((acc, cur) => {
                 acc[cur] = 2;
                 return acc;
             }, {}),
-            barkbands: 1,
-            barkbands_kurtosis: 2 / 2000,
-            barkbands_skewness: 1 / 50,
-            barkbands_spread: 2 / 100,
-            hfc: 2 / 1000,
-            mfcc: 1,
-            spectral_complexity: 2 / 100,
-            spectral_crest: 2 / 100,
-            spectral_rolloff: nyquistZoom,
-            spectral_strongpeak: 2 / 100,
-            pitch: nyquistZoom,
-            tristimulus: 1,
-            oddtoevenharmonicenergyratio: 2 / 1000
-
+            sccoeffs: 1,
+            scvalleys: 1,
+            spectral_centroid: nyquistZoom,
+            spectral_kurtosis: 2 / 200,
+            spectral_skewness: 2 / 50,
+            spectral_spread: 2 / 1e8
         } as { [K in keyof R]: number };
     })();
     verticalOffset = (() => {
         return {
-            ...LowLevelSpectralExtractorModule.FEATURES.reduce<{ [K in keyof R]?: number }>((acc, cur) => {
+            ...LowLevelSpectralEqloudExtractorModule.FEATURES.reduce<{ [K in keyof R]?: number }>((acc, cur) => {
                 acc[cur] = 1;
                 return acc;
             }, {}),
-            barkbands: 0,
-            barkbands_kurtosis: 0.99,
-            barkbands_skewness: 0,
-            mfcc: 0,
-            tristimulus: 0
+            sccoeffs: 0,
+            scvalleys: 0
         } as { [K in keyof R]: number };
     })();
     horizontalRulerZoom = (() => {
         const nyquistZoom = 2 / (this.audioEditor.sampleRate / 2);
         return {
-            ...LowLevelSpectralExtractorModule.FEATURES.reduce<{ [K in keyof R]?: number }>((acc, cur) => {
+            ...LowLevelSpectralEqloudExtractorModule.FEATURES.reduce<{ [K in keyof R]?: number }>((acc, cur) => {
                 acc[cur] = 1;
                 return acc;
             }, {}),
-            barkbands: 2 / 27,
-            mfcc: 2 / 13,
-            tristimulus: 2 / 3
+            sccoeffs: 2 / 6,
+            scvalleys: 2 / 6
         } as { [K in keyof R]: number };
     })();
     horizontalRulerOffset = {
-        ...LowLevelSpectralExtractorModule.FEATURES.reduce<{ [K in keyof R]?: number }>((acc, cur) => {
+        ...LowLevelSpectralEqloudExtractorModule.FEATURES.reduce<{ [K in keyof R]?: number }>((acc, cur) => {
             acc[cur] = 0;
             return acc;
         }, {}),
-        barkbands: 1,
-        mfcc: 1,
-        tristimulus: 1
+        sccoeffs: 1,
+        scvalleys: 1
     } as { [K in keyof R]: number };
     horizontalRulerUnit = {
-        ...LowLevelSpectralExtractorModule.FEATURES.reduce<{ [K in keyof R]?: string }>((acc, cur) => {
+        ...LowLevelSpectralEqloudExtractorModule.FEATURES.reduce<{ [K in keyof R]?: string }>((acc, cur) => {
             acc[cur] = "";
             return acc;
         }, {}),
-        pitch: "Hz",
-        spectral_rolloff: "Hz",
-        barkbands: "band",
-        mfcc: "coeff",
-        tristimulus: ""
+        spectral_centroid: "Hz",
+        sccoeffs: "",
+        scvalleys: ""
     } as { [K in keyof R]: string };
     matrixUnit = {
-        barkbands: "",
-        mfcc: "",
-        tristimulus: ""
+        sccoeffs: "",
+        scvalleys: ""
     };
     matrixPaintRange = {
-        barkbands: [0, 1],
-        mfcc: [-100, 100],
-        tristimulus: [0, 1]
+        sccoeffs: [-1, 0],
+        scvalleys: [-10, 0]
     };
 }
 
 const Modules = FEATURE_IDS.map((featureId) => {
     const featureName = FEATURE_NAMES_MAP[featureId];
-    return class Module extends LowLevelSpectralExtractorModule {
+    return class Module extends LowLevelSpectralEqloudExtractorModule {
         static MODULE_ID: string = `essentia.lowlevelspectralextractor.${featureId}`;
         static MODULE_NAME: string = `Essentia LowLevel ${featureName}`;
         static DEFAULT_STATE: State = {

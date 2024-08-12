@@ -322,6 +322,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                     const { name } = state;
                     const module = audioEditor.modulesInstance[i];
                     const { Component } = module;
+                    const displayName = name ? `${name} - ${moduleName}` : moduleName;
                     return (<>
                         <div key={i} className={`editor-main-visualizer-container${visible ? "" : " collapse"}`} style={{ flex: typeof visible === "number" ? `0 0 ${visible}px` : visible ? "1 1 auto" : "0 0 auto" }}>
                             <div className="editor-main-visualizer-label">
@@ -331,8 +332,8 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                                 <VSCodeButton className="editor-main-visualizer-container-mover" appearance="icon" title="Move" tabIndex={-1} onMouseDown={(e) => handleMouseDownMoveVisualizer(e, i)}>
                                     <span className="codicon codicon-move"></span>
                                 </VSCodeButton>
-                                <div className="editor-main-visualizer-label-container">
-                                    <span>{name ? `${name} - ${moduleName}` : moduleName}</span>
+                                <div className="editor-main-visualizer-label-container" title={displayName}>
+                                    <span>{displayName}</span>
                                 </div>
                                 <VSCodeButton className="editor-main-visualizer-delete" appearance="icon" title="Delete" tabIndex={-1} onMouseDown={(e) => handleClickRemoveVisualizer(i)}>
                                     <span className="codicon codicon-trash"></span>

@@ -58,6 +58,15 @@ declare module "essentia.js" {
             tristimulus: VectorVectorFloat,
             oddtoevenharmonicenergyratio: VectorFloat
         };
+        LowLevelSpectralEqloudExtractor(signal: any, frameSize?: number, hopSize?: number, sampleRate?: number): {
+            dissonance: VectorFloat;
+            sccoeffs: VectorVectorFloat;
+            scvalleys: VectorVectorFloat;
+            spectral_centroid: VectorFloat;
+            spectral_kurtosis: VectorFloat;
+            spectral_skewness: VectorFloat;
+            spectral_spread: VectorFloat;
+        };
         LoudnessEBUR128(leftSignal: VectorFloat, rightSignal: VectorFloat, hopSize?: number, sampleRate?: number, startAtZero?: boolean): { momentaryLoudness: VectorFloat, shortTermLoudness: VectorFloat, integratedLoudness: number, loudnessRange: number };
         LevelExtractor(signal: VectorFloat, frameSize?: number, hopSize?: number): { loudness: VectorFloat };
         PitchMelodia(signal: VectorFloat, binResolution?: number, filterIterations?: number, frameSize?: number, guessUnvoiced?: boolean, harmonicWeight?: number, hopSize?: number, magnitudeCompression?: number, magnitudeThreshold?: number, maxFrequency?: number, minDuration?: number, minFrequency?: number, numberHarmonics?: number, peakDistributionThreshold?: number, peakFrameThreshold?: number, pitchContinuity?: number, referenceFrequency?: number, sampleRate?: number, timeContinuity?: number): { pitch: VectorFloat; pitchConfidence: VectorFloat };

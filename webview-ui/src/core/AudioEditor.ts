@@ -155,7 +155,11 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     async initModules(initialtates: AudioToolkitModulesState) {
         for (let i = 0; i < initialtates.length; i++) {
             const { moduleId: id, moduleName: name, state, visible } = initialtates[i];
-            await this.addModule(id, state, name, visible);
+            try {
+                await this.addModule(id, state, name, visible);
+            } catch (error) {
+                console.error(error);
+            }
         }
     }
     setState(state: Partial<AudioEditorState>) {

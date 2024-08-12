@@ -4,12 +4,14 @@ import PitchYinProbabilistic from "./PitchYinProbabilistic";
 import PitchMelodia from "./PitchMelodia";
 import PredominantPitchMelodia from "./PredominantPitchMelodia";
 import Vibrato from "./Vibrato";
-import LowLevelSpectralExtractor from "./LowLevelSpectralExtractor";
+import LowLevelSpectralEqloudExtractorModules from "./LowLevelSpectralEqloudExtractor";
+import LowLevelSpectralExtractorModules from "./LowLevelSpectralExtractor";
 
 export default async () => [
     LevelExtractor,
     LoudnessEBUR128,
-    LowLevelSpectralExtractor,
+    ...LowLevelSpectralEqloudExtractorModules,
+    ...LowLevelSpectralExtractorModules,
     PitchYinProbabilistic,
     PitchMelodia,
     PredominantPitchMelodia,

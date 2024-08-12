@@ -1,14 +1,14 @@
 import { FunctionComponent, useCallback, useEffect, useState } from "react";
 import { setCanvasToFullSize } from "../../utils";
 import { VisualizationOptions } from "../../core/AudioToolkitModule";
-import Module from "./LowLevelSpectralExtractor";
+import { LowLevelSpectralExtractorModule } from "./LowLevelSpectralExtractor";
 import VectorImageProcessor, { VectorCursorInfo } from "../../core/VectorImageProcessor";
 import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
 import ConfigurationContent from "./ConfigurationContent";
 import { EssentiaMatrixDataSlice, EssentiaVectorDataSlice } from "./EssentiaModule";
 import MatrixImageProcessor, { MatrixCursorInfo } from "../../core/MatrixImageProcessor";
 
-const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
+const Component: FunctionComponent<VisualizationOptions<LowLevelSpectralExtractorModule>> = (props) => {
     const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
     const [defaultVerticalZoom, setDefaultVerticalZoom] = useState(module.verticalZoom[moduleState.paintFeature]);
     const [defaultVerticalOffset, setDefaultVerticalOffset] = useState(module.verticalOffset[moduleState.paintFeature]);
@@ -39,11 +39,11 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
         const [width, height] = setCanvasToFullSize(canvas);
         ctx.clearRect(0, 0, width, height);
         const { color, paintFeature } = moduleState;
-        if (["barkbands", "mfcc", "tristimulus"].indexOf(paintFeature) === -1) {
-            VectorImageProcessor.paint(ctx, dataSlices.map(ds => ds[paintFeature] as EssentiaVectorDataSlice), { width, height, verticalZoom, verticalOffset, beforeAndAfter: "inherit" }, { viewRange }, { phosphorColor: color });
-        } else {
-            const [minValue, maxValue] = module.matrixPaintRange[paintFeature as "barkbands" | "mfcc" | "tristimulus"];
+        if (module.featureOutputsMatrix(paintFeature)) {
+            const [minValue, maxValue] = module.matrixPaintRange[paintFeature] ?? [0, 1];
             MatrixImageProcessor.paint(ctx, dataSlices.map(ds => ds[paintFeature] as EssentiaMatrixDataSlice), { width, height, verticalZoom, verticalOffset, minValue, maxValue }, { viewRange }, {});
+        } else {
+            VectorImageProcessor.paint(ctx, dataSlices.map(ds => ds[paintFeature] as EssentiaVectorDataSlice), { width, height, verticalZoom, verticalOffset, beforeAndAfter: "inherit" }, { viewRange }, { phosphorColor: color });
         }
         // else ds = dataSlices.map(ds => ({ ...ds.vibratoExtend, vectors: ds.vibratoExtend.vectors.map((v, i) => [v, ds.vibratoFrequency.vectors[i]]).flat(), resizedVectors: { ...ds.vibratoExtend.resizedVectors, resizes: ds.vibratoExtend.resizedVectors.resizes.map((v, i) => [v, ds.vibratoFrequency.resizedVectors.resizes[i]]).flat() } }));
     }, [module, dataSlices, moduleState, verticalZoom, verticalOffset, viewRange]);
@@ -62,30 +62,29 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
         VectorImageProcessor.paintHorizontalRuler(ctx, module.audioEditor.numberOfChannels, { width, height, verticalZoom: verticalZoom * module.horizontalRulerZoom[moduleState.paintFeature], verticalOffset: verticalOffset + module.horizontalRulerOffset[moduleState.paintFeature], labelMode: "linear", labelUnit: module.horizontalRulerUnit[moduleState.paintFeature], labelsWidth: 80 }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
     }, [module, moduleState, verticalZoom, verticalOffset, gridColor, gridRulerColor, textColor, monospaceFont]);
     const onCursor = useCallback((x: number, y: number, width: number, height: number) => {
+        const { paintFeature } = moduleState;
         if (y < 0 || y > height) setCursorY(undefined);
-        if (x < 0 || x > width) {
+        if (x < 0 || x > width || (module.featureOutputsMatrix(paintFeature) && (y < 0 || y > height))) {
             setCursorX(undefined);
             setCursorY(undefined);
             setCursorInfo(null);
             return;
         }
         if (!dataSlices?.length) return;
-        const { paintFeature } = moduleState;
-        if (["barkbands", "mfcc", "tristimulus"].indexOf(paintFeature) === -1) {
-            if (y < 0 || y > height) return;
-            const ds = dataSlices.map(ds => ds[paintFeature] as EssentiaVectorDataSlice);
-            const info = VectorImageProcessor.getInfoFromCursor(ds, x, y, { width, height, verticalZoom, verticalOffset }, { viewRange });
-            setCursorX(info.x);
-            setCursorY(info.y);
-            setCursorInfo(info);
-        } else {
+        if (module.featureOutputsMatrix(paintFeature)) {
             const ds = dataSlices.map(ds => ds[paintFeature] as EssentiaMatrixDataSlice);
             const info = MatrixImageProcessor.getInfoFromCursor(ds, x, y, { width, height, verticalZoom, verticalOffset }, { viewRange });
             setCursorX(info.x);
             setCursorY(info.y);
             setCursorInfo(info);
+        } else {
+            const ds = dataSlices.map(ds => ds[paintFeature] as EssentiaVectorDataSlice);
+            const info = VectorImageProcessor.getInfoFromCursor(ds, x, y, { width, height, verticalZoom, verticalOffset }, { viewRange });
+            setCursorX(info.x);
+            setCursorY(info.y);
+            setCursorInfo(info);
         }
-    }, [dataSlices, moduleState, verticalOffset, verticalZoom, viewRange]);
+    }, [module, dataSlices, moduleState, verticalOffset, verticalZoom, viewRange]);
     const setModuleState = useCallback((state: typeof module.state) => {
         if (state.paintFeature !== moduleState.paintFeature) {
             setVerticalZoom(module.verticalZoom[state.paintFeature]);
@@ -104,12 +103,12 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
                 ? <>
                     <div>Channel: {cursorInfo.channel + 1}</div>
                     {
-                        "fromBin" in cursorInfo
+                        "fromBin" in cursorInfo && module.featureOutputsMatrix(moduleState.paintFeature)
                         ? <>
                             <div>Bin:</div>
                             <div>{cursorInfo.fromBin} to {cursorInfo.toBin}</div>
                             <div style={{ color: moduleState.color }}>Value:</div>
-                            <div style={{ color: moduleState.color }}>{(cursorInfo.value).toFixed(3)} {module.matrixUnit[moduleState.paintFeature as "barkbands" | "mfcc" | "tristimulus"]}</div>
+                            <div style={{ color: moduleState.color }}>{(cursorInfo.value).toFixed(3)} {module.matrixUnit[moduleState.paintFeature]}</div>
                         </> 
                         : <>
                             <div style={{ color: moduleState.color }}>Value:</div>

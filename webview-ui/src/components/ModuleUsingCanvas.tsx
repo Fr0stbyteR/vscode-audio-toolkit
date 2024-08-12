@@ -63,6 +63,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
     useEffect(() => paintVerticalRuler(canvasVerticalRulerRef), [paintVerticalRuler, rerenderId, repaintId]);
     useEffect(() => paintHorizontalRuler(canvasHorizontalRulerRef), [paintHorizontalRuler, rerenderId, repaintId]);
     const handleCanvasMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        (document.activeElement as HTMLElement)?.blur();
         e.stopPropagation();
         e.preventDefault();
         const [viewStart, viewEnd] = viewRange;
@@ -118,6 +119,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         audioEditor.zoomH(ref, e.deltaY < 0 ? 1 : -1);
     }, [audioEditor, viewRange]);
     const handleHorizontalRulerMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        (document.activeElement as HTMLElement)?.blur();
         e.stopPropagation();
         e.preventDefault();
         const origin = { y: e.clientY };
@@ -150,6 +152,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
     }, [defaultVerticalOffset, defaultVerticalZoom, setVerticalOffset, setVerticalZoom]);
     const handleResizeStartMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!canvasRef.current || !selRange) return;
+        (document.activeElement as HTMLElement)?.blur();
         e.stopPropagation();
         e.preventDefault();
         const rect = canvasRef.current.getBoundingClientRect();
@@ -179,6 +182,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
     }, [audioEditor, selRange]);
     const handleResizeEndMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!canvasRef.current || !selRange) return;
+        (document.activeElement as HTMLElement)?.blur();
         e.stopPropagation();
         e.preventDefault();
         const rect = canvasRef.current.getBoundingClientRect();

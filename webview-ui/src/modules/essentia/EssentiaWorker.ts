@@ -8,6 +8,7 @@ export default class EssentiaWorker extends ProxyMain<{}, IEssentiaWorker> {
         "LevelExtractor",
         "LoudnessEBUR128",
         "LowLevelSpectralExtractor",
+        "LowLevelSpectralEqloudExtractor",
         "PitchMelodia",
         "PitchYinProbabilistic",
         "PredominantPitchMelodia",
