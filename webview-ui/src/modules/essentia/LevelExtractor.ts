@@ -27,11 +27,14 @@ class Module extends EssentiaModule<State, EssentiaState, EssentiaVectorDataSlic
     };
     static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, EssentiaModuleSharableData<EssentiaVectorDataSlice[]>>) {
         super.resolveEssentiaWorker(sharableData);
+        const dataSlices = sharableData?.[this.MODULE_ID]?.dataSlices;
+        const sharedState = sharableData?.[this.MODULE_ID]?.state;
         const state: State = { ...this.DEFAULT_STATE, frameSize: 2 * audioEditor.sampleRate, hopSize: audioEditor.sampleRate, ...initialState };
+        const needCalculate = !sharedState || !Object.keys(this.DEFAULT_ESSENTIA_STATE).every(k => (sharedState as any)[k] === (state as any)[k]);
         const timeDomainVectors = await super.getTimeDomainVectors(audioEditor, sharableData);
         const module = new Module(audioEditor, timeDomainVectors, state);
-        if (sharableData?.[this.MODULE_ID]?.dataSlices) {
-            module._dataSlices = [...sharableData[this.MODULE_ID].dataSlices];
+        if (dataSlices && !needCalculate) {
+            module._dataSlices = [...dataSlices];
         } else {
             module.calculate();
         }
@@ -64,7 +67,7 @@ class Module extends EssentiaModule<State, EssentiaState, EssentiaVectorDataSlic
             }
             const audioSamplesPerSample = hopSize;
             const offsetFromSample = 0;
-            const resizedVectors = await essentiaWorker.generateResizedVector(vectors, audioSamplesPerSample);
+            const resizedVectors = await essentiaWorker.generateResizedVector(vectorsPointer, audioSamplesPerSample);
             // resizedVectors.resizes.forEach(resize => resize.offsetFromFrame = offsetFromSample);
             const dataSlice: EssentiaVectorDataSlice = {
                 startIndex: 0,

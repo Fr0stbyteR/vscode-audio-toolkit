@@ -41,11 +41,14 @@ class Module extends EssentiaModule<State, EssentiaState, DataSlice[]> {
     };
     static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, EssentiaModuleSharableData<DataSlice[]>>) {
         super.resolveEssentiaWorker(sharableData);
+        const dataSlices = sharableData?.[this.MODULE_ID]?.dataSlices;
+        const sharedState = sharableData?.[this.MODULE_ID]?.state;
         const state: State = { ...this.DEFAULT_STATE, ...initialState };
+        const needCalculate = !sharedState || !Object.keys(this.DEFAULT_ESSENTIA_STATE).every(k => (sharedState as any)[k] === (state as any)[k]);
         const timeDomainVectors = await super.getTimeDomainVectors(audioEditor, sharableData);
         const module = new Module(audioEditor, timeDomainVectors, state);
-        if (sharableData?.[this.MODULE_ID]?.dataSlices) {
-            module._dataSlices = [...sharableData[this.MODULE_ID].dataSlices];
+        if (dataSlices && !needCalculate) {
+            module._dataSlices = [...dataSlices];
         } else {
             module.calculate();
         }
@@ -89,14 +92,14 @@ class Module extends EssentiaModule<State, EssentiaState, DataSlice[]> {
                     vibratoFrequencyVectors[channel] = await essentiaWorker.vectorToArray(vibratoFrequency);
                     onUpdate(80 / numberOfChannels / dss.length, channel === numberOfChannels - 1 ? "Generating image" : `Calculating channel ${channel + 2}`);
                 }
-                let resizedVectors = await essentiaWorker.generateResizedVector(vibratoExtendVectors, pitch.audioSamplesPerSample);
+                let resizedVectors = await essentiaWorker.generateResizedVector(vibratoExtendVectorsPointer, pitch.audioSamplesPerSample);
                 // resizedVectors.resizes.forEach(resize => resize.offsetFromFrame = offsetFromSample);
                 const vibratoExtend: EssentiaVectorDataSlice = {
                     ...pitch,
                     vectors: vibratoExtendVectors,
                     resizedVectors
                 };
-                resizedVectors = await essentiaWorker.generateResizedVector(vibratoFrequencyVectors, pitch.audioSamplesPerSample);
+                resizedVectors = await essentiaWorker.generateResizedVector(vibratoFrequencyVectorsPointer, pitch.audioSamplesPerSample);
                 const vibratoFrequency: EssentiaVectorDataSlice = {
                     ...pitch,
                     vectors: vibratoFrequencyVectors,

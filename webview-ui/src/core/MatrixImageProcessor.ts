@@ -27,6 +27,8 @@ export interface MatrixPaintOptions {
     height: number;
     verticalZoom: number;
     verticalOffset: number;
+    minValue: number;
+    maxValue: number;
 }
 
 export interface MatrixDataSlice {
@@ -66,7 +68,6 @@ class MatrixImageProcessor {
     static DEFAULT_RESIZE_FACTOR = 4;
     static DEFAULT_MIN_PIXEL_WIDTH = 4;
     static DEFAULT_MIN_PIXEL_HEIGHT = 128;
-    static DB_DRAW_THRESHOLD = -100;
     static MAX_BITMAP_SIZE = 1024 * 1024;
     static generateResized(matrices: Float32Array[][], audioSamplesPerFrame: number, { resizeFactor = this.DEFAULT_MIN_PIXEL_WIDTH, minWidth = this.DEFAULT_MIN_PIXEL_WIDTH, minHeight = this.DEFAULT_MIN_PIXEL_HEIGHT }: Partial<MatrixResizeOptions> = {}) {
         const SharedArrayBuffer = globalThis.SharedArrayBuffer || globalThis.ArrayBuffer;
@@ -132,7 +133,7 @@ class MatrixImageProcessor {
             return resizedMatrices.sizes.findIndex(([w, h]) => w === width && h === height);
         });
     }
-    static createBitmap(magnitudes: Float32Array[], dbDrawThreshold = this.DB_DRAW_THRESHOLD): Promise<ImageBitmap> {
+    static createBitmap(magnitudes: Float32Array[], minValue: number, maxValue: number): Promise<ImageBitmap> {
         const width = magnitudes.length;
         const height = magnitudes[0].length;
         const imageData = new ImageData(width, height);
@@ -146,8 +147,8 @@ class MatrixImageProcessor {
         for (let x = 0; x < width; x++) {
             for (let y = 0; y < height; y++) {
                 v = magnitudes[x][height - 1 - y];
-                if (v < dbDrawThreshold) continue;
-                n = (v - dbDrawThreshold) / -dbDrawThreshold;
+                if (v < minValue) continue;
+                n = Math.max(0, Math.min(1, (v - minValue) / (maxValue - minValue)));
                 [r, g, b, a] = hslToRgb([n / 2 + 2 / 3, 1, 0.5, n]);
                 z = (y * width + x) * 4;
                 // z = x * 4;
@@ -159,7 +160,7 @@ class MatrixImageProcessor {
         }
         return createImageBitmap(imageData);
     }
-    static async getBitmaps(dataSlices: MatrixDataSlice[], destWidth: number, destHeight: number, $drawFrom: number, $drawTo: number, $drawFromBin: number, $drawToBin: number, numberOfChannels: number) {
+    static async getBitmaps(dataSlices: MatrixDataSlice[], destWidth: number, destHeight: number, $drawFrom: number, $drawTo: number, $drawFromBin: number, $drawToBin: number, numberOfChannels: number, minValue: number, maxValue: number) {
         const { MAX_BITMAP_SIZE } = this;
         const bitmaps: { bitmap: ImageBitmap, drawParams: [number, number, number, number, number, number, number, number] }[][] = new Array(numberOfChannels).fill(null).map(() => []);
         const targetAudioSamplesPerPixel = ($drawTo - $drawFrom) / destWidth;
@@ -232,7 +233,7 @@ class MatrixImageProcessor {
                         $bitmapEndPerChannel = Math.min($bitmapStartPerChannel - offsetFromFrameStart + bitmapWidth * samplesPerPixel, endIndex);
                         if ($bitmapEndPerChannel > $drawFrom) {
                             sliceStart = ~~(($bitmapStartPerChannel - startIndex) / samplesPerPixel);
-                            bitmap = await this.createBitmap(magnitudes.slice(sliceStart, sliceStart + bitmapWidth));
+                            bitmap = await this.createBitmap(magnitudes.slice(sliceStart, sliceStart + bitmapWidth), minValue, maxValue);
                             bitmaps[channel].push({ bitmap, drawParams: calcCoords() });
                             resize.imageBitmaps[channel][$bitmap] = bitmap;
                         }
@@ -250,7 +251,7 @@ class MatrixImageProcessor {
     static async paint(
         ctx: CanvasRenderingContext2D,
         dataSlices: MatrixDataSlice[],
-        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0 }: Partial<MatrixPaintOptions>,
+        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, minValue = -100, maxValue = 0 }: Partial<MatrixPaintOptions>,
         { viewRange }: Pick<VisualizationOptions<any>, "viewRange">,
         { separatorColor = "grey" }: Partial<Pick<VisualizationStyleOptions, "separatorColor">> = {}
     ) {
@@ -275,7 +276,7 @@ class MatrixImageProcessor {
         ctx.lineWidth = 1;
         // Horizontal Range
         const [$drawFrom, $drawTo] = viewRange; // Draw start-end
-        const bitmapsData = await this.getBitmaps(dataSlices, width, channelHeight, $drawFrom, $drawTo, $drawFromBin, $drawToBin, numberOfChannels);
+        const bitmapsData = await this.getBitmaps(dataSlices, width, channelHeight, $drawFrom, $drawTo, $drawFromBin, $drawToBin, numberOfChannels, minValue, maxValue);
         for (let channel = 0; channel < numberOfChannels; channel++) {
             ctx.save();
             ctx.imageSmoothingEnabled = false;
@@ -353,7 +354,7 @@ class MatrixImageProcessor {
         const targetBinsPerPixel = 1 / pixelsPerBin;
         const channel = Math.max(0, Math.min(numberOfChannels - 1, ~~(y / channelHeight)));
         const $ = Math.max($drawFrom, Math.min($drawTo - 1, $drawFrom + x * targetAudioSamplesPerPixel));
-        const $bin = Math.max($drawFromBin, Math.min($drawToBin - 1, $drawToBin - 1 - (y - channel * channelHeight) * targetBinsPerPixel));
+        const $bin = Math.max($drawFromBin, Math.min($drawToBin - 1, $drawToBin - (y - channel * channelHeight) * targetBinsPerPixel));
         const calcX = ($: number) => ($ - $drawFrom) * pixelsPerAudioSample;
         const calcY = ($bin: number, channel: number) => ($drawToBin - 1 - $bin) * pixelsPerBin + channel * channelHeight;
         const get$ = ($dataSlice: number, $resize: number, $vector: number) => {

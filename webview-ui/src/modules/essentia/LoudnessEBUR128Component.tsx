@@ -64,8 +64,8 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
             return;
         }
         if (!dataSlices?.length) return;
-        const info = VectorImageProcessor.getInfoFromCursor(dataSlices.map(ds => ds.momentaryLoudnessDataSlice), x, y, { width, height, verticalZoom, verticalOffset}, { viewRange });
-        const { value: shortTerm } = VectorImageProcessor.getInfoFromCursor(dataSlices.map(ds => ds.shortTermLoudnessDataSlice), x, y, { width, height, verticalZoom, verticalOffset}, { viewRange });
+        const info = VectorImageProcessor.getInfoFromCursor(dataSlices.map(ds => ds.momentaryLoudnessDataSlice), x, y, { width, height, verticalZoom, verticalOffset }, { viewRange });
+        const { value: shortTerm } = VectorImageProcessor.getInfoFromCursor(dataSlices.map(ds => ds.shortTermLoudnessDataSlice), x, y, { width, height, verticalZoom, verticalOffset }, { viewRange });
         setCursorX(info.x);
         setCursorY(info.y);
         setCursorInfo({ momentary: info.value, shortTerm });

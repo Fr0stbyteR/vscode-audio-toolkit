@@ -504,7 +504,7 @@ class VectorImageProcessor {
                     y = calcY(a, channel);
                     ctx.moveTo(x, y);
                     ctx.lineTo(x1, y);
-                    if (isCoarse && y > channelHeight * channel + 20 && y < channelHeight * (channel + 1) - 10) ctx.fillText((+(a.toPrecision(7))).toString(), x + 14, y);
+                    if (isCoarse && y > channelHeight * channel + 20 && y < channelHeight * (channel + 1) - 10) ctx.fillText((Math.abs(a) < 1e-10 ? 0 : +(a.toPrecision(7))).toString(), x + 14, y);
                     a += refined;
                 }
             }

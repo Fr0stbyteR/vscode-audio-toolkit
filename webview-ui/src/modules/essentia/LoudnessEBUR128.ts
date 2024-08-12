@@ -45,11 +45,14 @@ class Module extends EssentiaModule<State, EssentiaState, DataSlice[]> {
     };
     static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, EssentiaModuleSharableData<DataSlice[]>>) {
         super.resolveEssentiaWorker(sharableData);
-        const state = { ...this.DEFAULT_STATE, ...initialState };
+        const dataSlices = sharableData?.[this.MODULE_ID]?.dataSlices;
+        const sharedState = sharableData?.[this.MODULE_ID]?.state;
+        const state: State = { ...this.DEFAULT_STATE, ...initialState };
+        const needCalculate = !sharedState || !Object.keys(this.DEFAULT_ESSENTIA_STATE).every(k => (sharedState as any)[k] === (state as any)[k]);
         const timeDomainVectors = await super.getTimeDomainVectors(audioEditor, sharableData);
         const module = new Module(audioEditor, timeDomainVectors, state);
-        if (sharableData?.[this.MODULE_ID]?.dataSlices) {
-            module._dataSlices = [...sharableData[this.MODULE_ID].dataSlices];
+        if (dataSlices && !needCalculate) {
+            module._dataSlices = [...dataSlices];
         } else {
             module.calculate();
         }

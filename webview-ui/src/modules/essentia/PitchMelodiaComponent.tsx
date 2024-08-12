@@ -63,8 +63,8 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
             return;
         }
         if (!dataSlices?.length) return;
-        const info = VectorImageProcessor.getInfoFromCursor(dataSlices.map(ds => ds.pitch), x, y, { width, height, verticalZoom, verticalOffset}, { viewRange });
-        const { value: probability } = VectorImageProcessor.getInfoFromCursor(dataSlices.map(ds => ds.pitchConfidence), x, y, { width, height, verticalZoom, verticalOffset}, { viewRange });
+        const info = VectorImageProcessor.getInfoFromCursor(dataSlices.map(ds => ds.pitch), x, y, { width, height, verticalZoom, verticalOffset }, { viewRange });
+        const { value: probability } = VectorImageProcessor.getInfoFromCursor(dataSlices.map(ds => ds.pitchConfidence), x, y, { width, height, verticalZoom, verticalOffset }, { viewRange });
         setCursorX(info.x);
         setCursorY(info.y);
         setCursorInfo({ channel: info.channel, pitch: info.value, probability });

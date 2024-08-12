@@ -62,7 +62,7 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (pr
             return;
         }
         if (!dataSlices?.length) return;
-        const info = VectorImageProcessor.getInfoFromCursor(dataSlices, x, y, { width, height, verticalZoom, verticalOffset}, { viewRange });
+        const info = VectorImageProcessor.getInfoFromCursor(dataSlices, x, y, { width, height, verticalZoom, verticalOffset }, { viewRange });
         setCursorX(info.x);
         setCursorY(info.y);
         setCursorInfo(info);

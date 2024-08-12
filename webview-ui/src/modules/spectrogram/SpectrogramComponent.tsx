@@ -10,7 +10,7 @@ import MatrixImageProcessor, { MatrixCursorInfo } from "../../core/MatrixImagePr
 import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
 
 const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>> = (props) => {
-    const { module, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
+    const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
     const audioEditor = useContext(AudioEditorContext)!;
     const defaultVerticalOffset = 0;
     const defaultVerticalZoom = 1;
@@ -37,8 +37,8 @@ const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>>
         if (!canvas || !ctx) return;
         if (!dataSlices?.length) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        MatrixImageProcessor.paint(ctx, dataSlices, { width, height, verticalZoom, verticalOffset }, { viewRange }, {});
-    }, [dataSlices, verticalZoom, verticalOffset, viewRange]);
+        MatrixImageProcessor.paint(ctx, dataSlices, { width, height, verticalZoom, verticalOffset, minValue: moduleState.fftDrawThreshold, maxValue: 0 }, { viewRange }, {});
+    }, [dataSlices, moduleState, verticalZoom, verticalOffset, viewRange]);
     const paintVerticalRuler = useCallback((canvasRef: React.RefObject<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext("2d");
@@ -61,7 +61,7 @@ const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>>
             return;
         }
         if (!dataSlices?.length) return;
-        const info = MatrixImageProcessor.getInfoFromCursor(dataSlices, x, y, { width, height, verticalZoom, verticalOffset}, { viewRange });
+        const info = MatrixImageProcessor.getInfoFromCursor(dataSlices, x, y, { width, height, verticalZoom, verticalOffset }, { viewRange });
         setCursorX(info.x);
         setCursorY(info.y);
         setCursorInfo(info);

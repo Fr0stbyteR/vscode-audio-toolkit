@@ -38,7 +38,7 @@ const ConfigurationContent: FunctionComponent<ConfigurationContentProps> = ({ mo
                     return (
                         <div>
                             <label htmlFor={id}>{description}</label>
-                            <input {...{ id, value}} type="color" onChange={e => setEssentiaState({ ...essentiaState, [k]: e.currentTarget.value })} />
+                            <input {...{ id, value }} type="color" onChange={e => setEssentiaState({ ...essentiaState, [k]: e.currentTarget.value })} />
                         </div>
                     );
                 }
@@ -46,7 +46,7 @@ const ConfigurationContent: FunctionComponent<ConfigurationContentProps> = ({ mo
                     return (
                         <div>
                             <label htmlFor={id}>{description}</label>
-                            <VSCodeDropdown {...{ id, value}} onInput={e => setEssentiaState({ ...essentiaState, [k]: (e.currentTarget as HTMLInputElement).value })}>
+                            <VSCodeDropdown {...{ id, value, title: value }} onInput={e => setEssentiaState({ ...essentiaState, [k]: (e.currentTarget as HTMLInputElement).value })}>
                                 {range.map((v, i) => <VSCodeOption key={i} value={v}>{v}</VSCodeOption>)}
                             </VSCodeDropdown>
                         </div>
@@ -88,7 +88,7 @@ const ConfigurationContent: FunctionComponent<ConfigurationContentProps> = ({ mo
                     return (
                         <div>
                             <label htmlFor={id}>{description}</label>
-                            <input {...{ id, value}} type="color" onChange={e => setModuleState({ ...moduleState, [k]: e.currentTarget.value })} />
+                            <input {...{ id, value }} type="color" onChange={e => setModuleState({ ...moduleState, [k]: e.currentTarget.value })} />
                         </div>
                     );
                 }
@@ -96,7 +96,7 @@ const ConfigurationContent: FunctionComponent<ConfigurationContentProps> = ({ mo
                     return (
                         <div>
                             <label htmlFor={id}>{description}</label>
-                            <VSCodeDropdown {...{ id, value}} onInput={e => setModuleState({ ...moduleState, [k]: (e.currentTarget as HTMLInputElement).value })}>
+                            <VSCodeDropdown {...{ id, value, title: value }} onInput={e => setModuleState({ ...moduleState, [k]: (e.currentTarget as HTMLInputElement).value })}>
                                 {range.map((v, i) => <VSCodeOption key={i} value={v}>{v}</VSCodeOption>)}
                             </VSCodeDropdown>
                         </div>

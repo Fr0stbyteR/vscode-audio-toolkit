@@ -4,15 +4,20 @@ import AudioEditor from "../../core/AudioEditor";
 import EssentiaWorker from "./EssentiaWorker";
 import { EssentiaPointer } from "./EssentiaWorker.types";
 import { VectorDataSlice } from "../../core/VectorImageProcessor";
+import { MatrixDataSlice } from "../../core/MatrixImageProcessor";
 
-export interface EssentiaModuleSharableData<Data = any> {
+export interface EssentiaModuleSharableData<Data = any, State = any> {
     essentiaWorker: EssentiaWorker;
     timeDomainVectors: EssentiaPointer[];
-    dataSlices: Data;
+    dataSlices: Data | undefined;
+    state: State;
 }
 
 export interface EssentiaVectorDataSlice extends VectorDataSlice {
     vectorsPointer: EssentiaPointer[];
+}
+export interface EssentiaMatrixDataSlice extends MatrixDataSlice {
+    matricesPointer: EssentiaPointer[];
 }
 
 abstract class EssentiaModule<State extends AudioToolkitModuleState = any, EssentiaState extends Record<string, any> = any, Data extends any[] = any> implements AudioToolkitModule<State> {
@@ -100,11 +105,12 @@ abstract class EssentiaModule<State extends AudioToolkitModuleState = any, Essen
         this.onStateChange?.(newState);
         if (needCalculate) this.calculate();
     }
-    getSharableData(): EssentiaModuleSharableData {
+    getSharableData(): EssentiaModuleSharableData<Data, State> {
         return {
             timeDomainVectors: this.timeDomainVectors,
             essentiaWorker: this.essentiaWorker,
-            dataSlices: this.dataSlices
+            dataSlices: this.dataSlices,
+            state: this.state
         };
     }
     getEssentiaState(moduleState = this.state) {
