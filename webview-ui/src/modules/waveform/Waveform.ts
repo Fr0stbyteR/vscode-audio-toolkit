@@ -89,7 +89,6 @@ class Waveform implements AudioToolkitModule<WaveformState> {
         });
     }
 
-
     getState() {
         return this.state;
     }

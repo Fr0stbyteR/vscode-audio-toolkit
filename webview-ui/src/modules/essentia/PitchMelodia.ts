@@ -29,6 +29,7 @@ export interface State extends AudioToolkitModuleState, EssentiaState {
     confidenceColor: string;
     paintThreshold: number;
     paintConfidence: boolean;
+    backgroundOpacity: number;
 }
 
 export interface DataSlice {
@@ -64,7 +65,8 @@ class Module extends EssentiaModule<State, EssentiaState, DataSlice[]> {
         color: "#FFFFFF",
         confidenceColor: "#888888",
         paintThreshold: 0.01,
-        paintConfidence: true
+        paintConfidence: true,
+        backgroundOpacity: 0.5
     };
     static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, EssentiaModuleSharableData<DataSlice[]>>) {
         super.resolveEssentiaWorker(sharableData);
@@ -161,7 +163,8 @@ class Module extends EssentiaModule<State, EssentiaState, DataSlice[]> {
             color: ["Color"],
             paintThreshold: ["Paint Voiced Threshold", 0.01, 0.01, 1],
             paintConfidence: ["Show Confidence"],
-            confidenceColor: ["Confidence Color"]
+            confidenceColor: ["Confidence Color"],
+            backgroundOpacity: ["Opacity of the spectrogram background (need module added)", 0, 0.01, 1]
         };
     }
 }

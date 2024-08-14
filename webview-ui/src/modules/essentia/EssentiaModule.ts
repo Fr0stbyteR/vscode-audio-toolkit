@@ -63,11 +63,11 @@ abstract class EssentiaModule<State extends AudioToolkitModuleState = any, Essen
     declare onDataChange: ((data: any) => any) | undefined;
     onCalculationUpdate = (increment: number, message: string) => {
         const { isCalculating } = this;
-        this.isCalculating = isCalculating === false ? false : [isCalculating === true ? increment : isCalculating[0] + increment, message];
+        this.isCalculating = isCalculating === false ? false : [isCalculating === true || isCalculating[0] < 0 ? increment : isCalculating[0] + increment, message];
     };
     onCalculationError = (error: string) => {
-        const { isCalculating } = this;
-        this.isCalculating = typeof isCalculating === "boolean" ? [0, error] : [isCalculating[0], error];
+        // const { isCalculating } = this;
+        this.isCalculating = [-Infinity, error]; // typeof isCalculating === "boolean" ? [0, error] : [isCalculating[0], error];
     };
     protected async handleCalculate(calculation: (onUpdate: (increment: number, message: string) => boolean | void, onError: (error: string) => any) => any) {
         try {

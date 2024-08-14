@@ -20,9 +20,9 @@ const Component: FunctionComponent<VisualizationOptions<LowLevelSpectralExtracto
     const [repaintId, setRepaintId] = useState(performance.now());
     const [essentiaState, setEssentiaState] = useState(module.getEssentiaState(moduleState));
     const [dataSlices, setDataSlices] = useState<typeof module.dataSlices>(module.dataSlices);
-    const [calculating, setCalcualting] = useState<boolean | [number, string]>(module.isCalculating);
+    const [calculating, setCalculating] = useState<boolean | [number, string]>(module.isCalculating);
     const handleDataChange = useCallback((dataSlices: typeof module.dataSlices) => setDataSlices(dataSlices), [module]);
-    const handleCalculating = useCallback((calculating: boolean | [number, string]) => setCalcualting(calculating), []);
+    const handleCalculating = useCallback((calculating: boolean | [number, string]) => setCalculating(calculating), []);
     useEffect(() => {
         module.onDataChange = handleDataChange;
         module.onCalculating = handleCalculating;

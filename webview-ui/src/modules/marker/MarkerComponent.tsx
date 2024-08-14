@@ -7,7 +7,7 @@ import { VisualizationOptions } from "../../core/AudioToolkitModule";
 import Marker from "./Marker";
 import VectorImageProcessor from "../../core/VectorImageProcessor";
 
-const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ module, moduleState, viewRange, selRange, playhead, gridColor, gridRulerColor, textColor, monospaceFont, configuration, rerenderId }) => {
+const MarkerComponent: FunctionComponent<VisualizationOptions<Marker>> = ({ module, moduleState, viewRange, selRange, playhead, gridColor, configuration, rerenderId }) => {
     const audioEditor = useContext(AudioEditorContext)!;
     const [selectedMarker, setSelectedMarker] = useState<number>(-1);
     const [markerName, setMarkerName] = useState(moduleState.data[selectedMarker]?.name ?? `#${moduleState.data.length + 1}`);

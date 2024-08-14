@@ -3,8 +3,9 @@ import { setCanvasToFullSize } from "../../utils";
 import { VisualizationOptions } from "../../core/AudioToolkitModule";
 import Module from "./PitchMelodia";
 import VectorImageProcessor from "../../core/VectorImageProcessor";
-import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
+import ModuleUsingCanvas, { ModuleUsingCanvasProps } from "../../components/ModuleUsingCanvas";
 import ConfigurationContent from "./ConfigurationContent";
+import MatrixImageProcessor, { MatrixDataSlice } from "../../core/MatrixImageProcessor";
 
 const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
     const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
@@ -18,9 +19,9 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
     const [repaintId, setRepaintId] = useState(performance.now());
     const [essentiaState, setEssentiaState] = useState(module.getEssentiaState(moduleState));
     const [dataSlices, setDataSlices] = useState<typeof module.dataSlices>(module.dataSlices);
-    const [calculating, setCalcualting] = useState<boolean | [number, string]>(module.isCalculating);
+    const [calculating, setCalculating] = useState<boolean | [number, string]>(module.isCalculating);
     const handleDataChange = useCallback((dataSlices: typeof module.dataSlices) => setDataSlices(dataSlices), [module]);
-    const handleCalculating = useCallback((calculating: boolean | [number, string]) => setCalcualting(calculating), []);
+    const handleCalculating = useCallback((calculating: boolean | [number, string]) => setCalculating(calculating), []);
     useEffect(() => {
         module.onDataChange = handleDataChange;
         module.onCalculating = handleCalculating;
@@ -40,6 +41,17 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
         if (paintConfidence) VectorImageProcessor.paint(ctx, dataSlices.map(ds => ds.pitchConfidence), { width, height, verticalZoom: 2 / 1, verticalOffset: 1, beforeAndAfter: "inherit" }, { viewRange }, { phosphorColor: confidenceColor });
         VectorImageProcessor.paint(ctx, dataSlices.map(ds => ds.pitch), { width, height, verticalZoom, verticalOffset, beforeAndAfter: "none", confidenceDataSlices: dataSlices.map(ds => ds.pitchConfidence), confidenceThreshold: moduleState.paintThreshold, paintOver: paintConfidence }, { viewRange }, { phosphorColor: color });
     }, [dataSlices, moduleState, verticalZoom, verticalOffset, viewRange]);
+    const paintBackground = useCallback((canvasRef: React.RefObject<HTMLCanvasElement>) => {
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext("2d");
+        if (!canvas || !ctx) return;
+        const dataSlices: MatrixDataSlice[] | undefined = module.audioEditor.getSharableData().spectrogram?.dataSlices;
+        const state: { minDB: number; maxDB: number } | undefined = module.audioEditor.getSharableData().spectrogram?.state;
+        if (!dataSlices?.length || !state) return;
+        const [width, height] = setCanvasToFullSize(canvas);
+        ctx.clearRect(0, 0, width, height);
+        MatrixImageProcessor.paint(ctx, dataSlices, { width, height, verticalZoom: verticalZoom / (2 / (module.audioEditor.sampleRate / 2)), verticalOffset: verticalOffset - 1, minValue: state.minDB, maxValue: state.maxDB }, { viewRange }, {});
+    }, [module, verticalZoom, verticalOffset, viewRange]);
     const paintVerticalRuler = useCallback((canvasRef: React.RefObject<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext("2d");
@@ -87,12 +99,14 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
             }
         </div>
     ) : undefined;
-    const moduleUsingCanvasProps = {
+    const { backgroundOpacity } = moduleState;
+    const moduleUsingCanvasProps: ModuleUsingCanvasProps = {
         calculating,
         defaultVerticalOffset, verticalOffset, setVerticalOffset,
         defaultVerticalZoom, verticalZoom, setVerticalZoom,
         cursorX, cursorY, onCursor,
-        paint, paintVerticalRuler, paintHorizontalRuler,
+        paint, paintBackground, paintVerticalRuler, paintHorizontalRuler,
+        backgroundOpacity,
         configurationContent, monitorContent,
         repaintId,
         ...props

@@ -16,7 +16,9 @@ export interface ModuleUsingCanvasProps extends VisualizationOptions<AudioToolki
     cursorY?: number;
     onCursor?: (x: number, y: number, width: number, height: number) => any;
     showChannelEnableOverlay?: boolean;
+    backgroundOpacity?: number;
     paint: (canvasRef: React.RefObject<HTMLCanvasElement>) => any;
+    paintBackground?: (canvasRef: React.RefObject<HTMLCanvasElement>) => any;
     paintVerticalRuler: (canvasRef: React.RefObject<HTMLCanvasElement>) => any;
     paintHorizontalRuler: (canvasRef: React.RefObject<HTMLCanvasElement>) => any;
     repaintId?: any;
@@ -27,16 +29,18 @@ export interface ModuleUsingCanvasProps extends VisualizationOptions<AudioToolki
 const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => {
     const {
         module, calculating,
-        paint, paintVerticalRuler, paintHorizontalRuler,
+        paint, paintBackground, paintVerticalRuler, paintHorizontalRuler,
         defaultVerticalZoom, verticalZoom, setVerticalZoom,
         defaultVerticalOffset, verticalOffset, setVerticalOffset,
         cursorX, cursorY, onCursor,
-        showChannelEnableOverlay, configurationContent, monitorContent,
+        showChannelEnableOverlay, backgroundOpacity,
+        configurationContent, monitorContent,
         viewRange, enabledChannels, selRange, playhead,
         configuring, monitoring, rerenderId, repaintId
     } = props;
     const audioEditor = useContext(AudioEditorContext)!;
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const backgroundCanvasRef = useRef<HTMLCanvasElement>(null);
     const canvasVerticalRulerRef = useRef<HTMLCanvasElement>(null);
     const canvasHorizontalRulerRef = useRef<HTMLCanvasElement>(null);
     const divMainRef = useRef<HTMLDivElement>(null);
@@ -60,6 +64,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         };
     }, [handleDocumentMouseMove, handleWindowKeyDown]);
     useEffect(() => paint(canvasRef), [paint, rerenderId, repaintId]);
+    useEffect(() => paintBackground?.(backgroundCanvasRef), [paintBackground, rerenderId, repaintId]);
     useEffect(() => paintVerticalRuler(canvasVerticalRulerRef), [paintVerticalRuler, rerenderId, repaintId]);
     useEffect(() => paintHorizontalRuler(canvasHorizontalRulerRef), [paintHorizontalRuler, rerenderId, repaintId]);
     const handleCanvasMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -221,9 +226,12 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
     const playheadLeft = `${$playhead * 100}%`;
     const cursorXLeft = `${cursorX}px`;
     const cursorYTop = `${cursorY}px`;
+    const calculatingError = Array.isArray(calculating) && calculating[0] < 0 ? calculating[1] : null;
     return (<>
         <div className={`visualizer-component-container module-using-canvas-container ${module.moduleId.replace(".", "-")}-container`}>
-            <div className="module-using-canvas-background" />
+            <div className="module-using-canvas-background">
+                <canvas style={{ opacity: backgroundOpacity ?? 1 }} ref={backgroundCanvasRef} />
+            </div>
             <div className="module-using-canvas-vertical-ruler-container">
                 <canvas ref={canvasVerticalRulerRef} />
             </div>
@@ -258,8 +266,18 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
             <div className="channel-enable-overlay">
                 {showChannelEnableOverlay ? enabledChannels.map((enabled, i) => <div key={i} className={enabled ? "" : "disabled"} />) : null}
             </div>
-            {calculating ? <div className="calculating-overlay"><div><VSCodeProgressRing /><div>{Array.isArray(calculating) ? `${calculating[0]}% - ${calculating[1]} ...` : ""}</div></div></div> : null}
-            
+            {
+                calculating
+                ? <div className={`calculating-overlay${calculatingError ? " error" : ""}`}>
+                    <div>
+                        {calculatingError ? null : <VSCodeProgressRing />}
+                        <div>
+                            {calculatingError ?? (Array.isArray(calculating) ? `${calculating[0]}% - ${calculating[1]} ...` : "")}
+                        </div>
+                    </div>
+                </div>
+                : null
+            }
         </div>
         <div className={`visualizer-component-configuration module-using-canvas-configuration ${module.moduleId.replace(".", "-")}-configuration-container`}>
             {configurationContent}

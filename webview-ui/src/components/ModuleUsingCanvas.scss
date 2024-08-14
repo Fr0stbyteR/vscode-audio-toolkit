@@ -8,6 +8,13 @@
             height: 100%;
             width: calc(100% - var(--visualizer-right-spacing));
             background-color: var(--vscode-panel-background);
+
+            & > canvas {
+                position: absolute;
+                display: block;
+                width: 100%;
+                height: 100%;
+            }
         }
 
         & > div.playhead-container, & > div.cursor-container {
@@ -215,6 +222,10 @@
             height: 100%;
             width: 100%;
             background-color: rgba(0, 0, 0, 0.2);
+
+            &.error {
+                color: var(--vscode-errorForeground);
+            }
 
             & > div {
                 display: flex;

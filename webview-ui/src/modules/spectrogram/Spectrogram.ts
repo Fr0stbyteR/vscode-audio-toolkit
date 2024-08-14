@@ -12,8 +12,9 @@ export interface SpectrogramSliceData extends MatrixDataSlice {
     frequencyDomainData: FrequencyDomainChannelData[];
 }
 
-export interface SpectrogramState extends AudioToolkitModuleState {
-    fftDrawThreshold: number;
+export interface State extends AudioToolkitModuleState {
+    minDB: number;
+    maxDB: number;
 }
 
 export interface SpectrogramDrawOptions {
@@ -30,21 +31,29 @@ export interface SpectrogramDrawOptions {
 }
 
 interface SpectrogramSharableData {
-    fftDrawThreshold: number;
-    dataSlices: SpectrogramSliceData[];
+    state: State;
+    dataSlices: SpectrogramSliceData[] | undefined;
 }
 
-class Spectrogram implements AudioToolkitModule<SpectrogramState> {
+class Spectrogram implements AudioToolkitModule<State> {
     static MAX_BITMAP_SIZE = 1024 * 1024;
     static DB_DRAW_THRESHOLD = -100;
     static MODULE_ID = "spectrogram";
     static MODULE_NAME = "Spectrogram";
-    static DEFAULT_STATE: SpectrogramState = { fftDrawThreshold: this.DB_DRAW_THRESHOLD, name: "" };
-    static async fromAudioData(audioEditor: AudioEditor, { fftDrawThreshold = this.DEFAULT_STATE.fftDrawThreshold, name = this.DEFAULT_STATE.name }: Partial<SpectrogramState> = this.DEFAULT_STATE, sharableData?: { spectrogram: SpectrogramSharableData }) {
-        const spectrogram = new Spectrogram(audioEditor, { name, fftDrawThreshold });
-        if (sharableData?.spectrogram?.dataSlices) {
-            spectrogram._dataSlices = sharableData.spectrogram.dataSlices;
-            if (fftDrawThreshold !== sharableData.spectrogram.fftDrawThreshold) spectrogram._dataSlices.forEach(ds => ds.resizedMatrices.resizes.forEach(rs => rs.imageBitmaps = []));
+    static DEFAULT_STATE: State = {
+        name: "",
+        minDB: -100,
+        maxDB: 0
+    };
+    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, SpectrogramSharableData>) {
+        const dataSlices = sharableData?.[this.MODULE_ID]?.dataSlices;
+        const sharedState = sharableData?.[this.MODULE_ID]?.state;
+        const state: State = { ...this.DEFAULT_STATE, ...initialState };
+        const spectrogram = new Spectrogram(audioEditor, state);
+        if (dataSlices) {
+            spectrogram._dataSlices = dataSlices;
+            const needCalculate = !sharedState || !["minDB", "maxDB"].every(k => (sharedState as any)[k] === (state as any)[k]);
+            if (needCalculate) spectrogram._dataSlices.forEach(ds => ds.resizedMatrices.resizes.forEach(rs => rs.imageBitmaps = []));
         } else {
             spectrogram.calculate();
         }
@@ -58,7 +67,7 @@ class Spectrogram implements AudioToolkitModule<SpectrogramState> {
         this._isCalculating = b;
         this.onCalculating?.(b);
     }
-    public onStateChange: ((newState: SpectrogramState) => any) | undefined;
+    public onStateChange: ((newState: State) => any) | undefined;
     public onCalculating: ((isCalculating: boolean | [number, string]) => any) | undefined;
     public onDataChange: ((data: any) => any) | undefined;
     onCalculationUpdate = (increment: number, message: string) => {
@@ -71,7 +80,7 @@ class Spectrogram implements AudioToolkitModule<SpectrogramState> {
     };
     public moduleId = Spectrogram.MODULE_ID;
     public Component = SpectrogramComponent;
-    public state: SpectrogramState;
+    public state: State;
     private _worker = new SpectrogramWorker();
     private _dataSlices: SpectrogramSliceData[] | undefined;
     get dataSlices() {
@@ -79,7 +88,7 @@ class Spectrogram implements AudioToolkitModule<SpectrogramState> {
     }
     private constructor(
         public audioEditor: AudioEditor,
-        initialState: SpectrogramState
+        initialState: State
     ) {
         this.state = initialState;
     }
@@ -108,22 +117,24 @@ class Spectrogram implements AudioToolkitModule<SpectrogramState> {
     getState() {
         return this.state;
     }
-    setState(newState: SpectrogramState) {
+    setState(newState: State) {
+        const needCalculate = newState.maxDB !== this.state.maxDB || newState.minDB !== this.state.minDB;
         this.state = newState;
+        if (needCalculate) this._dataSlices?.forEach(ds => ds.resizedMatrices.resizes.forEach(rs => rs.imageBitmaps = []));
         this.onStateChange?.(newState);
     }
-    getSharableData() {
+    getSharableData(): SpectrogramSharableData {
         return {
-            ...this.state,
+            state: this.state,
             dataSlices: this._dataSlices
         };
     }
-    getBestResizes(targetSamplesPerPixel: number, targetHeight: number): [number, number][] {
-        return this._dataSlices!.map(({ resizedMatrices: resizedSpectrograms }) => {
-            const width = resizedSpectrograms.sizes.filter((_, i) => resizedSpectrograms.resizes[i].audioSamplesPerFrame < targetSamplesPerPixel).map((([w]) => w)).sort((a, b) => a - b)[0] ?? resizedSpectrograms.sizes[0][0];
-            const height = resizedSpectrograms.sizes.filter(([w, h]) => w === width && h > targetHeight).map(([_, h]) => h).sort((a, b) => a - b)[0] ?? resizedSpectrograms.sizes[0][1];
-            return [width, height];
-        });
+    getOptionsMetadata(): { [K in keyof State]: [string, ...any] } {
+        return {
+            name: ["Name"],
+            minDB: ["Drawing range minimum (dB)", -256, 1, 256],
+            maxDB: ["Drawing range maximum (dB)", -256, 1, 256]
+        };
     }
 }
 

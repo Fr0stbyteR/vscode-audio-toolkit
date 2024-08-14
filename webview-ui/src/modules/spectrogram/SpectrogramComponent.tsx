@@ -8,6 +8,7 @@ import Spectrogram from "./Spectrogram";
 import VectorImageProcessor from "../../core/VectorImageProcessor";
 import MatrixImageProcessor, { MatrixCursorInfo } from "../../core/MatrixImageProcessor";
 import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
+import ModuleConfigurationContent from "../../components/ModuleConfigurationContent";
 
 const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>> = (props) => {
     const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
@@ -20,9 +21,9 @@ const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>>
     const [cursorY, setCursorY] = useState<number | undefined>();
     const [cursorInfo, setCursorInfo] = useState<MatrixCursorInfo | null>(null);
     const [dataSlices, setDataSlices] = useState<typeof module.dataSlices>(module.dataSlices);
-    const [calculating, setCalcualting] = useState<boolean | [number, string]>(module.isCalculating);
+    const [calculating, setCalculating] = useState<boolean | [number, string]>(module.isCalculating);
     const handleDataChange = useCallback((dataSlices: typeof module.dataSlices) => setDataSlices(dataSlices), [module]);
-    const handleCalculating = useCallback((calculating: boolean | [number, string]) => setCalcualting(calculating), []);
+    const handleCalculating = useCallback((calculating: boolean | [number, string]) => setCalculating(calculating), []);
     useEffect(() => {
         module.onDataChange = handleDataChange;
         module.onCalculating = handleCalculating;
@@ -37,7 +38,7 @@ const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>>
         if (!canvas || !ctx) return;
         if (!dataSlices?.length) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        MatrixImageProcessor.paint(ctx, dataSlices, { width, height, verticalZoom, verticalOffset, minValue: moduleState.fftDrawThreshold, maxValue: 0 }, { viewRange }, {});
+        MatrixImageProcessor.paint(ctx, dataSlices, { width, height, verticalZoom, verticalOffset, minValue: moduleState.minDB, maxValue: moduleState.maxDB }, { viewRange }, {});
     }, [dataSlices, moduleState, verticalZoom, verticalOffset, viewRange]);
     const paintVerticalRuler = useCallback((canvasRef: React.RefObject<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
@@ -66,10 +67,9 @@ const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>>
         setCursorY(info.y);
         setCursorInfo(info);
     }, [dataSlices, verticalOffset, verticalZoom, viewRange]);
-    const configurationContent = (
-        <div className="spectrogram-configuration">
-        </div>
-    );
+    const setModuleState = useCallback((state: typeof module.state) => module.setState(state), [module]);
+    const optionsMetadata = module.getOptionsMetadata();
+    const configurationContent = <ModuleConfigurationContent {...{ moduleId: module.moduleId, moduleState, setModuleState, optionsMetadata }} />;
     const monitorContent = (
         <div className="default-layout">
             <div>FFT size: {configuration.fftSize}</div>

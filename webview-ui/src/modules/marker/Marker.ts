@@ -1,6 +1,5 @@
-import { AudioToolkitModule, AudioToolkitModuleState, VisualizationOptions, VisualizationStyleOptions } from "../../core/AudioToolkitModule";
+import { AudioToolkitModule, AudioToolkitModuleState } from "../../core/AudioToolkitModule";
 import MarkerComponent from "./MarkerComponent";
-import { getRuler } from "../../utils";
 import AudioEditor from "../../core/AudioEditor";
 
 export interface AudioMarker {
@@ -32,7 +31,7 @@ class Marker implements AudioToolkitModule<MarkerState> {
     public Component = MarkerComponent;
     public state: MarkerState;
     public onStateChange: ((newState: MarkerState) => any) | undefined;
-    private constructor(
+    protected constructor(
         public audioEditor: AudioEditor,
         initialState: MarkerState
     ) {
@@ -79,48 +78,6 @@ class Marker implements AudioToolkitModule<MarkerState> {
     }
     getSharableData() {
         return;
-    }
-    async paintVerticalRuler(
-        ctx: CanvasRenderingContext2D,
-        { width = ctx.canvas.width, height = ctx.canvas.height, gridLabels = true }: Partial<MarkerDrawOptions>,
-        { viewRange, configuration: { audioUnit, beatsPerMeasure, beatsPerMinute, division } }: Pick<VisualizationOptions<this>, "viewRange" | "configuration">,
-        { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<VisualizationStyleOptions, "gridColor" | "gridRulerColor" | "textColor" | "labelFont">> = {}
-    ) {
-        const { sampleRate } = this.audioEditor;
-        const { ruler } = getRuler(viewRange, audioUnit, { sampleRate, beatsPerMeasure, beatsPerMinute, division });
-        ctx.clearRect(0, 0, width, height);
-        const top = gridLabels ? 40 : 0;
-        const [$drawFrom, $drawTo] = viewRange;
-        const pixelsPerSample = width / ($drawTo - $drawFrom);
-        ctx.strokeStyle = gridColor;
-        ctx.beginPath();
-        let x: number;
-        let y: number;
-        for (const $str in ruler) {
-            x = (+$str - $drawFrom) * pixelsPerSample;
-            ctx.moveTo(x, top);
-            ctx.lineTo(x, height);
-        }
-        ctx.stroke();
-        if (!gridLabels) return;
-        ctx.strokeStyle = gridRulerColor;
-        ctx.fillStyle = textColor;
-        ctx.font = `12px ${labelFont}`;
-        ctx.textAlign = "left";
-        ctx.textBaseline = "bottom";
-        ctx.fillText(audioUnit === "time" ? "hms" : audioUnit === "measure" ? `${beatsPerMinute} bpm` : "samps", 2, top - 14);
-        ctx.textAlign = "center";
-        ctx.beginPath();
-        let text: string;
-        for (const $str in ruler) {
-            text = ruler[$str];
-            x = (+$str - $drawFrom) * pixelsPerSample;
-            y = text ? top - 10 : top - 5;
-            ctx.moveTo(x, y);
-            ctx.lineTo(x, top);
-            if (text) ctx.fillText(text, x, y - 4);
-        }
-        ctx.stroke();
     }
 }
 

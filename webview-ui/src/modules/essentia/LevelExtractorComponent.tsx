@@ -19,14 +19,14 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
     const [repaintId, setRepaintId] = useState(performance.now());
     const [essentiaState, setEssentiaState] = useState(module.getEssentiaState(moduleState));
     const [dataSlices, setDataSlices] = useState<typeof module.dataSlices>(module.dataSlices);
-    const [calculating, setCalcualting] = useState<boolean | [number, string]>(module.isCalculating);
+    const [calculating, setCalculating] = useState<boolean | [number, string]>(module.isCalculating);
     const handleDataChange = useCallback((dataSlices: typeof module.dataSlices) => {
         setDataSlices(dataSlices);
         const max = Math.max.apply(Math, dataSlices!.map(ds => ds.resizedVectors.resizes.length ? ds.resizedVectors.resizes[ds.resizedVectors.resizes.length - 1].maxData : ds.vectors).flat().map(f => Math.max.apply(Math, f as any)));
         setDefaultVerticalZoom(1.75 / max);
         setVerticalZoom(1.75 / max);
     }, [module]);
-    const handleCalculating = useCallback((calculating: boolean | [number, string]) => setCalcualting(calculating), []);
+    const handleCalculating = useCallback((calculating: boolean | [number, string]) => setCalculating(calculating), []);
     useEffect(() => {
         module.onDataChange = handleDataChange;
         module.onCalculating = handleCalculating;

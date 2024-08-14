@@ -31,6 +31,7 @@ export interface State extends AudioToolkitModuleState, EssentiaState {
     confidenceColor: string;
     paintThreshold: number;
     paintConfidence: boolean;
+    backgroundOpacity: number;
 }
 
 export interface DataSlice {
@@ -68,7 +69,8 @@ class Module extends EssentiaModule<State, EssentiaState, DataSlice[]> {
         color: "#FFFFFF",
         confidenceColor: "#888888",
         paintThreshold: 0.01,
-        paintConfidence: true
+        paintConfidence: true,
+        backgroundOpacity: 0.5
     };
     static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, EssentiaModuleSharableData<DataSlice[]>>) {
         super.resolveEssentiaWorker(sharableData);
@@ -101,13 +103,13 @@ class Module extends EssentiaModule<State, EssentiaState, DataSlice[]> {
             onUpdate(0, "Calculating channel 1");
             const { timeDomainVectors, essentiaWorker } = this;
             const { sampleRate, length, numberOfChannels } = this.audioEditor;
-            const { binResolution, filterIterations, frameSize, guessUnvoiced, harmonicWeight, hopSize, magnitudeCompression, magnitudeThreshold, maxFrequency, minDuration, minFrequency, numberHarmonics, peakDistributionThreshold, peakFrameThreshold, pitchContinuity, referenceFrequency, timeContinuity } = this.state;
+            const { binResolution, filterIterations, frameSize, guessUnvoiced, harmonicWeight, hopSize, magnitudeCompression, magnitudeThreshold, maxFrequency, minDuration, minFrequency, numberHarmonics, peakDistributionThreshold, peakFrameThreshold, pitchContinuity, referenceFrequency, timeContinuity, voiceVibrato, voicingTolerance } = this.state;
             const pitchVectors: Float32Array[] = [];
             const pitchVectorsPointer: EssentiaPointer[] = [];
             const confVectors: Float32Array[] = [];
             const confVectorsPointer: EssentiaPointer[] = [];
             for (let channel = 0; channel < numberOfChannels; channel++) {
-                const { pitch, pitchConfidence } = await essentiaWorker.PitchMelodia(timeDomainVectors[channel], binResolution, filterIterations, frameSize, guessUnvoiced, harmonicWeight, hopSize, magnitudeCompression, magnitudeThreshold, maxFrequency, minDuration, minFrequency, numberHarmonics, peakDistributionThreshold, peakFrameThreshold, pitchContinuity, referenceFrequency, sampleRate, timeContinuity);
+                const { pitch, pitchConfidence } = await essentiaWorker.PredominantPitchMelodia(timeDomainVectors[channel], binResolution, filterIterations, frameSize, guessUnvoiced, harmonicWeight, hopSize, magnitudeCompression, magnitudeThreshold, maxFrequency, minDuration, minFrequency, numberHarmonics, peakDistributionThreshold, peakFrameThreshold, pitchContinuity, referenceFrequency, sampleRate, timeContinuity, voiceVibrato, voicingTolerance);
                 pitchVectorsPointer[channel] = pitch;
                 pitchVectors[channel] = await essentiaWorker.vectorToArray(pitch);
                 confVectorsPointer[channel] = pitchConfidence;
@@ -167,7 +169,8 @@ class Module extends EssentiaModule<State, EssentiaState, DataSlice[]> {
             color: ["Color"],
             paintThreshold: ["Paint Voiced Threshold", 0.01, 0.01, 1],
             paintConfidence: ["Show Confidence"],
-            confidenceColor: ["Confidence Color"]
+            confidenceColor: ["Confidence Color"],
+            backgroundOpacity: ["Opacity of the spectrogram background (need module added)", 0, 0.01, 1]
         };
     }
 }
