@@ -6,6 +6,7 @@ import VSCodeWebviewProxy from "./VSCodeWebviewProxy";
 class AudioEditorWebview extends VSCodeWebviewProxy<AudioToolkitModulesState, IVSCodeAudioEditorWebview, IVSCodeAudioEditorHost> {
     static fnNames: (keyof IVSCodeAudioEditorHost)[] = ["ready", "makeEditModulesState", "makeEditModulesState"];
     public audioEditor: AudioEditor | undefined;
+    private _initialModuleState: AudioToolkitModulesState | null | undefined;
     constructor(
         public initCallback: (webview: AudioEditorWebview, fileInfo: { data?: Uint8Array; uri?: string; editable?: boolean }, configuration: AudioEditorConfiguration, modulesState?: AudioToolkitModulesState | null) => Promise<number>
     ) {
@@ -13,6 +14,7 @@ class AudioEditorWebview extends VSCodeWebviewProxy<AudioToolkitModulesState, IV
     }
 
     init(fileInfo: { data?: Uint8Array; uri?: string; editable?: boolean }, configuration: AudioEditorConfiguration, modulesState: AudioToolkitModulesState | null = this.getState()) {
+        this._initialModuleState = modulesState;
         return this.initCallback(this, fileInfo, configuration, modulesState);
     }
     updateConfigurationFromHost({ audioUnit, fftSize, fftOverlap, fftWindowFunction }: AudioEditorConfiguration) {
@@ -26,7 +28,7 @@ class AudioEditorWebview extends VSCodeWebviewProxy<AudioToolkitModulesState, IV
     updateModulesStateFromHost(modulesState: AudioToolkitModulesState | null) {
         if (!this.audioEditor) return;
         this.audioEditor.makingEdit = false;
-        this.audioEditor.setModulesState(modulesState || AudioEditor.DEFAULT_MODULES_STATE);
+        this.audioEditor.setModulesState(modulesState ?? this._initialModuleState ?? AudioEditor.DEFAULT_MODULES_STATE);
         this.audioEditor.makingEdit = true;
     }
     playOrStop() {

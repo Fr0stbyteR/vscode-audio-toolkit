@@ -4,6 +4,8 @@ import AudioPlayer from "./AudioPlayer";
 import { dbtoa } from "../utils";
 import { AudioEditorConfiguration, AudioUnit } from "../../../src/web/proxies/VSCodeAudioEditor.types";
 import { AudioToolkitModule, AudioToolkitModuleState, FrequencyDomainChannelData, AudioToolkitModulesState } from "./AudioToolkitModule";
+import Spectrogram from "../modules/spectrogram/Spectrogram";
+import Waveform from "../modules/waveform/Waveform";
 
 export type {
     AudioEditorConfiguration,
@@ -54,9 +56,9 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     };
     static MODULES_MAP: Record<string, typeof AudioToolkitModule> = {};
     static DEFAULT_MODULES_STATE: AudioToolkitModulesState = [
-        { moduleId: "waveform", moduleName: "Map", visible: true, state: { name: "" } },
-        { moduleId: "waveform", moduleName: "Waveform", visible: true, state: { name: "" } },
-        { moduleId: "spectrogram", moduleName: "Spectrogram", visible: true, state: { name: "" } }
+        { moduleId: Waveform.MODULE_ID, moduleName: "Map", visible: true, state: Waveform.DEFAULT_STATE },
+        { moduleId: Waveform.MODULE_ID, moduleName: Waveform.MODULE_NAME, visible: true, state: Waveform.DEFAULT_STATE },
+        { moduleId: Spectrogram.MODULE_ID, moduleName: Spectrogram.MODULE_NAME, visible: true, state: Spectrogram.DEFAULT_STATE }
     ];
     static async loadModulesFromJson(jsonUrl: string, baseUrl: string) {
         const response = await fetch(/* @vite-ignore */new URL(jsonUrl, baseUrl));
@@ -162,19 +164,37 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         this._configuration = { ...this._configuration, ...configuration };
         this.emit("configuration", this._configuration);
     }
-    setModulesState(state: AudioToolkitModulesState) {
-        this.emit("modulesState", state);
+    async setModulesState(modulesState: AudioToolkitModulesState) {
+        this._modulesState = [...this._modulesState];
+        for (let i = 0; i < modulesState.length; i++) {
+            const { state, visible, moduleId, moduleName } = modulesState[i];
+            if (this._modulesInstance[i].moduleId !== moduleId) {
+                const moduleIndexFound = this._modulesInstance.findIndex((module, idx) => idx > i && module.moduleId === moduleId);
+                if (moduleIndexFound > 0) {
+                    this.moveModule(moduleIndexFound, i);
+                } else {
+                    await this.addModule(moduleId, state, moduleName, visible);
+                    this.moveModule(this._modulesInstance.length - 1, i);
+                }
+            }
+            this._modulesState[i] = { ...this.modulesState[i], visible, moduleName };
+            this._modulesInstance[i].setState(state);
+        }
+        for (let i = this._modulesState.length; i < modulesState.length; i++) {
+            this.removeModule(i);
+        }
+        this.emit("modulesState", this._modulesState);
     }
     setModuleState(index: number, state: AudioToolkitModuleState) {
         const prevState = { ...this._modulesState };
-        this._modulesState[index] = { ...this._modulesState[index], state };
         this._modulesState = [...this._modulesState];
+        this._modulesState[index] = { ...this._modulesState[index], state };
         this.emit("modulesState", this._modulesState);
     }
     setModuleVisible(index: number, visible: boolean | number) {
         const prevState = { ...this._modulesState };
-        this._modulesState[index] = { ...this._modulesState[index], visible };
         this._modulesState = [...this._modulesState];
+        this._modulesState[index] = { ...this._modulesState[index], visible };
         this.emit("modulesState", this._modulesState);
     }
     getSharableData() {

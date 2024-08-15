@@ -4,6 +4,7 @@ import AudioEditor from "../../core/AudioEditor";
 
 export interface AudioMarker {
     position: number | [number, number];
+    color: string;
     name: string;
 }
 
@@ -15,16 +16,15 @@ export interface MarkerDrawOptions {
 
 export interface MarkerState extends AudioToolkitModuleState {
     name: string;
-    color: string;
     data: AudioMarker[];
 }
 
 class Marker implements AudioToolkitModule<MarkerState> {
     static MODULE_ID = "marker";
     static MODULE_NAME = "Marker";
-    static DEFAULT_STATE: MarkerState = { name: "", data: [], color: "#ff0000" };
-    static async fromAudioData(audioEditor: AudioEditor, { name = this.DEFAULT_STATE.name, data = this.DEFAULT_STATE.data, color = this.DEFAULT_STATE.color }: Partial<MarkerState> = this.DEFAULT_STATE, sharableData?: undefined) {
-        const marker = new Marker(audioEditor, { name, data, color });
+    static DEFAULT_STATE: MarkerState = { name: "", data: [] };
+    static async fromAudioData(audioEditor: AudioEditor, { name = this.DEFAULT_STATE.name, data = this.DEFAULT_STATE.data }: Partial<MarkerState> = this.DEFAULT_STATE, sharableData?: undefined) {
+        const marker = new Marker(audioEditor, { name, data });
         return marker;
     }
     public moduleId = Marker.MODULE_ID;
@@ -55,26 +55,48 @@ class Marker implements AudioToolkitModule<MarkerState> {
         } else {
             position = Math.max(0, Math.min(this.audioEditor.length, position));
         }
-        this.state.data[markerIndex] = { ...this.state.data[markerIndex], position };
-        this.setState({ ...this.state, data: this.state.data.slice() });
+        const data = this.state.data.slice();
+        data[markerIndex] = { ...data[markerIndex], position };
+        this.setState({ ...this.state, data });
     }
-    addMarker(position: number | [number, number], name = "") {
-        this.state.data.push({ position, name });
-        this.setState({ ...this.state, data: this.state.data.slice() });
+    getMarkersFromRange(range: [number, number]) {
+        const [from, to] = range;
+        const indexes: number[] = [];
+        this.state.data.forEach((m, i) => {
+            if (typeof m.position === "number") {
+                if (from <= m.position && m.position <= to) indexes.push(i);
+                return;
+            }
+            const [f, t] = m.position;
+            if (t <= to && f >= from) indexes.push(i);
+        });
+        return indexes.sort((a, b) => a - b);
     }
-    deleteMarker(markerIndex: number) {
-        this.state.data.splice(markerIndex, 1);
-        this.setState({ ...this.state, data: this.state.data.slice() });
+    addMarker(position: number | [number, number], name = "", color = "FF0000") {
+        const data = this.state.data.slice();
+        data.push({ position, name, color });
+        this.setState({ ...this.state, data });
     }
-    setMarkerName(markerIndex: number, name: string) {
-        this.state.data[markerIndex] = { ...this.state.data[markerIndex], name };
-        this.setState({ ...this.state, data: this.state.data.slice() });
+    deleteMarker(...markerIndexes: number[]) {
+        if (!markerIndexes.length) return;
+        const data = this.state.data.slice();
+        markerIndexes.sort((a, b) => b - a).forEach(index => data.splice(index, 1));
+        this.setState({ ...this.state, data });
+    }
+    setMarkerName(name: string, ...markerIndexes: number[]) {
+        if (!markerIndexes.length) return;
+        const data = this.state.data.slice();
+        markerIndexes.forEach(index => data[index] = { ...data[index], name });
+        this.setState({ ...this.state, data });
     }
     setMarkerClassName(name: string) {
         this.setState({ ...this.state, name });
     }
-    setMarkerColor(color: string) {
-        this.setState({ ...this.state, color });
+    setMarkerColor(color: string, ...markerIndexes: number[]) {
+        if (!markerIndexes.length) return;
+        const data = this.state.data.slice();
+        markerIndexes.forEach(index => data[index] = { ...data[index], color });
+        this.setState({ ...this.state, data });
     }
     getSharableData() {
         return;

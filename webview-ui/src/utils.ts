@@ -319,3 +319,12 @@ export const generateRuler = (steps: number[], multiplier: number, initialMultip
     } while (!coarse || !refined);
     return [coarse, refined];
 };
+
+export const getCssFromPosition = (viewRange: [number, number], pos1: number, pos2?: number) => {
+    const [viewStart, viewEnd] = viewRange;
+    const viewLength = viewEnd - viewStart;
+    if (typeof pos2 === "number") {
+        return `${(pos2 - pos1) / viewLength * 100}%`;
+    }
+    return `${(pos1 - viewStart) / viewLength * 100}%`;
+};
