@@ -4,7 +4,6 @@ import AudioPlayer from "./AudioPlayer";
 import { dbtoa } from "../utils";
 import { AudioEditorConfiguration, AudioUnit } from "../../../src/web/proxies/VSCodeAudioEditor.types";
 import { AudioToolkitModule, AudioToolkitModuleState, FrequencyDomainChannelData, AudioToolkitModulesState } from "./AudioToolkitModule";
-import STFTWorker from "../workers/STFTWorker";
 
 export type {
     AudioEditorConfiguration,
@@ -69,17 +68,15 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
             Modules.forEach(Module => this.MODULES_MAP[Module.MODULE_ID] = Module);
         }
     }
-    static async fromData(data: ArrayBuffer, context: AudioContext, configuration: Partial<AudioEditorConfiguration> = {}, modulesState = this.DEFAULT_MODULES_STATE) {
+    static async fromData(data: ArrayBuffer, context: AudioContext, configuration: Partial<AudioEditorConfiguration> = {}, modulesState?: AudioToolkitModulesState) {
         if (!Object.keys(this.MODULES_MAP).length) await this.loadModulesFromJson("./modules.json", import.meta.url);
         const audioBuffer = await context.decodeAudioData(data);
         const operableAudioBuffer: OperableAudioBuffer = Object.setPrototypeOf(audioBuffer, OperableAudioBuffer.prototype);
         const timeDomainData = operableAudioBuffer.toArray(true);
-        const stftWorker = new STFTWorker();
-        await stftWorker.init();
-        const frequencyDomainData = await Promise.all(timeDomainData.map(tdd => stftWorker.stft(tdd, { ...this.DEFAULT_CONFIGURATION, ...configuration })));
-        const audioEditor = new AudioEditor(operableAudioBuffer, timeDomainData, frequencyDomainData, context, { ...this.DEFAULT_CONFIGURATION, ...configuration });
+        const audioEditor = new AudioEditor(operableAudioBuffer, timeDomainData, context, { ...this.DEFAULT_CONFIGURATION, ...configuration });
         await audioEditor.initPlayer();
-        await audioEditor.initModules(modulesState);
+        const state = modulesState ?? (audioBuffer.duration > 60 ? this.DEFAULT_MODULES_STATE.slice(0, 2) : this.DEFAULT_MODULES_STATE);
+        await audioEditor.initModules(state);
         audioEditor.setState({ isReady: true });
         audioEditor.emit("ready");
         return audioEditor;
@@ -114,9 +111,6 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     get timeDomainData() {
         return this._timeDomainData;
     }
-    get frequencyDomainData() {
-        return this._frequencyDomainData;
-    }
     get context() {
         return this._context;
     }
@@ -139,7 +133,6 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     private constructor(
         private _audioBuffer: OperableAudioBuffer,
         private _timeDomainData: Float32Array[],
-        private _frequencyDomainData: FrequencyDomainChannelData[],
         private _context: AudioContext,
         private _configuration: AudioEditorConfiguration
     ) {

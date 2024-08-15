@@ -9,6 +9,7 @@ import VectorImageProcessor from "../../core/VectorImageProcessor";
 import MatrixImageProcessor, { MatrixCursorInfo } from "../../core/MatrixImageProcessor";
 import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
 import ModuleConfigurationContent from "../../components/ModuleConfigurationContent";
+import { VSCodeButton, VSCodeDivider } from "@vscode/webview-ui-toolkit/react";
 
 const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>> = (props) => {
     const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
@@ -21,6 +22,7 @@ const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>>
     const [cursorY, setCursorY] = useState<number | undefined>();
     const [cursorInfo, setCursorInfo] = useState<MatrixCursorInfo | null>(null);
     const [dataSlices, setDataSlices] = useState<typeof module.dataSlices>(module.dataSlices);
+    const [calculationState, setCalculationState] = useState(module.getCalculationState(moduleState));
     const [calculating, setCalculating] = useState<boolean | [number, string]>(module.isCalculating);
     const handleDataChange = useCallback((dataSlices: typeof module.dataSlices) => setDataSlices(dataSlices), [module]);
     const handleCalculating = useCallback((calculating: boolean | [number, string]) => setCalculating(calculating), []);
@@ -69,7 +71,17 @@ const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>>
     }, [dataSlices, verticalOffset, verticalZoom, viewRange]);
     const setModuleState = useCallback((state: typeof module.state) => module.setState(state), [module]);
     const optionsMetadata = module.getOptionsMetadata();
-    const configurationContent = <ModuleConfigurationContent {...{ moduleId: module.moduleId, moduleState, setModuleState, optionsMetadata }} />;
+    const calculationStateKeys = Object.keys(calculationState);
+    const configurationContent = (
+        <div className={`default-layout ${module.moduleId.replace(".", "-")}-configuration`}>
+            <ModuleConfigurationContent {...{ moduleId: module.moduleId, moduleState: calculationState, setModuleState: setCalculationState, keys: calculationStateKeys, optionsMetadata, wrap: false }} />
+            <div>
+                <VSCodeButton tabIndex={-1} title="Submit for Calculate" appearance="primary" onClick={() => setModuleState({ ...moduleState, ...calculationState })}>Calculate</VSCodeButton>
+            </div>
+            <VSCodeDivider />
+            <ModuleConfigurationContent {...{ moduleId: module.moduleId, moduleState, setModuleState, keys: Object.keys(moduleState).filter(k => calculationStateKeys.indexOf(k) === -1), optionsMetadata, wrap: false }} />
+        </div>
+    );
     const monitorContent = (
         <div className="default-layout">
             <div>FFT size: {configuration.fftSize}</div>
