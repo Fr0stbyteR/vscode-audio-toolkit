@@ -7,9 +7,11 @@ import Vibrato from "./Vibrato";
 import LowLevelSpectralEqloudExtractorModules from "./LowLevelSpectralEqloudExtractor";
 import LowLevelSpectralExtractorModules from "./LowLevelSpectralExtractor";
 import BeatTrackerDegara from "./BeatTrackerDegara";
+import BeatTrackerMultiFeature from "./BeatTrackerMultiFeature";
 
 export default async () => [
     BeatTrackerDegara,
+    BeatTrackerMultiFeature,
     LevelExtractor,
     LoudnessEBUR128,
     ...LowLevelSpectralEqloudExtractorModules,

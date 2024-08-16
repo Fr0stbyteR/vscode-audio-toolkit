@@ -6,6 +6,7 @@ export default class EssentiaWorker extends ProxyMain<{}, IEssentiaWorker> {
     static Worker = Worker;
     static fnNames: (keyof IEssentiaWorker)[] = [
         "BeatTrackerDegara",
+        "BeatTrackerMultiFeature",
         "LevelExtractor",
         "LoudnessEBUR128",
         "LowLevelSpectralExtractor",

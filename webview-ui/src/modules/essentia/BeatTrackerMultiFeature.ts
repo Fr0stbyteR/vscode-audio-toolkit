@@ -14,9 +14,9 @@ export interface EssentiaState {
 export interface State extends EssentiaModuleUsingMarkerState, EssentiaState {
 }
 
-class Module extends EssentiaModuleUsingMarker<State, EssentiaState, [{ ticks: Float32Array }]> implements IAudioToolkitModuleUsingMarker {
-    static MODULE_ID = "essentia.beattrackerdegara";
-    static MODULE_NAME = "Essentia BeatTrackerDegara";
+class Module extends EssentiaModuleUsingMarker<State, EssentiaState, [{ ticks: Float32Array; confidence: number }]> implements IAudioToolkitModuleUsingMarker {
+    static MODULE_ID = "essentia.beattrackermultifeature";
+    static MODULE_NAME = "Essentia BeatTrackerMultiFeature";
     static DEFAULT_ESSENTIA_STATE: EssentiaState = {
         minTempo: 40,
         maxTempo: 208,
@@ -59,12 +59,12 @@ class Module extends EssentiaModuleUsingMarker<State, EssentiaState, [{ ticks: F
             const { sampleRate } = this.audioEditor;
             const { minTempo, maxTempo, channel, color } = this.state;
             const data: AudioMarker[] = [];
-            const { ticks } = await essentiaWorker.BeatTrackerDegara(timeDomainVectors[channel - 1], maxTempo, minTempo);
+            const { ticks, confidence } = await essentiaWorker.BeatTrackerMultiFeature(timeDomainVectors[channel - 1], maxTempo, minTempo);
             const dataSlice = await essentiaWorker.vectorToArray(ticks);
-            this._dataSlices = [{ ticks: dataSlice }];
+            this._dataSlices = [{ ticks: dataSlice, confidence }];
             for (let i = 0; i < dataSlice.length; i++) {
                 const seconds = dataSlice[i];
-                data[i] = { position: seconds * sampleRate, name: "", color };
+                data[i] = { position: seconds * sampleRate, name: i === 0 ? confidence.toFixed(3) : "", color };
             }
             onUpdate(100, "Done");
             this.setState({ ...this.state, data });

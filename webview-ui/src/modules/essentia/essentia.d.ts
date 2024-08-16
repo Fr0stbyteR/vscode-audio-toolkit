@@ -28,6 +28,7 @@ declare module "essentia.js" {
         arrayToVector(inputArray: Float32Array): VectorFloat;
         vectorToArray(inputVector: VectorFloat): Float32Array;
         BeatTrackerDegara(signal: VectorFloat, maxTempo?: number, minTempo?: number): { ticks: VectorFloat };
+        BeatTrackerMultiFeature(signal: VectorFloat, maxTempo?: number, minTempo?: number): { ticks: VectorFloat, confidence: number };
         LowLevelSpectralExtractor(signal: VectorFloat, frameSize?: number, hopSize?: number, sampleRate?: number): {
             barkbands: VectorVectorFloat;
             barkbands_kurtosis: VectorFloat,
