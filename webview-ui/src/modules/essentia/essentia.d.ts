@@ -27,6 +27,7 @@ declare module "essentia.js" {
         module: typeof EssentiaWASM;
         arrayToVector(inputArray: Float32Array): VectorFloat;
         vectorToArray(inputVector: VectorFloat): Float32Array;
+        BeatTrackerDegara(signal: VectorFloat, maxTempo?: number, minTempo?: number): { ticks: VectorFloat };
         LowLevelSpectralExtractor(signal: VectorFloat, frameSize?: number, hopSize?: number, sampleRate?: number): {
             barkbands: VectorVectorFloat;
             barkbands_kurtosis: VectorFloat,

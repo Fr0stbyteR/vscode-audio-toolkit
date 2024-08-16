@@ -3,6 +3,7 @@ import { FunctionComponent, useCallback, useContext, useEffect, useRef, useState
 import { AudioEditorContext } from "./contexts";
 import { AudioToolkitModule, VisualizationOptions } from "../core/AudioToolkitModule";
 import { VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
+import { getCssFromPosition } from "../utils";
 
 export interface ModuleUsingCanvasProps extends VisualizationOptions<AudioToolkitModule> {
     calculating?: boolean | [number, string];
@@ -218,12 +219,9 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
     const [viewStart, viewEnd] = viewRange;
     const viewLength = viewEnd - viewStart;
     const [selStart, selEnd] = selRange || [0, 0];
-    const $selStart = (selStart - viewStart) / viewLength;
-    const $selEnd = (selEnd - viewStart) / viewLength;
-    const selLeft = `${$selStart * 100}%`;
-    const selWidth = `${($selEnd - $selStart) * 100}%`;
-    const $playhead = (playhead - viewStart) / viewLength;
-    const playheadLeft = `${$playhead * 100}%`;
+    const selLeft = getCssFromPosition(viewRange, selStart);
+    const selWidth = getCssFromPosition(viewRange, selStart, selEnd);
+    const playheadLeft = getCssFromPosition(viewRange, playhead);
     const cursorXLeft = `${cursorX}px`;
     const cursorYTop = `${cursorY}px`;
     const calculatingError = Array.isArray(calculating) && calculating[0] < 0 ? calculating[1] : null;
@@ -261,7 +259,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
                 : null
             }
             <div className="playhead-container">
-                {0 <= $playhead && $playhead <= 1 ? <div className="playhead" style={{ left: playheadLeft }} /> : null}
+                {playhead <= viewStart || playhead >= viewEnd ? <div className="playhead" style={{ left: playheadLeft }} /> : null}
             </div>
             <div className="channel-enable-overlay">
                 {showChannelEnableOverlay ? enabledChannels.map((enabled, i) => <div key={i} className={enabled ? "" : "disabled"} />) : null}

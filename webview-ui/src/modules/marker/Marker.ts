@@ -1,25 +1,14 @@
-import { AudioToolkitModule, AudioToolkitModuleState } from "../../core/AudioToolkitModule";
+import { AudioToolkitModuleState } from "../../core/AudioToolkitModule";
 import MarkerComponent from "./MarkerComponent";
 import AudioEditor from "../../core/AudioEditor";
-
-export interface AudioMarker {
-    position: number | [number, number];
-    color: string;
-    name: string;
-}
-
-export interface MarkerDrawOptions {
-    width: number;
-    height: number;
-    gridLabels: boolean;
-}
+import { AudioMarker, IAudioToolkitModuleUsingMarker } from "../../components/ModuleUsingMarker";
 
 export interface MarkerState extends AudioToolkitModuleState {
     name: string;
     data: AudioMarker[];
 }
 
-class Marker implements AudioToolkitModule<MarkerState> {
+class Marker implements IAudioToolkitModuleUsingMarker<MarkerState> {
     static MODULE_ID = "marker";
     static MODULE_NAME = "Marker";
     static DEFAULT_STATE: MarkerState = { name: "", data: [] };

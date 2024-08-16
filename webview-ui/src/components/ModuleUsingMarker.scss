@@ -1,0 +1,322 @@
+.audio-editor-container div.editor-main-visualizer-component {
+    & > div.module-using-marker-container {
+        & > .module-using-marker-background {
+            display: block;
+            position: absolute;
+            height: 100%;
+            width: calc(100% - var(--visualizer-right-spacing));
+            background-color: var(--vscode-panel-background);
+
+            & > canvas {
+                position: absolute;
+                display: block;
+                width: 100%;
+                height: 100%;
+            }
+        }
+
+        & > .module-using-marker-vertical-ruler-container {
+            display: block;
+            position: absolute;
+            height: 100%;
+            width: calc(100% - var(--visualizer-right-spacing));
+            pointer-events: none;
+
+            & > canvas {
+                position: absolute;
+                display: block;
+                width: 100%;
+                height: 100%;
+            }
+        }
+
+        & > div.markers-container {
+            display: block;
+            position: absolute;
+            height: 100%;
+            width: calc(100% - var(--visualizer-right-spacing));
+            cursor: text;
+            overflow: hidden;
+
+            & > div.markers {
+                display: flex;
+                flex-direction: column;
+                position: relative;
+                height: 100%;
+
+                & > div.new-markers-container {
+                    position: relative;
+                    flex: 0 0 auto;
+                    display: block;
+                    width: 100%;
+                    border-bottom: 1px var(--vscode-menu-separatorBackground) solid;
+                }
+
+                & > div.old-markers-container {
+                    position: relative;
+                    flex: 1 1 auto;
+                    display: block;
+                    width: 100%;
+                }
+                
+                & > div div.selrange {
+                    position: absolute;
+                    display: block;
+                    height: 100%;
+                    width: 0%;
+                    background-color: rgba(255, 255, 255, 0.2);
+                    pointer-events: none;
+                
+                    &[hidden] {
+                        display: none;
+                    }
+                    
+                    & > div {
+                        pointer-events: auto;
+                    }
+    
+                    & > div.resize-handler-w {
+                        position: absolute;
+                        display: block;
+                        top: 0;
+                        left: -2px;
+                        width: 4px;
+                        height: 100%;
+                        cursor: ew-resize;
+                    }
+    
+                    & > div.resize-handler-e {
+                        position: absolute;
+                        display: block;
+                        top: 0;
+                        right: -2px;
+                        width: 4px;
+                        height: 100%;
+                        cursor: ew-resize;
+                    }
+                }
+
+                & div.markers-row {
+                    position: relative;
+                    display: block;
+                    margin: 2px 0px;
+                    overflow: hidden;
+
+                    &::after {
+                        position: relative;
+                        display: inline-block;
+                        content: "\00a0";
+                        margin: 4px 0px;
+                        width: 0px;
+                    }
+
+                    & > div.marker {
+                        position: absolute;
+                        display: flex;
+                        height: calc(100% - 8px);
+                        margin: 2px 0px 2px -4px;
+                        background-color: transparent;
+                        border-width: 1px 0px 1px 4px;
+                        border-radius: 4px 0px 0px 4px;
+                        border-style: solid;
+                        cursor: grab;
+
+                        &.range {
+                            border-width: 1px 4px;
+                            border-radius: 4px;
+                            background-color: var(--vscode-button-secondaryBackground);
+                        }
+
+                        &.selected {
+                            box-shadow: 0px 0px 2px 2px var(--vscode-minimap-findMatchHighlight);
+                        }
+
+                        & > span {
+                            font-family: var(--vscode-font-family);
+                            font-size: 12px;
+                            margin: auto 4px;
+                            color: var(--vscode-button-secondaryForeground);
+                            position: relative;
+                            display: inline-block;
+                            text-overflow: ellipsis;
+                            overflow-x: visible;
+                            text-wrap: nowrap;
+                            vertical-align: middle;
+                        }
+                        &.range > span {
+                            overflow-x: hidden;
+                        }
+
+                        & > div.resize-handler-w {
+                            position: absolute;
+                            display: block;
+                            top: 0;
+                            left: -2px;
+                            width: 4px;
+                            height: 100%;
+                            cursor: ew-resize;
+                        }
+        
+                        & > div.resize-handler-e {
+                            position: absolute;
+                            display: block;
+                            top: 0;
+                            right: -2px;
+                            width: 4px;
+                            height: 100%;
+                            cursor: ew-resize;
+                        }
+
+                        &:hover {
+                            background-color: var(--vscode-button-secondaryHoverBackground);
+                        }
+                        &::after {
+                            position: relative;
+                            display: inline-block;
+                            content: "\00a0";
+                            margin: 2px 0px;
+                            vertical-align: middle;
+                            width: 0px;
+                        }
+                    }
+                    & > div.playhead-container {
+                        display: block;
+                        position: absolute;
+                        pointer-events: none;
+                        width: 100%;
+                        height: 100%;
+                        overflow: hidden;
+            
+                        & > div.playhead {
+                            display: block;
+                            position: absolute;
+                            width: 0px;
+                            height: 100%;
+                            border-right: 1px var(--vscode-minimap-findMatchHighlight) dashed;
+        
+                            & > vscode-button {
+                                position: relative;
+                                margin-left: 4px;
+                                overflow: visible;
+                                pointer-events: auto;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        & > .module-using-marker-horizontal-ruler-container {
+            display: block;
+            position: absolute;
+            height: 100%;
+            width: 100%;
+            pointer-events: none;
+
+            & > canvas {
+                position: absolute;
+                display: block;
+                width: 100%;
+                height: 100%;
+            }
+        }
+        
+        & > div.calculating-overlay {
+            display: flex;
+            position: absolute;
+            height: 100%;
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.2);
+
+            &.error {
+                color: var(--vscode-errorForeground);
+            }
+
+            & > div {
+                display: flex;
+                margin: auto;
+                position: relative;
+                flex-direction: column;
+
+                & > vscode-progress-ring {
+                    margin: auto auto 10px auto;
+                }
+                & > div {
+                    margin: 0px auto auto auto;
+                }
+            }
+        }
+    }
+
+    & > div.module-using-marker-configuration > div.default-layout {
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        width: calc(100% - 20px);
+        padding: 0px 10px;
+        overflow: auto;
+
+        & > div {
+            display: flex;
+            flex-direction: column;
+
+            &:not(:last-child) {
+                margin-bottom: 10px;
+            }
+
+            & > input[type=number] {
+                background-color: var(--vscode-settings-numberInputBackground);
+                color: var(--vscode-settings-numberInputForeground);
+                border: 1px solid var(--vscode-settings-numberInputBorder, transparent);
+                border-radius: 2px;
+                padding: 4px 9px;
+                font-family: var(--vscode-font-family);
+            }
+
+            & > input[type=color] {
+                background-color: var(--vscode-button-secondaryBackground);
+                padding: 0px;
+                border-width: 0px;
+            }
+
+            & vscode-text-field {
+                width: 100%;
+            }
+        }
+/*
+        & .marker-button-delete {
+            background: var(--vscode-statusBarItem-warningBackground);
+            color: var(--vscode-statusBarItem-warningForeground);
+        }
+*/
+    }
+
+    & > div.module-using-marker-monitor {
+        & > div.default-layout {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            height: calc(100% - 20px);
+            width: calc(100% - 20px);
+            padding: 0px 10px;
+            overflow: auto;
+            font-family: var(--vscode-editor-font-family);
+        }
+
+        & > div.hover-tips {
+            position: absolute;
+            display: none;
+            bottom: 0px;
+            flex-direction: row;
+            width: calc(100% - 20px);
+            padding: 2px 10px;
+            overflow: hidden;
+            opacity: 0.5;
+        }
+
+        &:hover > div.hover-tips {
+            display: flex;
+        }
+    }
+}

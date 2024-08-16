@@ -6,8 +6,10 @@ import PredominantPitchMelodia from "./PredominantPitchMelodia";
 import Vibrato from "./Vibrato";
 import LowLevelSpectralEqloudExtractorModules from "./LowLevelSpectralEqloudExtractor";
 import LowLevelSpectralExtractorModules from "./LowLevelSpectralExtractor";
+import BeatTrackerDegara from "./BeatTrackerDegara";
 
 export default async () => [
+    BeatTrackerDegara,
     LevelExtractor,
     LoudnessEBUR128,
     ...LowLevelSpectralEqloudExtractorModules,
