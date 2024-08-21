@@ -37,12 +37,13 @@ const App: FunctionComponent = () => {
         }));
         window.focus();
         const handleKeyDown = async (e: KeyboardEvent) => {
-            if (e.key !== "") return;
+            if (e.key !== " ") return;
+            e.preventDefault();
             if (!audioEditor) return;
             if (audioEditor.context.state === "suspended" && audioEditor.state.playing !== "playing") {
                 await audioEditor.context.resume();
                 audioEditor.play();
-                window.removeEventListener("keydown", handleKeyDown);
+                // window.removeEventListener("keydown", handleKeyDown);
             }
         };
         window.addEventListener("keydown", handleKeyDown);
