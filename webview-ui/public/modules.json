@@ -1,1 +1,1 @@
-["./modules/essentia.js","./modules/marker.js","./modules/spectrogram.js","./modules/waveform.js"]
+["./modules/essentia.js","./modules/marker.js","./modules/score.js","./modules/spectrogram.js","./modules/waveform.js"]

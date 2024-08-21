@@ -26,7 +26,8 @@ export default defineConfig((configEnv) => ({
             fs: "./src/empty.ts",
             url: "./src/empty.ts",
             path: "./src/empty.ts",
-            crypto: "./src/empty.ts"
+            crypto: "./src/empty.ts",
+            module: "./src/empty.ts"
         }
     },
     build: {

@@ -3,7 +3,7 @@ import { FunctionComponent, useCallback, useContext, useEffect, useRef, useState
 import { AudioEditorContext } from "./contexts";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { AudioEditorState } from "../core/AudioEditor";
-import { setCanvasToFullSize } from "../utils";
+import { getCssFromPosition, setCanvasToFullSize } from "../utils";
 import { VisualizationStyleOptions } from "../core/AudioToolkitModule";
 import Waveform from "../modules/waveform/Waveform";
 import VectorImageProcessor from "../core/VectorImageProcessor";
@@ -140,14 +140,14 @@ const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRang
     }, [audioEditor]);
     const handleClickSelectAll = useCallback(() => audioEditor.setViewRangeToAll(), [audioEditor]);
     const { length } = audioEditor;
+    const range: [number, number] = [0, length];
     const [viewStart, viewEnd] = viewRange;
     const viewLeft = `${viewStart / length * 100}%`;
     const viewWidth = `calc(${(viewEnd - viewStart) / length * 100}% - 2px)`;
     const [selStart, selEnd] = selRange || [0, 0];
-    const selLeft = `${selStart / length * 100}%`;
-    const selWidth = `${(selEnd - selStart) / length * 100}%`;
-    const $playhead = playhead / length;
-    const playheadLeft = `${$playhead * 100}%`;
+    const selLeft = getCssFromPosition(range, selStart);
+    const selWidth = getCssFromPosition(range, selStart, selEnd);
+    const playheadLeft = getCssFromPosition(range, playhead);
     return (
         <div className={`editor-map${configuring ? " configuring" : ""}${monitoring ? " monitoring" : ""}`}>
             <div className="editor-map-canvas-container" onWheel={handleWheel}>

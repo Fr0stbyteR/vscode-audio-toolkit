@@ -326,5 +326,5 @@ export const getCssFromPosition = (viewRange: [number, number], pos1: number, po
     if (typeof pos2 === "number") {
         return `${(pos2 - pos1) / viewLength * 100}%`;
     }
-    return `${(pos1 - viewStart) / viewLength * 100}%`;
+    return `min(${(pos1 - viewStart) / viewLength * 100}%, calc(100% - 1px))`;
 };

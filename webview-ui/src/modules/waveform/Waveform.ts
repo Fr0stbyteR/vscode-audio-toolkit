@@ -1,9 +1,8 @@
-import { AudioToolkitModule, AudioToolkitModuleState, VisualizationOptions, VisualizationStyleOptions } from "../../core/AudioToolkitModule";
+import { AudioToolkitModule, AudioToolkitModuleState } from "../../core/AudioToolkitModule";
 import WaveformComponent from "./WaveformComponent";
 import WaveformWorker from "../../workers/WaveformWorker";
-import { dbtoa, getRuler } from "../../utils";
 import AudioEditor from "../../core/AudioEditor";
-import VectorImageProcessor, { VectorDataSlice } from "../../core/VectorImageProcessor";
+import { VectorDataSlice } from "../../core/VectorImageProcessor";
 
 export interface WaveformDrawOptions {
     width: number;

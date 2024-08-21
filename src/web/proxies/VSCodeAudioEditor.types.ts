@@ -27,7 +27,7 @@ export interface IVSCodeAudioEditorHost {
 }
 
 export interface IVSCodeAudioEditorWebview {
-    init(documentInfo: { data?: Uint8Array; uri?: string; editable?: boolean }, configuration: AudioEditorConfiguration, modulesState: AudioToolkitModulesState | null): Promise<number>;
+    init(documentInfo: { data?: Uint8Array; uri?: string; workspaceUri?: string; editable?: boolean }, configuration: AudioEditorConfiguration, modulesState: AudioToolkitModulesState | null): Promise<number>;
     updateConfigurationFromHost(configuration: AudioEditorConfiguration): void;
     updateModulesStateFromHost(modulesState: AudioToolkitModulesState | null): void;
     playOrStop(): void;

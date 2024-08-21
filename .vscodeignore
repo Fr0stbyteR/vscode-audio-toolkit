@@ -11,6 +11,9 @@ esbuild.js
 .yarnrc
 **/tsconfig.json
 **/.eslintrc.json
-**/*.map
+#**/*.map
 **/*.ts
 **/.vscode-test.*
+
+examples/**
+webview-ui/**

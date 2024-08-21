@@ -13,8 +13,10 @@
     "ui",
     "workspace"
   ],
+  "publisher": "shren",
   "activationEvents": [],
   "browser": "./dist/web/extension.js",
+  "main": "./dist/web/extension.js",
   "contributes": {
     "configuration": {
       "title": "Audio Toolkit",
@@ -161,6 +163,7 @@
     "@typescript-eslint/eslint-plugin": "^7.14.1",
     "@typescript-eslint/parser": "^7.11.0",
     "@vscode/test-web": "^0.0.55",
+    "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.21.5",
     "eslint": "^8.57.0",
     "npm-run-all": "^4.1.5",

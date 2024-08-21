@@ -413,7 +413,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
                             </div>
                             <div className="playhead-container">
                                 {
-                                    playhead <= viewStart || playhead >= viewEnd
+                                    playhead < viewStart || playhead > viewEnd
                                     ? null
                                     : <div className="playhead" style={{ left: playheadLeft }}>
                                         <VSCodeButton tabIndex={-1} aria-label="Add Marker" title="Add Marker" appearance="icon" onClick={handleClickAddMarker} onMouseDown={handleAddMarkerMouseDown}>

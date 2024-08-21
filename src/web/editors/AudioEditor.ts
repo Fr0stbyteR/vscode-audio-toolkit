@@ -204,6 +204,7 @@ class AudioEditorHost extends VSCodeHostProxy<AudioDocument, IVSCodeAudioEditorH
 		const initMessage = {
 			data: isInWorkspace ? undefined : document.audioData,
 			uri: webviewPanel.webview.asWebviewUri(document.uri).toString(),
+			workspaceUri: vscode.workspace.workspaceFolders ? webviewPanel.webview.asWebviewUri(vscode.workspace.workspaceFolders[0].uri).toString() : undefined,
 			editable,
 		};
 		const modulesState = document.modulesState;

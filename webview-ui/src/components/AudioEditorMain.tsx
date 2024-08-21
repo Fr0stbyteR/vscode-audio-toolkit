@@ -5,7 +5,7 @@ import { AudioEditorConfiguration, AudioEditorState } from "../core/AudioEditor"
 import { AudioEditorContext } from "./contexts";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { VisualizationStyleOptions, AudioToolkitModulesState } from "../core/AudioToolkitModule";
-import { getRuler, setCanvasToFullSize } from "../utils";
+import { getCssFromPosition, getRuler, setCanvasToFullSize } from "../utils";
 
 interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRange" | "enabledChannels">, VisualizationStyleOptions {
     configuration: AudioEditorConfiguration;
@@ -292,19 +292,15 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
     useEffect(() => setRerenderId(performance.now()), [configuring, monitoring]);
 
     const [viewStart, viewEnd] = viewRange;
-    const viewLength = viewEnd - viewStart;
     const [selStart, selEnd] = selRange || [0, 0];
-    const $selStart = (selStart - viewStart) / viewLength;
-    const $selEnd = (selEnd - viewStart) / viewLength;
-    const selLeft = `${$selStart * 100}%`;
-    const selWidth = `${($selEnd - $selStart) * 100}%`;
-    const $playhead = (playhead - viewStart) / viewLength;
-    const playheadLeft = `${$playhead * 100}%`;
+    const selLeft = getCssFromPosition(viewRange, selStart);
+    const selWidth = getCssFromPosition(viewRange, selStart, selEnd);
+    const playheadLeft = getCssFromPosition(viewRange, playhead);
     const moduleCommonProps = { ...props, rerenderId };
     return (
         <div className="editor-main">
             <div className="editor-main-flex">
-                <div className={`editor-main-playhead-container${configuring ? " configuring" : ""}${monitoring ? " monitoring" : ""}`} hidden={$playhead < 0 || $playhead > 1}>
+                <div className={`editor-main-playhead-container${configuring ? " configuring" : ""}${monitoring ? " monitoring" : ""}`} hidden={playhead < viewStart || playhead > viewEnd}>
                     <div className="editor-main-playhead-handler" style={{ left: playheadLeft }} onMouseDown={handlePlayheadHandlerMouseDown} />
                     <div className="editor-main-playhead" style={{ left: playheadLeft }}></div>
                 </div>

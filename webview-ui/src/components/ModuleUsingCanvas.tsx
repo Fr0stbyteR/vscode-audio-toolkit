@@ -217,7 +217,6 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         document.addEventListener("mouseup", handleMouseUp);
     }, [audioEditor, selRange]);
     const [viewStart, viewEnd] = viewRange;
-    const viewLength = viewEnd - viewStart;
     const [selStart, selEnd] = selRange || [0, 0];
     const selLeft = getCssFromPosition(viewRange, selStart);
     const selWidth = getCssFromPosition(viewRange, selStart, selEnd);
@@ -259,7 +258,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
                 : null
             }
             <div className="playhead-container">
-                {playhead <= viewStart || playhead >= viewEnd ? <div className="playhead" style={{ left: playheadLeft }} /> : null}
+                {playhead < viewStart || playhead > viewEnd ? null : <div className="playhead" style={{ left: playheadLeft }} />}
             </div>
             <div className="channel-enable-overlay">
                 {showChannelEnableOverlay ? enabledChannels.map((enabled, i) => <div key={i} className={enabled ? "" : "disabled"} />) : null}

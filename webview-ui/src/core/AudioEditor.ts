@@ -70,12 +70,19 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
             Modules.forEach(Module => this.MODULES_MAP[Module.MODULE_ID] = Module);
         }
     }
-    static async fromData(data: ArrayBuffer, context: AudioContext, configuration: Partial<AudioEditorConfiguration> = {}, modulesState?: AudioToolkitModulesState) {
-        if (!Object.keys(this.MODULES_MAP).length) await this.loadModulesFromJson("./modules.json", import.meta.url);
+    static async fromData(data: ArrayBuffer, context: AudioContext, configuration: Partial<AudioEditorConfiguration> = {}, modulesState?: AudioToolkitModulesState, uri?: string, workspaceUri = location.href) {
+        if (!Object.keys(this.MODULES_MAP).length) {
+            await this.loadModulesFromJson("./modules.json", import.meta.url);
+            try {
+                if (uri) await this.loadModulesFromJson("./modules.json", uri);
+            } catch (error) {
+                console.warn(error);
+            }
+        }
         const audioBuffer = await context.decodeAudioData(data);
         const operableAudioBuffer: OperableAudioBuffer = Object.setPrototypeOf(audioBuffer, OperableAudioBuffer.prototype);
         const timeDomainData = operableAudioBuffer.toArray(true);
-        const audioEditor = new AudioEditor(operableAudioBuffer, timeDomainData, context, { ...this.DEFAULT_CONFIGURATION, ...configuration });
+        const audioEditor = new AudioEditor(operableAudioBuffer, timeDomainData, context, { ...this.DEFAULT_CONFIGURATION, ...configuration }, uri, workspaceUri);
         await audioEditor.initPlayer();
         const state = modulesState ?? (audioBuffer.duration > 60 ? this.DEFAULT_MODULES_STATE.slice(0, 2) : this.DEFAULT_MODULES_STATE);
         await audioEditor.initModules(state);
@@ -128,6 +135,12 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     get modulesInstance() {
         return this._modulesInstance;
     }
+    get uri() {
+        return this._uri;
+    }
+    get workspaceUri() {
+        return this._workspaceUri;
+    }
     public makingEdit = true;
     private _player: AudioPlayer | null = null;
     private _modulesState: AudioToolkitModulesState = [];
@@ -136,7 +149,9 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         private _audioBuffer: OperableAudioBuffer,
         private _timeDomainData: Float32Array[],
         private _context: AudioContext,
-        private _configuration: AudioEditorConfiguration
+        private _configuration: AudioEditorConfiguration,
+        private _uri: string | undefined,
+        private _workspaceUri: string | undefined
     ) {
         super();
         this.setState({
