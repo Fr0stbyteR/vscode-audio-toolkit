@@ -148,21 +148,21 @@ const AudioEditorMonitor: FunctionComponent<Props> = ({ playhead, selRange, view
             return;
         }
         const absMax = await audioEditor.player?.peakAnalyserNode.getPeakSinceLastGet();
-        const values = absMax?.length ? absMax.map(atodb) : new Array(audioEditor.numberOfChannels).fill(MIN_DB) as number[];
+        const newValues = absMax?.length ? absMax.map(atodb) : new Array<number>(audioEditor.numberOfChannels).fill(MIN_DB);
         const maxTimeoutCallback = () => {
             maxTimerRef.current = -1;
-            maxValuesRef.current = [];
+            maxValuesRef.current = new Array<number>(audioEditor.numberOfChannels).fill(MIN_DB);
             setMaxValues(maxValuesRef.current);
         };
-        if (values.find((v, i) => typeof maxValuesRef.current[i] === "undefined" || v > maxValuesRef.current[i])) {
-            maxValuesRef.current = values.slice();
+        if (newValues.find((v, i) => typeof maxValuesRef.current[i] === "undefined" || v > maxValuesRef.current[i])) {
+            maxValuesRef.current = newValues.slice();
             setMaxValues(maxValuesRef.current);
             if (maxTimerRef.current !== -1) window.clearTimeout(maxTimerRef.current);
             maxTimerRef.current = window.setTimeout(maxTimeoutCallback, 1000);
-        } else if (values.find((v, i) => v < maxValuesRef.current[i]) && maxTimerRef.current === -1) {
+        } else if (newValues.find((v, i) => v < maxValuesRef.current[i]) && maxTimerRef.current === -1) {
             maxTimerRef.current = window.setTimeout(maxTimeoutCallback, 1000);
         }
-        setValues(values); 
+        setValues(values => newValues.length !== values.length || newValues.find((v, i) => v !== values[i]) ? newValues : values);
         rafRef.current = requestAnimationFrame(scheduleUpdate);
     }, [audioEditor]);
     useEffect(() => {
