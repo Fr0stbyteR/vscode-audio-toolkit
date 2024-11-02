@@ -132,7 +132,7 @@ const AudioEditorMonitor: FunctionComponent<Props> = ({ playhead, selRange, view
                 if (x > clipX) ctx.fillRect(hotStop, y, Math.min(clipWidth, x - clipX), channelHeight);
                 histMax = maxValues[channel];
                 if (typeof histMax === "number" && histMax > v) {
-                    x = Math.max(0, Math.min(1, (histMax - MIN_DB) / (MAX_DB - MIN_DB)));
+                    x = Math.max(0, Math.min(1, (histMax - MIN_DB) / (MAX_DB - MIN_DB))) * width;
                     if (x <= clipX) ctx.fillRect(x, y, 1, channelHeight);
                     else ctx.fillRect(Math.min(width - 1, x), y, 1, channelHeight);
                 }
