@@ -28,9 +28,9 @@ class Module extends EssentiaModuleUsingMarker<State, EssentiaState, [{ ticks: F
         color: "#FF8888",
         data: undefined
     };
-    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, EssentiaModuleSharableData<Float32Array[]>>) {
+    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, Promise<EssentiaModuleSharableData<Float32Array[]>>>) {
         super.resolveEssentiaWorker(sharableData);
-        const sharedState: State = sharableData?.[this.MODULE_ID]?.state;
+        const sharedState: State = (await sharableData?.[this.MODULE_ID])?.state;
         const state: State = { ...this.DEFAULT_STATE, ...initialState };
         const dataShared = sharedState?.data && Object.keys(this.DEFAULT_ESSENTIA_STATE).every(k => (sharedState as any)[k] === (state as any)[k]);
         if (dataShared) state.data = sharedState.data;

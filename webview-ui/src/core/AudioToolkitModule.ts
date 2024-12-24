@@ -36,7 +36,7 @@ export interface AudioToolkitModule<State extends AudioToolkitModuleState = any>
     moduleId: string;
     getState(): State;
     setState(newState: State): void;
-    getSharableData(): any;
+    sharableData: Promise<any> | null;
     /** for the environment to track state changes, call after `setState`, do not assign */
     onStateChange: ((newState: State) => any) | undefined;
 }

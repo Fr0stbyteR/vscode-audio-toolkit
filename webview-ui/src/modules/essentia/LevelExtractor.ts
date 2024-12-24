@@ -25,10 +25,10 @@ class Module extends EssentiaModule<State, EssentiaState, EssentiaVectorDataSlic
         ...this.DEFAULT_ESSENTIA_STATE,
         color: "#FFFFFF"
     };
-    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, EssentiaModuleSharableData<EssentiaVectorDataSlice[]>>) {
+    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, Promise<EssentiaModuleSharableData<EssentiaVectorDataSlice[]>>>) {
         super.resolveEssentiaWorker(sharableData);
-        const dataSlices = sharableData?.[this.MODULE_ID]?.dataSlices;
-        const sharedState = sharableData?.[this.MODULE_ID]?.state;
+        const dataSlices = (await sharableData?.[this.MODULE_ID])?.dataSlices;
+        const sharedState = (await sharableData?.[this.MODULE_ID])?.state;
         const state: State = { ...this.DEFAULT_STATE, frameSize: 2 * audioEditor.sampleRate, hopSize: audioEditor.sampleRate, ...initialState };
         const needCalculate = !sharedState || !Object.keys(this.DEFAULT_ESSENTIA_STATE).every(k => (sharedState as any)[k] === (state as any)[k]);
         const timeDomainVectors = await super.getTimeDomainVectors(audioEditor, sharableData);

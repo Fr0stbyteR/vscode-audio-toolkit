@@ -26,6 +26,9 @@ class Marker implements IAudioToolkitModuleUsingMarker<MarkerState> {
     ) {
         this.state = initialState;
     }
+    get sharableData() {
+        return Promise.resolve(null);
+    }
 
     getState() {
         return this.state;
@@ -86,9 +89,6 @@ class Marker implements IAudioToolkitModuleUsingMarker<MarkerState> {
         const data = this.state.data.slice();
         markerIndexes.forEach(index => data[index] = { ...data[index], color });
         this.setState({ ...this.state, data });
-    }
-    getSharableData() {
-        return;
     }
 }
 

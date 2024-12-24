@@ -78,22 +78,25 @@ export class LowLevelSpectralExtractorModule extends EssentiaModule<State, Essen
         paintFeature: "mfcc"
     };
     static FEATURES = FEATURE_IDS;
-    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, EssentiaModuleSharableData<DataSlice[]>>) {
+    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, Promise<EssentiaModuleSharableData<DataSlice[]>>>) {
         super.resolveEssentiaWorker(sharableData);
         const state: State = { ...this.DEFAULT_STATE, ...initialState };
-        const sharableModuleId = sharableData ? Object.keys(sharableData).find((k) => {
-            if (!k.startsWith(LowLevelSpectralExtractorModule.MODULE_ID)) return false;
-            if (!sharableData[k]?.dataSlices) return false;
-            const sharedState = sharableData[k]?.state;
-            if (!sharedState) return false;
+        let sharableModuleId: string | undefined = undefined;
+        for (const k in sharableData) {
+            const data = await sharableData[k];
+            if (!k.startsWith(LowLevelSpectralExtractorModule.MODULE_ID)) continue;
+            if (!data?.dataSlices) continue;
+            const sharedState = data?.state;
+            if (!sharedState) continue;
             const needCalculate = !Object.keys(this.DEFAULT_ESSENTIA_STATE).every(k => (sharedState as any)[k] === (state as any)[k]);
-            if (needCalculate) return false;
-            return true;
-        }) : undefined;
+            if (needCalculate) continue;
+            sharableModuleId = k;
+            break;
+        }
         const timeDomainVectors = await super.getTimeDomainVectors(audioEditor, sharableData);
         const module = new this(audioEditor, timeDomainVectors, state);
         if (sharableModuleId) {
-            const dataSlices = sharableData![sharableModuleId]!.dataSlices!;
+            const dataSlices = (await sharableData![sharableModuleId])!.dataSlices!;
             module._dataSlices = [...dataSlices];
         } else {
             module.calculate();

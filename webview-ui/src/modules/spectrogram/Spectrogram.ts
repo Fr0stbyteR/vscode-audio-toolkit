@@ -57,11 +57,11 @@ class Spectrogram implements AudioToolkitModule<State> {
         minDB: -100,
         maxDB: 0
     };
-    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, SpectrogramSharableData>) {
+    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}, sharableData?: Record<string, Promise<SpectrogramSharableData>>) {
         const stftWorker = new STFTWorker();
         await stftWorker.init();
-        const dataSlices = sharableData?.[this.MODULE_ID]?.dataSlices;
-        const sharedState = sharableData?.[this.MODULE_ID]?.state;
+        const dataSlices = (await sharableData?.[this.MODULE_ID])?.dataSlices;
+        const sharedState = (await sharableData?.[this.MODULE_ID])?.state;
         const state: State = { ...this.DEFAULT_STATE, ...initialState };
         const needCalculate = !sharedState || !Object.keys(this.DEFAULT_CALCULATION_STATE).every(k => (sharedState as any)[k] === (state as any)[k]);
         const spectrogram = new Spectrogram(audioEditor, stftWorker, state);
@@ -101,6 +101,10 @@ class Spectrogram implements AudioToolkitModule<State> {
     get dataSlices() {
         return this._dataSlices;
     }
+    private _sharableData: Promise<SpectrogramSharableData | null> = Promise.resolve(null);
+    get sharableData() {
+        return this._sharableData;
+    }
     private _frequencyDomainData: FrequencyDomainChannelData[] | undefined;
     get frequencyDomainData() {
         return this._frequencyDomainData;
@@ -114,15 +118,23 @@ class Spectrogram implements AudioToolkitModule<State> {
         this.state = initialState;
     }
     protected async handleCalculate(calculation: (onUpdate: (increment: number, message: string) => any, onError: (error: string) => any) => any) {
-        try {
-            this.isCalculating = true;
-            await calculation(this.onCalculationUpdate, this.onCalculationError);
-        } catch (error) {
-            this.onCalculationError?.((error as Error).toString());
-            console.error(error);
-        } finally {
-            this.isCalculating = false;
-        }
+        this._sharableData = new Promise(async (resolve) => {
+            try {
+                this.isCalculating = true;
+                await calculation(this.onCalculationUpdate, this.onCalculationError);
+                resolve({
+                    state: this.state,
+                    frequencyDomainData: this._frequencyDomainData,
+                    dataSlices: this._dataSlices
+                });
+            } catch (error) {
+                this.onCalculationError?.((error as Error).toString());
+                console.error(error);
+                resolve(null);
+            } finally {
+                this.isCalculating = false;
+            }
+        });
     }
     calculate() {
         this.handleCalculate(async (onUpdate) => {
@@ -161,13 +173,6 @@ class Spectrogram implements AudioToolkitModule<State> {
         this.state = newState;
         if (needNewBitmaps) this._dataSlices = this._dataSlices.map(ds => ({ ...ds, resizedMatrices: { ...ds.resizedMatrices, resizes: ds.resizedMatrices.resizes.map(rs => ({ ...rs, imageBitmaps: [] }))} }));
         this.onStateChange?.(newState);
-    }
-    getSharableData(): SpectrogramSharableData {
-        return {
-            state: this.state,
-            frequencyDomainData: this._frequencyDomainData,
-            dataSlices: this._dataSlices
-        };
     }
     getOptionsMetadata(): { [K in keyof State]: [string, ...any] } {
         return {

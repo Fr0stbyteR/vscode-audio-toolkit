@@ -30,17 +30,17 @@ abstract class EssentiaModule<State extends AudioToolkitModuleState = any, Essen
         if (!this._essentiaWorker) this._essentiaWorker = new EssentiaWorker();
         return this._essentiaWorker;
     }
-    static getTimeDomainVectors(audioEditor: AudioEditor, sharableData?: Record<string, EssentiaModuleSharableData>) {
+    static async getTimeDomainVectors(audioEditor: AudioEditor, sharableData?: Record<string, Promise<EssentiaModuleSharableData>>) {
         if (sharableData) {
             const id = Object.keys(sharableData).find(id => id.startsWith("essentia."));
-            if (id) return sharableData[id].timeDomainVectors;
+            if (id) return (await sharableData[id]).timeDomainVectors;
         }
         return Promise.all(audioEditor.timeDomainData.map(array => this.essentiaWorker.arrayToVector(array)));
     }
-    static resolveEssentiaWorker(sharableData?: Record<string, EssentiaModuleSharableData>) {
+    static async resolveEssentiaWorker(sharableData?: Record<string, Promise<EssentiaModuleSharableData>>) {
         if (sharableData) {
             const id = Object.keys(sharableData).find(id => id.startsWith("essentia."));
-            if (id) this._essentiaWorker = sharableData[id].essentiaWorker;
+            if (id) this._essentiaWorker = (await sharableData[id]).essentiaWorker;
         }
         return this.essentiaWorker;
     }
@@ -55,6 +55,9 @@ abstract class EssentiaModule<State extends AudioToolkitModuleState = any, Essen
     protected _dataSlices: Data | undefined;
     get dataSlices(): Data | undefined {
         return this._dataSlices;
+    }
+    get sharableData() {
+        return Promise.resolve(this.getSharableData());
     }
     declare public state: State;
 

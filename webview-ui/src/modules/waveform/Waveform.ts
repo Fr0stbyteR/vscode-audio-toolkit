@@ -24,10 +24,11 @@ class Waveform implements AudioToolkitModule<WaveformState> {
     static MODULE_ID = "waveform";
     static MODULE_NAME = "Waveform";
     static DEFAULT_STATE: WaveformState = { name: "" };
-    static async fromAudioData(audioEditor: AudioEditor, { name = this.DEFAULT_STATE.name }: Partial<WaveformState> = this.DEFAULT_STATE, sharableData?: { waveform: { dataSlices: VectorDataSlice[] } }) {
+    static async fromAudioData(audioEditor: AudioEditor, { name = this.DEFAULT_STATE.name }: Partial<WaveformState> = this.DEFAULT_STATE, sharableData?: Record<string, Promise<{ dataSlices?: VectorDataSlice[] } | null>>) {
         const waveform = new Waveform(audioEditor, { name });
-        if (sharableData?.waveform?.dataSlices) {
-            waveform._dataSlices = sharableData.waveform.dataSlices;
+        const dataSlices = (await (sharableData?.[this.MODULE_ID]))?.dataSlices;
+        if (dataSlices) {
+            waveform._dataSlices = dataSlices;
         } else {
             waveform.calculate();
         }
@@ -60,6 +61,10 @@ class Waveform implements AudioToolkitModule<WaveformState> {
     get dataSlices() {
         return this._dataSlices;
     }
+    private _sharableData: Promise<{ dataSlices?: VectorDataSlice[] } | null> = Promise.resolve(null);
+    get sharableData() {
+        return this._sharableData;
+    }
     private constructor(
         public audioEditor: AudioEditor,
         initialState: WaveformState
@@ -67,15 +72,19 @@ class Waveform implements AudioToolkitModule<WaveformState> {
         this.state = initialState;
     }
     protected async handleCalculate(calculation: (onUpdate: (increment: number, message: string) => any, onError: (error: string) => any) => any) {
-        try {
-            this.isCalculating = true;
-            await calculation(this.onCalculationUpdate, this.onCalculationError);
-        } catch (error) {
-            this.onCalculationError?.((error as Error).toString());
-            console.error(error);
-        } finally {
-            this.isCalculating = false;
-        }
+        this._sharableData = new Promise(async (resolve) => {
+            try {
+                this.isCalculating = true;
+                await calculation(this.onCalculationUpdate, this.onCalculationError);
+                resolve({ dataSlices: this._dataSlices });
+            } catch (error) {
+                this.onCalculationError?.((error as Error).toString());
+                console.error(error);
+                resolve(null);
+            } finally {
+                this.isCalculating = false;
+            }
+        });
     }
     calculate() {
         this.handleCalculate(async (onUpdate) => {
@@ -94,9 +103,6 @@ class Waveform implements AudioToolkitModule<WaveformState> {
     setState(newState: WaveformState) {
         this.state = newState;
         this.onStateChange?.(newState);
-    }
-    getSharableData() {
-        return { dataSlices: this._dataSlices };
     }
 }
 

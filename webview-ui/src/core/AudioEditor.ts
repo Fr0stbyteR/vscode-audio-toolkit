@@ -216,7 +216,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         const sharableData: Record<string, any> = {};
         this._modulesInstance.forEach((i) => {
             if (sharableData[i.moduleId]) return;
-            sharableData[i.moduleId] = i.getSharableData();
+            sharableData[i.moduleId] = i.sharableData;
         });
         return sharableData;
     }
