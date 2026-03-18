@@ -24,7 +24,7 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
     const [windowSize, setWindowSize] = useState([window.innerWidth, window.innerHeight]);
     const [modulesState, setModulesState] = useState<AudioToolkitModulesState>(audioEditor.modulesState);
     const phosphorColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-menu-selectionBackground");
-    const playheadColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-minimap-findMatchHighlight");
+    const playheadColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-editorWarning-foreground");
     const gridColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-menu-separatorBackground");
     const gridRulerColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-menu-foreground");
     const monospaceFont = window.getComputedStyle(document.body).getPropertyValue("--vscode-font-family");

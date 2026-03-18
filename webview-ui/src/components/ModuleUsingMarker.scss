@@ -128,7 +128,7 @@
                         }
 
                         &.selected {
-                            box-shadow: 0px 0px 2px 2px var(--vscode-minimap-findMatchHighlight);
+                            box-shadow: 0px 0px 2px 2px var(--vscode-editorWarning-foreground);
                         }
 
                         & > span {
@@ -192,7 +192,7 @@
                             position: absolute;
                             width: 0px;
                             height: 100%;
-                            border-right: 1px var(--vscode-minimap-findMatchHighlight) dashed;
+                            border-right: 1px var(--vscode-editorWarning-foreground) dashed;
         
                             & > vscode-button {
                                 position: relative;

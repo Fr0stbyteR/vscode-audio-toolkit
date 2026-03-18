@@ -6,6 +6,7 @@ import VectorImageProcessor from "../../core/VectorImageProcessor";
 import ModuleUsingCanvas, { ModuleUsingCanvasProps } from "../../components/ModuleUsingCanvas";
 import ConfigurationContent from "./ConfigurationContent";
 import MatrixImageProcessor, { MatrixDataSlice } from "../../core/MatrixImageProcessor";
+import type Spectrogram from "../spectrogram/Spectrogram";
 
 const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
     const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
@@ -45,12 +46,15 @@ const Component: FunctionComponent<VisualizationOptions<Module>> = (props) => {
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
-        const dataSlices: MatrixDataSlice[] | undefined = module.audioEditor.getSharableData().spectrogram?.dataSlices;
-        const state: { minDB: number; maxDB: number } | undefined = module.audioEditor.getSharableData().spectrogram?.state;
-        if (!dataSlices?.length || !state) return;
-        const [width, height] = setCanvasToFullSize(canvas);
-        ctx.clearRect(0, 0, width, height);
-        MatrixImageProcessor.paint(ctx, dataSlices, { width, height, verticalZoom: verticalZoom / (2 / (module.audioEditor.sampleRate / 2)), verticalOffset: verticalOffset - 1, minValue: state.minDB, maxValue: state.maxDB }, { viewRange }, {});
+        const spectrogramSharableData = module.audioEditor.getSharableData().spectrogram as Spectrogram['sharableData'];
+        spectrogramSharableData.then(data => {
+            if (!data) return;
+            const { dataSlices, state } = data;
+            if (!dataSlices?.length || !state) return;
+            const [width, height] = setCanvasToFullSize(canvas);
+            ctx.clearRect(0, 0, width, height);
+            MatrixImageProcessor.paint(ctx, dataSlices, { width, height, verticalZoom: verticalZoom / (2 / (module.audioEditor.sampleRate / 2)), verticalOffset: verticalOffset - 1, minValue: state.minDB, maxValue: state.maxDB }, { viewRange }, {});
+        });
     }, [module, verticalZoom, verticalOffset, viewRange]);
     const paintVerticalRuler = useCallback((canvasRef: React.RefObject<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;

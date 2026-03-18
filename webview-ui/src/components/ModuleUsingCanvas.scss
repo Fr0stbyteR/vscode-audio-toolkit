@@ -30,7 +30,7 @@
                 position: absolute;
                 width: 0px;
                 height: 100%;
-                border-right: 1px var(--vscode-minimap-findMatchHighlight) dashed;
+                border-right: 1px var(--vscode-editorWarning-foreground) dashed;
             }
 
             & > div.cursor-x {

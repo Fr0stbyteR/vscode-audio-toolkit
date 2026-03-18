@@ -71,7 +71,7 @@ class Module extends EssentiaModule<State, EssentiaState, DataSlice[]> {
             const { timeDomainVectors, essentiaWorker } = this;
             const { sampleRate, numberOfChannels } = this.audioEditor;
             const sharableData = this.audioEditor.getSharableData();
-            const dss = (sharableData[PitchMelodia.MODULE_ID]?.dataSlices ?? sharableData[PredominantPitchMelodia.MODULE_ID]?.dataSlices ?? sharableData[PitchYinProbabilistic.MODULE_ID]?.dataSlices) as { pitch: EssentiaVectorDataSlice }[] | undefined;
+            const dss = (await (sharableData[PitchMelodia.MODULE_ID] ?? sharableData[PredominantPitchMelodia.MODULE_ID] ?? sharableData[PitchYinProbabilistic.MODULE_ID]))?.dataSlices as { pitch: EssentiaVectorDataSlice }[] | undefined;
             if (!dss?.length || !dss[0].pitch) {
                 throw new Error("Please add an essentia pitch analysis module, then recalculate");
             }
