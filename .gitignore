@@ -5,3 +5,4 @@ node_modules
 *.vsix
 examples/
 webview-ui/src/modules/score
+local
