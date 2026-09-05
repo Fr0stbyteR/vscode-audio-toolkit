@@ -66,6 +66,95 @@ def analyze(payload: dict[str, Any]) -> dict[str, Any]:
             y, top_db=top_db, frame_length=frame_length, hop_length=hop_length
         )
         result["intervals"] = (intervals / float(sample_rate)).tolist()
+    elif algorithm == "rms":
+        frame_length = int(options.get("frameLength", 2048))
+        hop_length = int(options.get("hopLength", 512))
+        rms = librosa.feature.rms(
+            y=y, frame_length=frame_length, hop_length=hop_length
+        )[0]
+        result["vectors"] = [rms.tolist()]
+        result["metadata"] = {
+            "frameLength": frame_length,
+            "hopLength": hop_length,
+            "unit": "RMS",
+        }
+    elif algorithm == "spectralCentroid":
+        frame_length = int(options.get("frameLength", 2048))
+        hop_length = int(options.get("hopLength", 512))
+        centroid = librosa.feature.spectral_centroid(
+            y=y, sr=sample_rate, n_fft=frame_length, hop_length=hop_length
+        )[0]
+        result["vectors"] = [centroid.tolist()]
+        result["metadata"] = {
+            "frameLength": frame_length,
+            "hopLength": hop_length,
+            "unit": "Hz",
+        }
+    elif algorithm == "pitch":
+        frame_length = int(options.get("frameLength", 2048))
+        hop_length = int(options.get("hopLength", 512))
+        fmin = float(options.get("fmin", librosa.note_to_hz("C2")))
+        fmax = float(options.get("fmax", librosa.note_to_hz("C7")))
+        pitch = librosa.yin(
+            y,
+            sr=sample_rate,
+            fmin=fmin,
+            fmax=fmax,
+            frame_length=frame_length,
+            hop_length=hop_length,
+        )
+        result["vectors"] = [np.nan_to_num(pitch, nan=0.0).tolist()]
+        result["metadata"] = {
+            "frameLength": frame_length,
+            "hopLength": hop_length,
+            "unit": "Hz",
+            "method": "YIN",
+        }
+    elif algorithm == "melSpectrogram":
+        frame_length = int(options.get("frameLength", 2048))
+        hop_length = int(options.get("hopLength", 512))
+        mel_bins = int(options.get("melBins", 128))
+        power = librosa.feature.melspectrogram(
+            y=y,
+            sr=sample_rate,
+            n_fft=frame_length,
+            hop_length=hop_length,
+            n_mels=mel_bins,
+        )
+        decibels = librosa.power_to_db(power, ref=np.max)
+        result["matrix"] = decibels.T.tolist()
+        result["metadata"] = {
+            "frameLength": frame_length,
+            "hopLength": hop_length,
+            "bins": mel_bins,
+            "minValue": float(np.min(decibels)),
+            "maxValue": float(np.max(decibels)),
+            "unit": "dB",
+        }
+    elif algorithm == "chroma":
+        frame_length = int(options.get("frameLength", 2048))
+        hop_length = int(options.get("hopLength", 512))
+        # librosa's automatic tuning estimator currently reaches a Numba gufunc
+        # that can access-violate on Python 3.13/Windows. A fixed default is both
+        # deterministic and safe; callers can still supply an explicit tuning.
+        tuning = float(options.get("tuning", 0.0))
+        chroma = librosa.feature.chroma_stft(
+            y=y,
+            sr=sample_rate,
+            n_fft=frame_length,
+            hop_length=hop_length,
+            tuning=tuning,
+        )
+        result["matrix"] = chroma.T.tolist()
+        result["metadata"] = {
+            "frameLength": frame_length,
+            "hopLength": hop_length,
+            "bins": 12,
+            "tuning": tuning,
+            "minValue": 0.0,
+            "maxValue": 1.0,
+            "unit": "strength",
+        }
     else:
         fail(f"Unsupported analysis algorithm: {algorithm}")
     return result

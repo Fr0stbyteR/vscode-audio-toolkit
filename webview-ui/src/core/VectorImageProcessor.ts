@@ -175,7 +175,7 @@ class VectorImageProcessor {
             pixelsPerSample = pixelsPerAudioSample * audioSamplesPerSample;
             samples = endIndex - startIndex;
             if ($ + samples <= $drawFrom) {
-                $ += length;
+                $ += samples;
                 continue;
             }
             if ($ >= $drawTo) break;

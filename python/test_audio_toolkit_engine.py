@@ -49,6 +49,20 @@ class AnalysisTests(unittest.TestCase):
         result = self.request("nonSilent", topDb=40)
         self.assertTrue(result["intervals"])
 
+    def test_vector_features(self) -> None:
+        for algorithm in ("rms", "spectralCentroid", "pitch"):
+            with self.subTest(algorithm=algorithm):
+                result = self.request(algorithm, frameLength=1024, hopLength=256)
+                self.assertTrue(result["vectors"])
+                self.assertTrue(result["vectors"][0])  # type: ignore[index]
+
+    def test_matrix_features(self) -> None:
+        for algorithm in ("melSpectrogram", "chroma"):
+            with self.subTest(algorithm=algorithm):
+                result = self.request(algorithm, frameLength=1024, hopLength=256, melBins=32)
+                self.assertTrue(result["matrix"])
+                self.assertGreater(len(result["matrix"][0]), 1)  # type: ignore[index]
+
 
 if __name__ == "__main__":
     unittest.main()

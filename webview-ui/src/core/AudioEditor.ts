@@ -53,7 +53,8 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         fftWindowFunction: "blackmanHarris",
         beatsPerMinute: 60,
         beatsPerMeasure: 4,
-        division: 16
+        division: 16,
+        matrixRenderer: "auto"
     };
     static MODULES_MAP: Record<string, typeof AudioToolkitModule> = {};
     static DEFAULT_MODULES_STATE: AudioToolkitModulesState = [

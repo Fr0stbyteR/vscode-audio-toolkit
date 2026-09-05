@@ -10,7 +10,9 @@ A powerful tool for visualizing and analyzing audio files.
 
 + Saving the editor's state.
 
-+ Desktop analysis modules powered by librosa: beat markers, onset markers, and non-silent regions.
++ Desktop analysis modules powered by librosa: beat/onset/non-silent markers, RMS, spectral centroid, YIN pitch, mel spectrogram, and chroma.
+
++ Existing Vector and Matrix views are reused for continuous 1D/2D analysis results. Matrix views prefer an experimental WebGL 2 renderer and fall back to Canvas 2D.
 
 ## Desktop analysis setup
 
@@ -21,6 +23,8 @@ python -m pip install -r requirements-librosa.txt
 ```
 
 If Python is not on `PATH`, set `audioToolkit.pythonPath` to the full path of the Python executable. Librosa modules are desktop-only; VS Code for the Web displays a clear unavailable-backend error.
+
+Set `audioToolkit.matrixRenderer` to `auto`, `webgl`, or `canvas2d` to compare matrix rendering. The module monitor reports texture-upload and draw time for WebGL, or total paint time for Canvas 2D.
 
 ## Requirements
 

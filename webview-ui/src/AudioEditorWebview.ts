@@ -17,12 +17,13 @@ class AudioEditorWebview extends VSCodeWebviewProxy<AudioToolkitModulesState, IV
         this._initialModuleState = modulesState;
         return this.initCallback(this, fileInfo, configuration, modulesState);
     }
-    updateConfigurationFromHost({ audioUnit, fftSize, fftOverlap, fftWindowFunction }: AudioEditorConfiguration) {
+    updateConfigurationFromHost({ audioUnit, fftSize, fftOverlap, fftWindowFunction, matrixRenderer }: AudioEditorConfiguration) {
         this.audioEditor?.setConfiguration({
             audioUnit,
             fftSize,
             fftOverlap,
-            fftWindowFunction: `${fftWindowFunction.slice(0, 1).toLowerCase()}${fftWindowFunction.slice(1).replaceAll(/[-\s]/g, "")}`
+            fftWindowFunction: `${fftWindowFunction.slice(0, 1).toLowerCase()}${fftWindowFunction.slice(1).replaceAll(/[-\s]/g, "")}`,
+            matrixRenderer
         });
     }
     async updateModulesStateFromHost(modulesState: AudioToolkitModulesState | null) {

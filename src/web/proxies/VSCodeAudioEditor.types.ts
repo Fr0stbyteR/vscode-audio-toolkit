@@ -8,6 +8,7 @@ export interface AudioEditorConfiguration {
     beatsPerMinute: number;
     beatsPerMeasure: number;
     division: number;
+    matrixRenderer: "auto" | "webgl" | "canvas2d";
 }
 
 export type AudioToolkitModulesState = { moduleId: string, moduleName: string; visible: boolean | number; state: AudioToolkitModuleState }[];
@@ -21,7 +22,7 @@ export interface AudioToolkitEdit {
     modulesState: AudioToolkitModulesState;
 }
 
-export type AudioAnalysisAlgorithm = "beats" | "onsets" | "nonSilent";
+export type AudioAnalysisAlgorithm = "beats" | "onsets" | "nonSilent" | "rms" | "spectralCentroid" | "pitch" | "melSpectrogram" | "chroma";
 
 export interface AudioAnalysisRequest {
     algorithm: AudioAnalysisAlgorithm;
@@ -33,6 +34,8 @@ export interface AudioAnalysisResult {
     sampleRate: number;
     duration: number;
     values?: number[];
+    vectors?: number[][];
+    matrix?: number[][];
     intervals?: [number, number][];
     metadata?: Record<string, string | number | boolean | null>;
 }

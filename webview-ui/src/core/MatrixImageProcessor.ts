@@ -109,13 +109,17 @@ class MatrixImageProcessor {
                 for (let channel = 0; channel < channels; channel++) {
                     for (let frame = 0; frame < w; frame++) {
                         for (let bin = 0; bin < h; bin++) {
-                            for (let i = 0; i < resizeFactor; i++) {
-                                pFrame = pw === w ? frame : frame * Math.ceil(pw / w) + i;
+                            const frameScale = pw === w ? 1 : Math.ceil(pw / w);
+                            const binScale = ph === h ? 1 : Math.ceil(ph / h);
+                            for (let frameOffset = 0; frameOffset < frameScale; frameOffset++) {
+                                pFrame = frame * frameScale + frameOffset;
                                 if (pFrame >= pw) break;
-                                pBin = ph === h ? bin : bin * Math.ceil(ph / h) + i;
-                                if (pBin >= ph) break;
-                                m = prevResizedData[channel][pFrame][pBin];
-                                if (i === 0 || m > resize.data[channel][frame][bin]) resize.data[channel][frame][bin] = m;
+                                for (let binOffset = 0; binOffset < binScale; binOffset++) {
+                                    pBin = bin * binScale + binOffset;
+                                    if (pBin >= ph) break;
+                                    m = prevResizedData[channel][pFrame][pBin];
+                                    if (m > resize.data[channel][frame][bin]) resize.data[channel][frame][bin] = m;
+                                }
                             }
                         }
                     }
@@ -164,7 +168,7 @@ class MatrixImageProcessor {
         const { MAX_BITMAP_SIZE } = this;
         const bitmaps: { bitmap: ImageBitmap, drawParams: [number, number, number, number, number, number, number, number] }[][] = new Array(numberOfChannels).fill(null).map(() => []);
         const targetAudioSamplesPerPixel = ($drawTo - $drawFrom) / destWidth;
-        const targetBinsPerCell = ($drawToBin - $drawToBin) / destHeight;
+        const targetBinsPerCell = ($drawToBin - $drawFromBin) / destHeight;
         let samplesPerPixel: number;
         let binsPerCell: number;
         /** bitmap start position in samples */
@@ -414,6 +418,7 @@ class MatrixImageProcessor {
             // resizeFactorHeight = ~~(oh / h);
             w1 = Math.ceil((splitSample + offsetFromFrame) / audioSamplesPerFrame);
             w2 = Math.ceil(w - (splitSample + offsetFromFrame) / audioSamplesPerFrame);
+            split2From = Math.max(0, w - w2);
             sizes1[i] = [w1, h];
             sizes2[i] = [w2, h];
             resized1.resizes[i] = { offsetFromFrame, audioSamplesPerFrame, binsPerCell, data: resizes[i].data.map(spectrogram => spectrogram.slice(0, w1)) };
