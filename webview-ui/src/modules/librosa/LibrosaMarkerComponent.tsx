@@ -6,14 +6,18 @@ import { VisualizationOptions } from "../../core/AudioToolkitModule";
 import VectorImageProcessor from "../../core/VectorImageProcessor";
 import { setCanvasToFullSize } from "../../utils";
 import LibrosaMarkerModule from "./LibrosaMarkerModule";
+import { formatCacheInfo } from "./LibrosaCacheInfo";
 
 const LibrosaMarkerComponent: FunctionComponent<VisualizationOptions<LibrosaMarkerModule>> = props => {
     const { module, moduleState, viewRange, gridColor, configuration } = props;
     const [draft, setDraft] = useState(module.getAnalysisState(moduleState));
     const [calculating, setCalculating] = useState<boolean | [number, string]>(module.isCalculating);
+    const [cacheInfo, setCacheInfo] = useState(module.cacheInfo);
+    useEffect(() => setDraft(module.getAnalysisState(moduleState)), [module, moduleState]);
     useEffect(() => {
         module.onCalculating = setCalculating;
-        return () => { module.onCalculating = undefined; };
+        module.onCacheInfo = setCacheInfo;
+        return () => { module.onCalculating = undefined; module.onCacheInfo = undefined; };
     }, [module]);
     const paintVerticalRuler = useCallback((canvasRef: React.RefObject<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
@@ -27,9 +31,10 @@ const LibrosaMarkerComponent: FunctionComponent<VisualizationOptions<LibrosaMark
     const configurationContentChildren = <>
         <ModuleConfigurationContent moduleId={module.moduleId} moduleState={draft} setModuleState={setDraft} optionsMetadata={module.getOptionsMetadata()} wrap={false} />
         <div className="analysis-actions">
-            <VSCodeButton appearance="primary" onClick={() => module.setState({ ...moduleState, ...draft })}>Analyze</VSCodeButton>
+            <VSCodeButton appearance="primary" title="Run librosa again and replace the cached result" onClick={() => module.setState({ ...moduleState, ...draft }, true)}>Reanalyze</VSCodeButton>
             <span>{moduleState.data?.length ?? 0} markers</span>
         </div>
+        <div className="analysis-cache-status">{moduleState.data && !cacheInfo ? "Saved with project" : formatCacheInfo(cacheInfo)}</div>
         <VSCodeDivider />
         <ModuleConfigurationContent moduleId={module.moduleId} moduleState={moduleState} keys={displayKeys} setModuleState={state => module.setState(state)} optionsMetadata={module.getOptionsMetadata()} wrap={false} />
     </>;

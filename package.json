@@ -105,6 +105,20 @@
           "scope": "machine",
           "description": "Python executable used by the desktop librosa analysis backend. Leave empty to auto-detect Python."
         },
+        "audioToolkit.analysisCache.enabled": {
+          "title": "Analysis Cache: Enabled",
+          "type": "boolean",
+          "default": true,
+          "description": "Cache librosa results in VS Code extension storage so reopening an audio file does not repeat analysis."
+        },
+        "audioToolkit.analysisCache.maxSizeMB": {
+          "title": "Analysis Cache: Maximum Size",
+          "type": "number",
+          "minimum": 16,
+          "default": 512,
+          "scope": "machine",
+          "description": "Approximate maximum size in MB for cached librosa results. Old entries are removed first."
+        },
         "audioToolkit.matrixRenderer": {
           "title": "Matrix Renderer",
           "type": "string",
@@ -136,6 +150,10 @@
       {
         "command": "audioToolkit.pauseOrResume",
         "title": "Pause / Resume"
+      },
+      {
+        "command": "audioToolkit.clearAnalysisCache",
+        "title": "Audio Toolkit: Clear Analysis Cache"
       },
       {
         "command": "audioToolkit.showHelloWorld",

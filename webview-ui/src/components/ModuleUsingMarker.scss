@@ -281,6 +281,11 @@
             }
         }
 
+        & > .analysis-cache-status {
+            color: var(--vscode-descriptionForeground);
+            font-size: 11px;
+        }
+
         & > div {
             display: flex;
             flex-direction: column;

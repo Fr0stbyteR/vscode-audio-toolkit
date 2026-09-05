@@ -5,6 +5,7 @@ import VectorImageProcessor, { VectorCursorInfo } from "../../core/VectorImagePr
 import { setCanvasToFullSize } from "../../utils";
 import LibrosaConfiguration from "./LibrosaConfiguration";
 import LibrosaVectorModule from "./LibrosaVectorModule";
+import { formatCacheInfo } from "./LibrosaCacheInfo";
 
 function getTransform(module: LibrosaVectorModule<any>) {
     let min = Infinity;
@@ -36,6 +37,7 @@ const LibrosaVectorComponent: FunctionComponent<VisualizationOptions<LibrosaVect
     const [cursorInfo, setCursorInfo] = useState<VectorCursorInfo | null>(null);
     const [dataSlices, setDataSlices] = useState(module.dataSlices);
     const [calculating, setCalculating] = useState<boolean | [number, string]>(module.isCalculating);
+    const [cacheInfo, setCacheInfo] = useState(module.cacheInfo);
     useEffect(() => {
         module.onDataChange = data => {
             setDataSlices(data as typeof module.dataSlices);
@@ -46,7 +48,8 @@ const LibrosaVectorComponent: FunctionComponent<VisualizationOptions<LibrosaVect
             setVerticalOffset(transform.offset);
         };
         module.onCalculating = setCalculating;
-        return () => { module.onDataChange = undefined; module.onCalculating = undefined; };
+        module.onCacheInfo = setCacheInfo;
+        return () => { module.onDataChange = undefined; module.onCalculating = undefined; module.onCacheInfo = undefined; };
     }, [module]);
     const paint = useCallback((ref: React.RefObject<HTMLCanvasElement>) => {
         const canvas = ref.current;
@@ -71,7 +74,7 @@ const LibrosaVectorComponent: FunctionComponent<VisualizationOptions<LibrosaVect
         setCursorX(info.x); setCursorY(info.y); setCursorInfo(info);
     }, [dataSlices, verticalOffset, verticalZoom, viewRange]);
     const configurationContent = <LibrosaConfiguration module={module} moduleState={moduleState} />;
-    const monitorContent = cursorInfo ? <div className="default-layout"><div>{cursorInfo.fromIndex}–{cursorInfo.toIndex} samples</div><div>{typeof cursorInfo.value === "number" ? cursorInfo.value.toFixed(3) : cursorInfo.value.map(value => value.toFixed(3)).join(" – ")} {module.unit}</div></div> : undefined;
+    const monitorContent = <div className="default-layout"><div>{formatCacheInfo(cacheInfo)}</div>{cursorInfo ? <><div>{cursorInfo.fromIndex}–{cursorInfo.toIndex} samples</div><div>{typeof cursorInfo.value === "number" ? cursorInfo.value.toFixed(3) : cursorInfo.value.map(value => value.toFixed(3)).join(" – ")} {module.unit}</div></> : null}</div>;
     return <ModuleUsingCanvas {...props} {...{ calculating, defaultVerticalOffset, verticalOffset, setVerticalOffset, defaultVerticalZoom, verticalZoom, setVerticalZoom, cursorX, cursorY, onCursor, paint, paintVerticalRuler, paintHorizontalRuler, configurationContent, monitorContent }} />;
 };
 

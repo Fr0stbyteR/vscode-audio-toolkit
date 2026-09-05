@@ -12,7 +12,7 @@ export default function LibrosaConfiguration<State extends LibrosaVisualizationS
     return <div className="default-layout librosa-analysis-configuration">
         <ModuleConfigurationContent moduleId={module.moduleId} moduleState={draft} setModuleState={setDraft} optionsMetadata={metadata} wrap={false} />
         <div className="analysis-actions">
-            <VSCodeButton appearance="primary" onClick={() => module.setState({ ...moduleState, ...draft })}>Analyze</VSCodeButton>
+            <VSCodeButton appearance="primary" title="Run librosa again and replace the cached result" onClick={() => module.setState({ ...moduleState, ...draft }, true)}>Reanalyze</VSCodeButton>
         </div>
         <VSCodeDivider />
         <ModuleConfigurationContent moduleId={module.moduleId} moduleState={moduleState} keys={displayKeys} setModuleState={state => module.setState(state)} optionsMetadata={metadata} wrap={false} />

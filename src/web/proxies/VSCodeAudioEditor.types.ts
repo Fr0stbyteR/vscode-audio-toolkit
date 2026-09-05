@@ -27,6 +27,12 @@ export type AudioAnalysisAlgorithm = "beats" | "onsets" | "nonSilent" | "rms" | 
 export interface AudioAnalysisRequest {
     algorithm: AudioAnalysisAlgorithm;
     options?: Record<string, string | number | boolean | null>;
+    cachePolicy?: "use" | "refresh";
+}
+
+export interface AudioAnalysisCacheInfo {
+    status: "hit" | "miss" | "refresh" | "disabled" | "unavailable";
+    createdAt?: string;
 }
 
 export interface AudioAnalysisResult {
@@ -38,6 +44,7 @@ export interface AudioAnalysisResult {
     matrix?: number[][];
     intervals?: [number, number][];
     metadata?: Record<string, string | number | boolean | null>;
+    cache?: AudioAnalysisCacheInfo;
 }
 
 export interface IVSCodeAudioEditorHost {

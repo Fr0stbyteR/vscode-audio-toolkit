@@ -24,6 +24,10 @@ python -m pip install -r requirements-librosa.txt
 
 If Python is not on `PATH`, set `audioToolkit.pythonPath` to the full path of the Python executable. Librosa modules are desktop-only; VS Code for the Web displays a clear unavailable-backend error.
 
+Analysis results are compressed and cached automatically in VS Code extension storage. The cache key includes the audio file path, size, modification time, algorithm options, and analysis-engine fingerprint, so changing the source, settings, or engine triggers a new analysis. Use **Reanalyze** in a module to bypass an existing entry, or run **Audio Toolkit: Clear Analysis Cache** from the Command Palette. Cache status is shown in each librosa module.
+
+Use `audioToolkit.analysisCache.enabled` to disable caching and `audioToolkit.analysisCache.maxSizeMB` to control its approximate LRU size limit (512 MB by default). Marker edits remain in the project's JSON state; cached data is local and does not add files beside the audio source.
+
 Set `audioToolkit.matrixRenderer` to `auto`, `webgl`, or `canvas2d` to compare matrix rendering. The module monitor reports texture-upload and draw time for WebGL, or total paint time for Canvas 2D.
 
 ## Requirements

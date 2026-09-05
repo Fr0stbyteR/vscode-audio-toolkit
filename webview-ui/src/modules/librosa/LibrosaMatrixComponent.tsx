@@ -7,6 +7,7 @@ import { setCanvasToFullSize } from "../../utils";
 import LibrosaConfiguration from "./LibrosaConfiguration";
 import LibrosaMatrixModule from "./LibrosaMatrixModule";
 import MatrixWebGLRenderer from "../../core/MatrixWebGLRenderer";
+import { formatCacheInfo } from "./LibrosaCacheInfo";
 
 const LibrosaMatrixComponent: FunctionComponent<VisualizationOptions<LibrosaMatrixModule<any>>> = props => {
     const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
@@ -20,10 +21,12 @@ const LibrosaMatrixComponent: FunctionComponent<VisualizationOptions<LibrosaMatr
     const [dataSlices, setDataSlices] = useState(module.dataSlices);
     const [calculating, setCalculating] = useState<boolean | [number, string]>(module.isCalculating);
     const [renderInfo, setRenderInfo] = useState("Waiting for data");
+    const [cacheInfo, setCacheInfo] = useState(module.cacheInfo);
     useEffect(() => {
         module.onDataChange = data => setDataSlices(data as typeof module.dataSlices);
         module.onCalculating = setCalculating;
-        return () => { module.onDataChange = undefined; module.onCalculating = undefined; };
+        module.onCacheInfo = setCacheInfo;
+        return () => { module.onDataChange = undefined; module.onCalculating = undefined; module.onCacheInfo = undefined; };
     }, [module]);
     const paint = useCallback(async (ref: React.RefObject<HTMLCanvasElement>) => {
         const canvas = ref.current;
@@ -62,7 +65,7 @@ const LibrosaMatrixComponent: FunctionComponent<VisualizationOptions<LibrosaMatr
         setCursorX(info.x); setCursorY(info.y); setCursorInfo(info);
     }, [dataSlices, verticalOffset, verticalZoom, viewRange]);
     const configurationContent = <LibrosaConfiguration module={module} moduleState={moduleState} />;
-    const monitorContent = <div className="default-layout"><div>{renderInfo}</div>{cursorInfo ? <><div>{cursorInfo.fromIndex}–{cursorInfo.toIndex} samples</div><div>Bin {cursorInfo.fromBin}–{cursorInfo.toBin}</div><div>{cursorInfo.value.toFixed(3)} {module.unit}</div></> : null}</div>;
+    const monitorContent = <div className="default-layout"><div>{formatCacheInfo(cacheInfo)}</div><div>{renderInfo}</div>{cursorInfo ? <><div>{cursorInfo.fromIndex}–{cursorInfo.toIndex} samples</div><div>Bin {cursorInfo.fromBin}–{cursorInfo.toBin}</div><div>{cursorInfo.value.toFixed(3)} {module.unit}</div></> : null}</div>;
     return <ModuleUsingCanvas {...props} {...{ calculating, defaultVerticalOffset, verticalOffset, setVerticalOffset, defaultVerticalZoom, verticalZoom, setVerticalZoom, cursorX, cursorY, onCursor, paint, paintVerticalRuler, paintHorizontalRuler, configurationContent, monitorContent }} />;
 };
 

@@ -1,4 +1,4 @@
-import { AudioAnalysisAlgorithm, AudioAnalysisResult } from "../../../../src/web/proxies/VSCodeAudioEditor.types";
+import { AudioAnalysisAlgorithm, AudioAnalysisCacheInfo, AudioAnalysisResult } from "../../../../src/web/proxies/VSCodeAudioEditor.types";
 import { AudioMarker, IAudioToolkitModuleUsingMarker } from "../../components/ModuleUsingMarker";
 import AudioEditor from "../../core/AudioEditor";
 import { AudioToolkitModuleState } from "../../core/AudioToolkitModule";
@@ -18,15 +18,18 @@ export default abstract class LibrosaMarkerModule<State extends LibrosaMarkerSta
     public readonly Component = LibrosaMarkerComponent;
     public onStateChange: ((newState: State) => unknown) | undefined;
     public onCalculating: ((state: boolean | [number, string]) => unknown) | undefined;
+    public onCacheInfo: ((info: AudioAnalysisCacheInfo | undefined) => unknown) | undefined;
     public state: State;
     protected calculationId = 0;
     protected _isCalculating: boolean | [number, string] = false;
+    protected _cacheInfo: AudioAnalysisCacheInfo | undefined;
 
     protected constructor(public readonly audioEditor: AudioEditor, initialState: State) {
         this.state = initialState;
     }
 
     get isCalculating() { return this._isCalculating; }
+    get cacheInfo() { return this._cacheInfo; }
     get sharableData() { return Promise.resolve({ state: this.state }); }
     getState() { return this.state; }
 
@@ -35,30 +38,32 @@ export default abstract class LibrosaMarkerModule<State extends LibrosaMarkerSta
         return Object.fromEntries(keys.map(key => [key, (state as unknown as Record<string, unknown>)[key]]));
     }
 
-    setState(newState: State) {
+    setState(newState: State, forceRefresh = false) {
         const keys = Object.keys((this.constructor as typeof LibrosaMarkerModule).DEFAULT_ANALYSIS_STATE);
         const previous = this.state as unknown as Record<string, unknown>;
         const next = newState as unknown as Record<string, unknown>;
-        const shouldCalculate = !newState.data || keys.some(key => next[key] !== previous[key]);
+        const shouldCalculate = forceRefresh || !newState.data || keys.some(key => next[key] !== previous[key]);
         const normalizedState = newState.color !== this.state.color && newState.data
             ? { ...newState, data: newState.data.map(marker => ({ ...marker, color: newState.color })) }
             : newState;
         this.state = normalizedState;
         this.onStateChange?.(normalizedState);
-        if (shouldCalculate) void this.calculate();
+        if (shouldCalculate) void this.calculate(forceRefresh);
     }
 
     protected abstract get algorithm(): AudioAnalysisAlgorithm;
     protected abstract createMarkers(result: AudioAnalysisResult): AudioMarker[];
     abstract getOptionsMetadata(): Record<string, [string, ...unknown[]]>;
 
-    async calculate() {
+    async calculate(forceRefresh = false) {
         const calculationId = ++this.calculationId;
-        this.setCalculating([5, "Starting librosa"]);
+        this.setCalculating([5, "Checking analysis cache"]);
         try {
             const options = this.getAnalysisState() as Record<string, string | number | boolean | null>;
-            const result = await this.audioEditor.analyze({ algorithm: this.algorithm, options });
+            const result = await this.audioEditor.analyze({ algorithm: this.algorithm, options, cachePolicy: forceRefresh ? "refresh" : "use" });
             if (calculationId !== this.calculationId) return;
+            this._cacheInfo = result.cache;
+            this.onCacheInfo?.(result.cache);
             this.setCalculating([90, "Updating markers"]);
             const data = this.createMarkers(result);
             this.state = { ...this.state, data };
