@@ -1,6 +1,7 @@
 import { AudioAnalysisAlgorithm, AudioAnalysisCacheInfo, AudioAnalysisResult } from "../../../../src/web/proxies/VSCodeAudioEditor.types";
 import AudioEditor from "../../core/AudioEditor";
 import { AudioToolkitModule, AudioToolkitModuleState } from "../../core/AudioToolkitModule";
+import { formatAnalysisError } from "./LibrosaCacheInfo";
 
 export interface LibrosaVisualizationState extends AudioToolkitModuleState {
     color: string;
@@ -66,7 +67,7 @@ export default abstract class LibrosaAnalysisModule<State extends LibrosaVisuali
             this.setCalculating(false);
         } catch (error) {
             if (calculationId !== this.calculationId) return;
-            this.setCalculating([-1, (error as Error).message]);
+            this.setCalculating([-1, formatAnalysisError(error)]);
         }
     }
 

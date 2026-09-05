@@ -3,6 +3,7 @@ import { AudioMarker, IAudioToolkitModuleUsingMarker } from "../../components/Mo
 import AudioEditor from "../../core/AudioEditor";
 import { AudioToolkitModuleState } from "../../core/AudioToolkitModule";
 import LibrosaMarkerComponent from "./LibrosaMarkerComponent";
+import { formatAnalysisError } from "./LibrosaCacheInfo";
 
 export interface LibrosaMarkerState extends AudioToolkitModuleState {
     color: string;
@@ -71,7 +72,7 @@ export default abstract class LibrosaMarkerModule<State extends LibrosaMarkerSta
             this.setCalculating(false);
         } catch (error) {
             if (calculationId !== this.calculationId) return;
-            this.setCalculating([-1, (error as Error).message]);
+            this.setCalculating([-1, formatAnalysisError(error)]);
         }
     }
 

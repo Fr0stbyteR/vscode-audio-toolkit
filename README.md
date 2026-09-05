@@ -22,7 +22,7 @@ The waveform and spectrogram continue to work without Python. The librosa module
 python -m pip install -r requirements-librosa.txt
 ```
 
-If Python is not on `PATH`, set `audioToolkit.pythonPath` to the full path of the Python executable. Librosa modules are desktop-only; VS Code for the Web displays a clear unavailable-backend error.
+The desktop extension first checks trusted workspace folders for `.venv-librosa` and `.venv`, then tries system Python launchers. If Python is elsewhere, set `audioToolkit.pythonPath` to its full executable path. Librosa modules are desktop-only; VS Code for the Web displays a clear unavailable-backend error.
 
 Analysis results are compressed and cached automatically in VS Code extension storage. The cache key includes the audio file path, size, modification time, algorithm options, and analysis-engine fingerprint, so changing the source, settings, or engine triggers a new analysis. Use **Reanalyze** in a module to bypass an existing entry, or run **Audio Toolkit: Clear Analysis Cache** from the Command Palette. Cache status is shown in each librosa module.
 

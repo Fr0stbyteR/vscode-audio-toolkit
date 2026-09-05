@@ -200,23 +200,55 @@ export default class LibrosaAnalysisService implements AudioAnalysisService {
 
     private async runUsingPython(audioPath: string, request: AudioAnalysisRequest) {
         const configured = vscode.workspace.getConfiguration("audioToolkit").get<string>("pythonPath", "").trim();
-        const commands: PythonCommand[] = configured
-            ? [{ executable: configured, args: [] }]
-            : process.platform === "win32"
-                ? [{ executable: "py", args: ["-3"] }, { executable: "python", args: [] }]
-                : [{ executable: "python3", args: [] }, { executable: "python", args: [] }];
+        const commands = configured ? [{ executable: configured, args: [] }] : await this.getPythonCommands();
         let lastError: Error | undefined;
+        let dependencyError: Error | undefined;
         for (const command of commands) {
             try {
                 return await this.run(command, audioPath, request);
             } catch (error) {
                 lastError = error as Error;
+                if (/Librosa backend is unavailable/i.test(lastError.message)) {
+                    dependencyError ??= lastError;
+                }
                 if (configured || !/ENOENT|not found|Librosa backend is unavailable/i.test(lastError.message)) {
                     break;
                 }
             }
         }
-        throw lastError ?? new Error("No Python 3 interpreter was found.");
+        throw dependencyError ?? lastError ?? new Error("No Python 3 interpreter was found. Configure audioToolkit.pythonPath or create a .venv in the workspace.");
+    }
+
+    private async getPythonCommands(): Promise<PythonCommand[]> {
+        const commands: PythonCommand[] = [];
+        if (vscode.workspace.isTrusted) {
+            const relativeExecutables = process.platform === "win32"
+                ? [[".venv-librosa", "Scripts", "python.exe"], [".venv", "Scripts", "python.exe"]]
+                : [[".venv-librosa", "bin", "python"], [".venv", "bin", "python"]];
+            for (const folder of vscode.workspace.workspaceFolders ?? []) {
+                for (const segments of relativeExecutables) {
+                    const executable = vscode.Uri.joinPath(folder.uri, ...segments).fsPath;
+                    try {
+                        await fs.access(executable);
+                        commands.push({ executable, args: [] });
+                    } catch {
+                        // This workspace does not use this virtual-environment convention.
+                    }
+                }
+            }
+        }
+        commands.push(...(process.platform === "win32"
+            ? [{ executable: "py", args: ["-3"] }, { executable: "python3", args: [] }, { executable: "python", args: [] }]
+            : [{ executable: "python3", args: [] }, { executable: "python", args: [] }]));
+        const seen = new Set<string>();
+        return commands.filter(command => {
+            const key = `${process.platform === "win32" ? command.executable.toLowerCase() : command.executable}\0${command.args.join("\0")}`;
+            if (seen.has(key)) {
+                return false;
+            }
+            seen.add(key);
+            return true;
+        });
     }
 
     private run(command: PythonCommand, audioPath: string, request: AudioAnalysisRequest): Promise<AudioAnalysisResult> {
