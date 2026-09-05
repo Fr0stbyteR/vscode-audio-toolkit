@@ -26,8 +26,8 @@ export interface ModuleUsingMarkerProps extends VisualizationOptions<IAudioToolk
     markerData: AudioMarker[];
     calculating?: boolean | [number, string];
     backgroundOpacity?: number;
-    paintBackground?: (canvasRef: React.RefObject<HTMLCanvasElement>) => any;
-    paintVerticalRuler: (canvasRef: React.RefObject<HTMLCanvasElement>) => any;
+    paintBackground?: (canvasRef: React.RefObject<HTMLCanvasElement>) => void | Promise<void>;
+    paintVerticalRuler: (canvasRef: React.RefObject<HTMLCanvasElement>) => void | Promise<void>;
     repaintId?: any;
     configurationContent?: JSX.Element;
     configurationContentChildren?: JSX.Element;
@@ -53,8 +53,12 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
     const backgroundCanvasRef = useRef<HTMLCanvasElement>(null);
     const canvasVerticalRulerRef = useRef<HTMLCanvasElement>(null);
     const divMainRef = useRef<HTMLDivElement>(null);
-    useEffect(() => paintBackground?.(backgroundCanvasRef), [paintBackground, rerenderId, repaintId]);
-    useEffect(() => paintVerticalRuler(canvasVerticalRulerRef), [paintVerticalRuler, rerenderId, repaintId]);
+    useEffect(() => {
+        if (paintBackground) void Promise.resolve().then(() => paintBackground(backgroundCanvasRef)).catch(error => console.error("Marker background paint failed.", error));
+    }, [paintBackground, rerenderId, repaintId]);
+    useEffect(() => {
+        void Promise.resolve().then(() => paintVerticalRuler(canvasVerticalRulerRef)).catch(error => console.error("Marker ruler paint failed.", error));
+    }, [paintVerticalRuler, rerenderId, repaintId]);
     const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
         if (!e.deltaX && !e.deltaY) return;
         let divMainFlexContainer = e.currentTarget.parentElement;

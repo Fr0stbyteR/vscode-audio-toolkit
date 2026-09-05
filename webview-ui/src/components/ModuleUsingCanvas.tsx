@@ -18,10 +18,10 @@ export interface ModuleUsingCanvasProps extends VisualizationOptions<AudioToolki
     onCursor?: (x: number, y: number, width: number, height: number) => any;
     showChannelEnableOverlay?: boolean;
     backgroundOpacity?: number;
-    paint: (canvasRef: React.RefObject<HTMLCanvasElement>) => any;
-    paintBackground?: (canvasRef: React.RefObject<HTMLCanvasElement>) => any;
-    paintVerticalRuler: (canvasRef: React.RefObject<HTMLCanvasElement>) => any;
-    paintHorizontalRuler: (canvasRef: React.RefObject<HTMLCanvasElement>) => any;
+    paint: (canvasRef: React.RefObject<HTMLCanvasElement>) => void | Promise<void>;
+    paintBackground?: (canvasRef: React.RefObject<HTMLCanvasElement>) => void | Promise<void>;
+    paintVerticalRuler: (canvasRef: React.RefObject<HTMLCanvasElement>) => void | Promise<void>;
+    paintHorizontalRuler: (canvasRef: React.RefObject<HTMLCanvasElement>) => void | Promise<void>;
     repaintId?: any;
     configurationContent?: JSX.Element;
     monitorContent?: JSX.Element;
@@ -64,10 +64,18 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
             document.removeEventListener("mousemove", handleDocumentMouseMove);
         };
     }, [handleDocumentMouseMove, handleWindowKeyDown]);
-    useEffect(() => paint(canvasRef), [paint, rerenderId, repaintId]);
-    useEffect(() => paintBackground?.(backgroundCanvasRef), [paintBackground, rerenderId, repaintId]);
-    useEffect(() => paintVerticalRuler(canvasVerticalRulerRef), [paintVerticalRuler, rerenderId, repaintId]);
-    useEffect(() => paintHorizontalRuler(canvasHorizontalRulerRef), [paintHorizontalRuler, rerenderId, repaintId]);
+    useEffect(() => {
+        void Promise.resolve().then(() => paint(canvasRef)).catch(error => console.error("Canvas paint failed.", error));
+    }, [paint, rerenderId, repaintId]);
+    useEffect(() => {
+        if (paintBackground) void Promise.resolve().then(() => paintBackground(backgroundCanvasRef)).catch(error => console.error("Canvas background paint failed.", error));
+    }, [paintBackground, rerenderId, repaintId]);
+    useEffect(() => {
+        void Promise.resolve().then(() => paintVerticalRuler(canvasVerticalRulerRef)).catch(error => console.error("Canvas vertical ruler paint failed.", error));
+    }, [paintVerticalRuler, rerenderId, repaintId]);
+    useEffect(() => {
+        void Promise.resolve().then(() => paintHorizontalRuler(canvasHorizontalRulerRef)).catch(error => console.error("Canvas horizontal ruler paint failed.", error));
+    }, [paintHorizontalRuler, rerenderId, repaintId]);
     const handleCanvasMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         (document.activeElement as HTMLElement)?.blur();
         e.stopPropagation();
