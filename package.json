@@ -10,13 +10,13 @@
     "Other"
   ],
   "extensionKind": [
-    "ui",
-    "workspace"
+    "workspace",
+    "ui"
   ],
   "publisher": "shren",
   "activationEvents": [],
   "browser": "./dist/web/extension.js",
-  "main": "./dist/web/extension.js",
+  "main": "./dist/node/extension.js",
   "contributes": {
     "configuration": {
       "title": "Audio Toolkit",
@@ -97,6 +97,13 @@
           "type": "integer",
           "default": 16,
           "description": "Measure division information used when audioUnit == measure"
+        },
+        "audioToolkit.pythonPath": {
+          "title": "Python Executable",
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Python executable used by the desktop librosa analysis backend. Leave empty to auto-detect Python."
         }
       }
     },
@@ -141,15 +148,16 @@
     "test": "vscode-test-web ./examples --browserType=chromium --extensionDevelopmentPath=. --extensionTestsPath=dist/web/test/suite/extensionTests.js",
     "pretest": "npm run compile-web",
     "vscode:prepublish": "npm run package-web",
-    "compile-web": "npm run check-types && npm run lint && npm run build:webview && node esbuild.js",
+    "compile-web": "npm run check-types && npm run lint && npm run lint:webview && npm run build:webview && node esbuild.js",
     "watch-web": "npm-run-all -p watch-web:*",
     "watch-web:esbuild": "node esbuild.js --watch",
     "watch-web:tsc": "tsc --noEmit --watch --project tsconfig.json",
     "watch-web:webview-vite": "cd webview-ui && npm run watch",
     "watch-web:webview-tsc": "cd webview-ui && tsc --noEmit --watch --project tsconfig.json",
-    "package-web": "npm run check-types && npm run lint && npm run build:webview && node esbuild.js --production",
+    "package-web": "npm run check-types && npm run lint && npm run lint:webview && npm run build:webview && node esbuild.js --production",
     "check-types": "tsc --noEmit --project tsconfig.json && cd webview-ui && tsc --noEmit --project tsconfig.json",
     "lint": "eslint src --ext ts",
+    "lint:webview": "cd webview-ui && npm run lint",
     "run-in-browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. ./examples",
     "start:webview": "cd webview-ui && npm run start",
     "build:webview": "cd webview-ui && npm run build"

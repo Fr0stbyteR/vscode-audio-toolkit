@@ -2,6 +2,9 @@ out
 dist
 node_modules
 .vscode-test-web/
+.venv-librosa/
+__pycache__/
+*.py[cod]
 *.vsix
 examples/
 webview-ui/src/modules/score

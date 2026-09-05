@@ -60,11 +60,11 @@ class Marker implements IAudioToolkitModuleUsingMarker<MarkerState> {
                 return;
             }
             const [f, t] = m.position;
-            if (t <= to && f >= from) indexes.push(i);
+            if (f <= to && t >= from) indexes.push(i);
         });
         return indexes.sort((a, b) => a - b);
     }
-    addMarker(position: number | [number, number], name = "", color = "FF0000") {
+    addMarker(position: number | [number, number], name = "", color = "#FF0000") {
         const data = this.state.data.slice();
         data.push({ position, name, color });
         this.setState({ ...this.state, data });

@@ -1,10 +1,10 @@
-import { IVSCodeAudioEditorWebview, IVSCodeAudioEditorHost } from "../../src/web/proxies/VSCodeAudioEditor.types";
+import { AudioAnalysisRequest, IVSCodeAudioEditorWebview, IVSCodeAudioEditorHost } from "../../src/web/proxies/VSCodeAudioEditor.types";
 import AudioEditor, { AudioEditorConfiguration } from "./core/AudioEditor";
 import { AudioToolkitModulesState } from "./core/AudioToolkitModule";
 import VSCodeWebviewProxy from "./VSCodeWebviewProxy";
 
 class AudioEditorWebview extends VSCodeWebviewProxy<AudioToolkitModulesState, IVSCodeAudioEditorWebview, IVSCodeAudioEditorHost> {
-    static fnNames: (keyof IVSCodeAudioEditorHost)[] = ["ready", "makeEditModulesState", "makeEditModulesState"];
+    static fnNames: (keyof IVSCodeAudioEditorHost)[] = ["ready", "makeEditModulesState", "runAnalysis"];
     public audioEditor: AudioEditor | undefined;
     private _initialModuleState: AudioToolkitModulesState | null | undefined;
     constructor(
@@ -25,12 +25,17 @@ class AudioEditorWebview extends VSCodeWebviewProxy<AudioToolkitModulesState, IV
             fftWindowFunction: `${fftWindowFunction.slice(0, 1).toLowerCase()}${fftWindowFunction.slice(1).replaceAll(/[-\s]/g, "")}`
         });
     }
-    updateModulesStateFromHost(modulesState: AudioToolkitModulesState | null) {
+    async updateModulesStateFromHost(modulesState: AudioToolkitModulesState | null) {
         if (!this.audioEditor) return;
         this.audioEditor.makingEdit = false;
-        this.audioEditor.setModulesState(modulesState ?? this._initialModuleState ?? AudioEditor.DEFAULT_MODULES_STATE);
-        this.audioEditor.makingEdit = true;
+        try {
+            await this.audioEditor.setModulesState(modulesState ?? this._initialModuleState ?? AudioEditor.DEFAULT_MODULES_STATE);
+        } finally {
+            this.audioEditor.makingEdit = true;
+        }
     }
+
+    declare runAnalysis: (request: AudioAnalysisRequest) => ReturnType<IVSCodeAudioEditorHost["runAnalysis"]>;
     playOrStop() {
         const { audioEditor } = this;
         if (!audioEditor) return;

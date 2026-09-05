@@ -17,3 +17,5 @@ esbuild.js
 
 examples/**
 webview-ui/**
+.venv-librosa/**
+python/test_*.py

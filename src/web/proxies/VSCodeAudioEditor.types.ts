@@ -21,9 +21,26 @@ export interface AudioToolkitEdit {
     modulesState: AudioToolkitModulesState;
 }
 
+export type AudioAnalysisAlgorithm = "beats" | "onsets" | "nonSilent";
+
+export interface AudioAnalysisRequest {
+    algorithm: AudioAnalysisAlgorithm;
+    options?: Record<string, string | number | boolean | null>;
+}
+
+export interface AudioAnalysisResult {
+    algorithm: AudioAnalysisAlgorithm;
+    sampleRate: number;
+    duration: number;
+    values?: number[];
+    intervals?: [number, number][];
+    metadata?: Record<string, string | number | boolean | null>;
+}
+
 export interface IVSCodeAudioEditorHost {
     ready(): void;
     makeEditModulesState(edit: AudioToolkitEdit): void;
+    runAnalysis(request: AudioAnalysisRequest): Promise<AudioAnalysisResult>;
 }
 
 export interface IVSCodeAudioEditorWebview {

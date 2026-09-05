@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { getNonce, getUri, Disposable, WebviewCollection, disposeAll } from "../utils";
 import VSCodeHostProxy from "../proxies/VSCodeHostProxy";
 import { AudioEditorConfiguration, AudioToolkitEdit, IVSCodeAudioEditorHost, IVSCodeAudioEditorWebview, AudioToolkitModulesState } from "../proxies/VSCodeAudioEditor.types";
+import { AudioAnalysisService } from "../analysis/AudioAnalysisService";
 
 interface AudioDocumentDelegate {
 	getFileData(): Promise<Uint8Array>;
@@ -10,15 +11,16 @@ interface AudioDocumentDelegate {
 class AudioDocument extends Disposable implements vscode.CustomDocument {
 	static async create(uri: vscode.Uri, backupId: string | undefined) {
 		// If we have a backup, read that. Otherwise read the resource from the workspace
-		const audioFileUri = typeof backupId === "string" ? vscode.Uri.parse(backupId) : uri;
-		const editable = vscode.workspace.fs.isWritableFileSystem(uri.scheme);
-		const isInWorkspace = uri.fsPath !== vscode.workspace.asRelativePath(uri);
-		const jsonUri = isInWorkspace ? vscode.Uri.file(uri.fsPath.replace(/\.[^.]+$/, ".json")) : undefined;
-		const audioData = audioFileUri.scheme === "untitled" ? new Uint8Array() : new Uint8Array(await vscode.workspace.fs.readFile(audioFileUri));
+		const audioFileUri = uri;
+		const isInWorkspace = vscode.workspace.getWorkspaceFolder(uri) !== undefined;
+		const jsonUri = isInWorkspace ? uri.with({ path: uri.path.replace(/\.[^.]+$/, ".json") }) : undefined;
+		const shouldReadAudio = audioFileUri.scheme !== "untitled" && !isInWorkspace;
+		const audioData = shouldReadAudio ? new Uint8Array(await vscode.workspace.fs.readFile(audioFileUri)) : new Uint8Array();
 		let modulesState: AudioToolkitModulesState | null = null;
-		if (jsonUri) {
+		const stateUri = typeof backupId === "string" ? vscode.Uri.parse(backupId) : jsonUri;
+		if (stateUri) {
 			try {
-				const buffer = await vscode.workspace.fs.readFile(jsonUri);
+				const buffer = await vscode.workspace.fs.readFile(stateUri);
 				const str = Buffer.from(buffer).toString("utf-8");
 				modulesState = JSON.parse(str);
 			} catch (error) {
@@ -89,6 +91,7 @@ class AudioDocument extends Disposable implements vscode.CustomDocument {
 	 * This fires an event to notify VS Code that the document has been edited.
 	 */
 	makeEdit(edit: AudioToolkitEdit) {
+		const previousState = this._modulesState;
 		this._edits.push(edit);
 		this._modulesState = edit.modulesState;
 
@@ -96,7 +99,7 @@ class AudioDocument extends Disposable implements vscode.CustomDocument {
 			label: "modules_state",
 			undo: async () => {
 				this._edits.pop();
-				this._modulesState = this._edits[this._edits.length - 1]?.modulesState || null;
+				this._modulesState = previousState;
 				this._onDidChangeDocument.fire({
 					content: this._modulesState,
 					edits: this._edits,
@@ -155,7 +158,7 @@ class AudioDocument extends Disposable implements vscode.CustomDocument {
 			}
 		}
 		this._modulesState = modulesState;
-		this._edits = this._savedEdits;
+		this._edits = Array.from(this._savedEdits);
 		this._onDidChangeDocument.fire({
 			content: modulesState,
 			edits: this._edits,
@@ -185,6 +188,7 @@ class AudioDocument extends Disposable implements vscode.CustomDocument {
 
 class AudioEditorHost extends VSCodeHostProxy<AudioDocument, IVSCodeAudioEditorHost, IVSCodeAudioEditorWebview> {
 	static fnNames: (keyof IVSCodeAudioEditorWebview)[] = ["init", "pauseOrResume", "playOrStop", "updateConfigurationFromHost", "updateModulesStateFromHost"];
+	static requestFnNames: (keyof IVSCodeAudioEditorHost)[] = ["ready", "makeEditModulesState", "runAnalysis"];
 	constructor(
 		private provider: MainEditorProvider,
 		private statusBarItem: vscode.StatusBarItem | null,
@@ -198,7 +202,7 @@ class AudioEditorHost extends VSCodeHostProxy<AudioDocument, IVSCodeAudioEditorH
 		const { document, webviewPanel, statusBarItem, provider } = this;
 		const editable = vscode.workspace.fs.isWritableFileSystem(document.uri.scheme);
 
-		const isInWorkspace = document.uri.fsPath !== vscode.workspace.asRelativePath(document.uri);
+		const isInWorkspace = vscode.workspace.getWorkspaceFolder(document.uri) !== undefined;
 
 		const configuration = vscode.workspace.getConfiguration("audioToolkit") as unknown as AudioEditorConfiguration;
 		const initMessage = {
@@ -220,11 +224,17 @@ class AudioEditorHost extends VSCodeHostProxy<AudioDocument, IVSCodeAudioEditorH
 	makeEditModulesState(edit: AudioToolkitEdit) {
 		this.document.makeEdit(edit);
 	}
+	runAnalysis(request: Parameters<NonNullable<AudioAnalysisService["analyze"]>>[1]) {
+		return this.provider.runAnalysis(this.document.uri, request);
+	}
 }
 
 class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  {
 	public static setStatusBarItem(item: vscode.StatusBarItem) {
 		this.statusBarItem = item;
+	}
+	public static setAnalysisService(service: AudioAnalysisService | undefined) {
+		this.analysisService = service;
 	}
 	public static getActiveWebviewPanel(provider: MainEditorProvider) {
 		for (const uri of provider.documentUris) {
@@ -256,6 +266,7 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
 	private static readonly viewType = "audioToolkit.editor";
 
 	public static statusBarItem: vscode.StatusBarItem | null = null;
+	public static analysisService: AudioAnalysisService | undefined;
 
 	/**
 	 * Tracks all known webviews
@@ -269,6 +280,12 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
 		private readonly context: vscode.ExtensionContext
 	) {
     }
+	public runAnalysis(uri: vscode.Uri, request: Parameters<AudioAnalysisService["analyze"]>[1]) {
+		if (!MainEditorProvider.analysisService) {
+			throw new Error("Native audio analysis is only available in desktop VS Code.");
+		}
+		return MainEditorProvider.analysisService.analyze(uri, request);
+	}
 	private readonly _onDidChangeCustomDocument = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<AudioDocument>>();
 	public readonly onDidChangeCustomDocument = this._onDidChangeCustomDocument.event;
 	

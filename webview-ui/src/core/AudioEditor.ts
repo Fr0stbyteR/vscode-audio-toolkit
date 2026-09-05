@@ -6,6 +6,7 @@ import { AudioEditorConfiguration, AudioUnit } from "../../../src/web/proxies/VS
 import { AudioToolkitModule, AudioToolkitModuleState, FrequencyDomainChannelData, AudioToolkitModulesState } from "./AudioToolkitModule";
 import Spectrogram from "../modules/spectrogram/Spectrogram";
 import Waveform from "../modules/waveform/Waveform";
+import { AudioAnalysisRequest, AudioAnalysisResult } from "../../../src/web/proxies/VSCodeAudioEditor.types";
 
 export type {
     AudioEditorConfiguration,
@@ -70,19 +71,14 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
             Modules.forEach(Module => this.MODULES_MAP[Module.MODULE_ID] = Module);
         }
     }
-    static async fromData(data: ArrayBuffer, context: AudioContext, configuration: Partial<AudioEditorConfiguration> = {}, modulesState?: AudioToolkitModulesState, uri?: string, workspaceUri = location.href) {
+    static async fromData(data: ArrayBuffer, context: AudioContext, configuration: Partial<AudioEditorConfiguration> = {}, modulesState?: AudioToolkitModulesState, uri?: string, workspaceUri = location.href, analyze?: (request: AudioAnalysisRequest) => Promise<AudioAnalysisResult>) {
         if (!Object.keys(this.MODULES_MAP).length) {
             await this.loadModulesFromJson("./modules.json", import.meta.url);
-            try {
-                if (uri) await this.loadModulesFromJson("./modules.json", uri);
-            } catch (error) {
-                console.warn(error);
-            }
         }
         const audioBuffer = await context.decodeAudioData(data);
         const operableAudioBuffer: OperableAudioBuffer = Object.setPrototypeOf(audioBuffer, OperableAudioBuffer.prototype);
         const timeDomainData = operableAudioBuffer.toArray(true);
-        const audioEditor = new AudioEditor(operableAudioBuffer, timeDomainData, context, { ...this.DEFAULT_CONFIGURATION, ...configuration }, uri, workspaceUri);
+        const audioEditor = new AudioEditor(operableAudioBuffer, timeDomainData, context, { ...this.DEFAULT_CONFIGURATION, ...configuration }, uri, workspaceUri, analyze);
         await audioEditor.initPlayer();
         const state = modulesState ?? (audioBuffer.duration > 60 ? this.DEFAULT_MODULES_STATE.slice(0, 2) : this.DEFAULT_MODULES_STATE);
         await audioEditor.initModules(state);
@@ -151,13 +147,18 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         private _context: AudioContext,
         private _configuration: AudioEditorConfiguration,
         private _uri: string | undefined,
-        private _workspaceUri: string | undefined
+        private _workspaceUri: string | undefined,
+        private readonly _analyze?: (request: AudioAnalysisRequest) => Promise<AudioAnalysisResult>
     ) {
         super();
         this.setState({
             viewRange: [0, this.length],
             enabledChannels: new Array(this.numberOfChannels).fill(true)
         });
+    }
+    analyze(request: AudioAnalysisRequest) {
+        if (!this._analyze) return Promise.reject(new Error("No audio analysis backend is available."));
+        return this._analyze(request);
     }
     private async initPlayer() {
         this._player = await AudioPlayer.init(this);
@@ -183,9 +184,9 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         this._modulesState = [...this._modulesState];
         for (let i = 0; i < modulesState.length; i++) {
             const { state, visible, moduleId, moduleName } = modulesState[i];
-            if (this._modulesInstance[i].moduleId !== moduleId) {
+            if (this._modulesInstance[i]?.moduleId !== moduleId) {
                 const moduleIndexFound = this._modulesInstance.findIndex((module, idx) => idx > i && module.moduleId === moduleId);
-                if (moduleIndexFound > 0) {
+                if (moduleIndexFound >= 0) {
                     this.moveModule(moduleIndexFound, i);
                 } else {
                     await this.addModule(moduleId, state, moduleName, visible);
@@ -195,9 +196,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
             this._modulesState[i] = { ...this.modulesState[i], visible, moduleName };
             this._modulesInstance[i].setState(state);
         }
-        for (let i = this._modulesState.length; i < modulesState.length; i++) {
-            this.removeModule(i);
-        }
+        while (this._modulesState.length > modulesState.length) this.removeModule(this._modulesState.length - 1);
         this.emit("modulesState", this._modulesState);
     }
     setModuleState(index: number, state: AudioToolkitModuleState) {

@@ -27,7 +27,7 @@ const App: FunctionComponent = () => {
         }
         if (!arrayBuffer) throw new Error(`Cannot resolve data from ${uri} or data input`);
         const audioContext = new AudioContext({ latencyHint: 0.0001 });
-        const audioEditor = await AudioEditor.fromData(arrayBuffer, audioContext, configuration, modulesState ?? undefined, uri, workspaceUri);
+        const audioEditor = await AudioEditor.fromData(arrayBuffer, audioContext, configuration, modulesState ?? undefined, uri, workspaceUri, request => webview.runAnalysis(request));
         webview.audioEditor = audioEditor;
         setAudioEditor!(audioEditor);
         audioEditor.on("modulesState", ((state) => {

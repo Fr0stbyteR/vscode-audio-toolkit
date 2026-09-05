@@ -45,7 +45,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
         configuring, monitoring, rerenderId, repaintId
     } = props;
     const audioEditor = useContext(AudioEditorContext)!;
-    const randomColor = `#${Math.floor((Math.random() * (16 ** 6))).toString(16)}`;
+    const randomColor = useRef(`#${Math.floor(Math.random() * (16 ** 6)).toString(16).padStart(6, "0")}`).current;
     const [selectedMarkers, setSelectedMarkers] = useState<number[]>([]);
     const [bulkSelRange, setBulkSelRange] = useState<[number, number] | null>(null);
     const [markerName, setMarkerName] = useState(selectedMarkers.length ? markerData[selectedMarkers[0]]?.name : `#${markerData.length + 1}`);
@@ -173,7 +173,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
         e.stopPropagation();
         e.preventDefault();
         setBulkSelRange(null);
-        if (!e.ctrlKey) setSelectedMarkers([]);
+        if (!e.ctrlKey && !e.metaKey) setSelectedMarkers([]);
         const [viewStart, viewEnd] = viewRange;
         const viewLength = viewEnd - viewStart;
         const origin = { x: e.clientX, y: e.clientY };
@@ -195,7 +195,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
                 const range = [playhead, to].sort((a, b) => a - b) as [number, number];
                 setBulkSelRange(range);
                 const markersInRange = module.getMarkersFromRange(range);
-                if (e.ctrlKey) {
+                if (e.ctrlKey || e.metaKey) {
                     const set = new Set(selectedMarkersSet);
                     markersInRange.forEach((i) => {
                         if (set.has(i)) set.delete(i);
@@ -225,6 +225,8 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
     }, []);
 
     const handleWindowKeyDown = useCallback((e: KeyboardEvent) => {
+        const target = e.target as HTMLElement | null;
+        if (target?.matches("input, textarea, [contenteditable=true]")) return;
         if (selectedMarkers.length && (e.key === "Delete" || e.key === "Backspace")) {
             module.deleteMarker(...selectedMarkers);
             e.stopPropagation();
@@ -232,8 +234,11 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
     }, [module, selectedMarkers]);
     useEffect(() => {
         setMarkerName(selectedMarkers.length ? markerData[selectedMarkers[0]]?.name : `#${markerData.length + 1}`);
-        setColor(color => selectedMarkers.length ? markerData[selectedMarkers[0]]?.color : markerData.length ? markerData[markerData.length - 1].color : color);
+        setColor(color => selectedMarkers.length ? markerData[selectedMarkers[0]]?.color ?? color : markerData.length ? markerData[markerData.length - 1].color : color);
     }, [markerData, selectedMarkers]);
+    useEffect(() => {
+        setSelectedMarkers(current => current.filter(index => index < markerData.length));
+    }, [markerData.length]);
     useEffect(() => {
         window.addEventListener("keydown", handleWindowKeyDown);
         return () => {
@@ -345,8 +350,9 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
         const handleMarkerMoveMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
             e.stopPropagation();
             e.preventDefault();
-            if (e.ctrlKey) setSelectedMarkers(sm => [...sm, i]);
-            else setSelectedMarkers([i]);
+            if (e.ctrlKey || e.metaKey) {
+                setSelectedMarkers(current => current.includes(i) ? current.filter(index => index !== i) : [...current, i]);
+            } else setSelectedMarkers([i]);
             const { currentTarget } = e;
             const rect = currentTarget.parentElement!.getBoundingClientRect();
             currentTarget.style.cursor = "grabbing";
@@ -431,7 +437,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
                                 <div key={i} className="markers-row">
                                     {
                                         row.map(({ name, color, start, end, left, width, selected, handleMarkerMoveMouseDown, handleMarkerResizeStartMouseDown, handleMarkerResizeEndMouseDown, handleMarkerDoubleClick }, j) => (
-                                            <div key={j} className={`marker${start === end ? "" : " range"}${selected ? " selected" : ""}`} style={{ left, width, borderColor: color }} onMouseDown={handleMarkerMoveMouseDown} onDoubleClick={handleMarkerDoubleClick}>
+                                            <div key={j} role="button" aria-label={name || `Marker ${j + 1}`} aria-pressed={selected} className={`marker${start === end ? "" : " range"}${selected ? " selected" : ""}`} style={{ left, width, borderColor: color }} onMouseDown={handleMarkerMoveMouseDown} onDoubleClick={handleMarkerDoubleClick}>
                                                 <span>{name}</span>
                                                 {
                                                     start === end
@@ -464,7 +470,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
             }
         </div>
         <div className={`visualizer-component-configuration module-using-marker-configuration ${module.moduleId.replace(".", "-")}-configuration-container`}>
-            {configurationContent ?? <div className="default-layout">{configurationContentChildren}<MarkerConfiguration {...{ module, selectedMarkers, color, setColor, markerClassName, markerName, setMarkerName }} /></div>}
+            {configurationContent ?? <div className="default-layout">{configurationContentChildren}<MarkerConfiguration {...{ module, selectedMarkers, setSelectedMarkers, color, setColor, markerClassName, markerName, setMarkerName }} /></div>}
         </div>
         <div className="visualizer-component-monitor">{monitorContent}</div>
     </>);
@@ -473,6 +479,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
 interface MarkerConfigurationProps {
     module: IAudioToolkitModuleUsingMarker;
     selectedMarkers: number[];
+    setSelectedMarkers: React.Dispatch<React.SetStateAction<number[]>>;
     color: string;
     setColor: React.Dispatch<React.SetStateAction<string>>;
     markerClassName: string;
@@ -481,12 +488,13 @@ interface MarkerConfigurationProps {
 }
 
 const MarkerConfiguration: FunctionComponent<MarkerConfigurationProps> = (props) => {
-    const { module, selectedMarkers, color, setColor, markerClassName, markerName, setMarkerName } = props;
+    const { module, selectedMarkers, setSelectedMarkers, color, setColor, markerClassName, markerName, setMarkerName } = props;
     const [id1, id2, id3] = [useId(), useId(), useId()];
     
-    const handleClickDeleteMarker = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const handleClickDeleteMarker = useCallback(() => {
         module.deleteMarker(...selectedMarkers);
-    }, [module, selectedMarkers]);
+        setSelectedMarkers([]);
+    }, [module, selectedMarkers, setSelectedMarkers]);
     const handleInputMarkerClass: (((e: Event) => unknown) & React.FormEventHandler<HTMLInputElement>) = useCallback((e) => {
         module.setMarkerClassName((e.currentTarget as HTMLInputElement).value);
     }, [module]);
@@ -502,16 +510,20 @@ const MarkerConfiguration: FunctionComponent<MarkerConfigurationProps> = (props)
     }, [module, selectedMarkers, setMarkerName]);
 
     return (<>
+        <div className="marker-selection-summary">
+            <span>{selectedMarkers.length ? `${selectedMarkers.length} selected` : "No marker selected"}</span>
+            <span>Ctrl/Cmd-click for multi-select</span>
+        </div>
         <div>
-            <label htmlFor={id1}>Marker Class Name</label>
+            <label htmlFor={id1}>Marker track</label>
             <VSCodeTextField id={id1} placeholder="Marker Class" onInput={handleInputMarkerClass} value={markerClassName} />
         </div>
         <div>
-            <label htmlFor={id2}>Label color</label>
+            <label htmlFor={id2}>{selectedMarkers.length ? "Selected marker color" : "New marker color"}</label>
             <input id={id2} type="color" name="marker-color" value={color} onChange={handleChangeMarkerColor} />
         </div>
         <div>
-            <label htmlFor={id3}>Marker Name</label>
+            <label htmlFor={id3}>{selectedMarkers.length ? "Selected marker label" : "New marker label"}</label>
             <VSCodeTextField id={id3} placeholder="Marker Name" onInput={handleInputMarkerName} value={markerName} />
         </div>
         {

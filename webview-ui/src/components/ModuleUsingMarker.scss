@@ -128,7 +128,8 @@
                         }
 
                         &.selected {
-                            box-shadow: 0px 0px 2px 2px var(--vscode-editorWarning-foreground);
+                            background-color: var(--vscode-list-activeSelectionBackground);
+                            box-shadow: 0 0 0 2px var(--vscode-focusBorder);
                         }
 
                         & > span {
@@ -256,6 +257,29 @@
         width: calc(100% - 20px);
         padding: 0px 10px;
         overflow: auto;
+
+        & > .marker-selection-summary {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 4px;
+            color: var(--vscode-descriptionForeground);
+            background: var(--vscode-editorWidget-background);
+            font-size: 11px;
+        }
+
+        & > .analysis-actions {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
+
+            & > span {
+                color: var(--vscode-descriptionForeground);
+            }
+        }
 
         & > div {
             display: flex;

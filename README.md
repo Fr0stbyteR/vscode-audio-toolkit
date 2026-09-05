@@ -10,7 +10,17 @@ A powerful tool for visualizing and analyzing audio files.
 
 + Saving the editor's state.
 
-+ Some Essentia analyzers. 
++ Desktop analysis modules powered by librosa: beat markers, onset markers, and non-silent regions.
+
+## Desktop analysis setup
+
+The waveform and spectrogram continue to work without Python. The librosa modules require Python 3 with the packages in `requirements-librosa.txt`:
+
+```sh
+python -m pip install -r requirements-librosa.txt
+```
+
+If Python is not on `PATH`, set `audioToolkit.pythonPath` to the full path of the Python executable. Librosa modules are desktop-only; VS Code for the Web displays a clear unavailable-backend error.
 
 ## Requirements
 

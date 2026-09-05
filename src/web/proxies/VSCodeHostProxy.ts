@@ -6,6 +6,7 @@ import { MessagePortResponse, MessagePortRequest } from "./types";
 
 const Proxy = class VSCodeHostProxy {
     static fnNames: string[] = [];
+    static requestFnNames: string[] = [];
     _queuedCalls: { id: number; call: string; args: any[] }[] = [];
     constructor(
         public webviewPanel: vscode.WebviewPanel,
@@ -21,7 +22,10 @@ const Proxy = class VSCodeHostProxy {
             if (call) {
                 const r: MessagePortResponse = { id };
                 try {
-                    r.value = await (this as any)[call](...args);
+                    if (!Ctor.requestFnNames.includes(call) || typeof (this as any)[call] !== "function") {
+                        throw new Error(`Unsupported webview request: ${call}`);
+                    }
+                    r.value = await (this as any)[call](...(Array.isArray(args) ? args : []));
                 } catch (e) {
                     r.error = (e as any).toString();
                 }

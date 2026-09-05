@@ -62,20 +62,20 @@ const testBundlePlugin = {
 */
 
 async function main() {
-	const ctx = await esbuild.context({
-		entryPoints: [
-			"src/web/extension.ts",
-//			"src/web/test/suite/extensionTests.ts"
-		],
+	const shared = {
 		bundle: true,
 		format: "cjs",
 		minify: production,
 		sourcemap: !production,
 		sourcesContent: false,
-		platform: "browser",
-		outdir: "dist/web",
 		external: ["vscode"],
 		logLevel: "silent",
+	};
+	const webCtx = await esbuild.context({
+		...shared,
+		entryPoints: ["src/web/extension.ts"],
+		platform: "browser",
+		outdir: "dist/web",
 		// Node.js global to browser globalThis
 		define: {
 			global: "globalThis",
@@ -90,11 +90,18 @@ async function main() {
 			esbuildProblemMatcherPlugin, /* add to the end of plugins array */
 		],
 	});
+	const nodeCtx = await esbuild.context({
+		...shared,
+		entryPoints: ["src/node/extension.ts"],
+		platform: "node",
+		outdir: "dist/node",
+		plugins: [esbuildProblemMatcherPlugin],
+	});
 	if (watch) {
-		await ctx.watch();
+		await Promise.all([webCtx.watch(), nodeCtx.watch()]);
 	} else {
-		await ctx.rebuild();
-		await ctx.dispose();
+		await Promise.all([webCtx.rebuild(), nodeCtx.rebuild()]);
+		await Promise.all([webCtx.dispose(), nodeCtx.dispose()]);
 	}
 }
 

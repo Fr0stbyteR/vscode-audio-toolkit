@@ -11,7 +11,9 @@ const lib: LibraryOptions = {
 };
 const modulesJson: string[] = [];
 fs.readdirSync("./src/modules/").forEach((dir) => {
-    lib.entry[`modules/${dir}`] = path.join("./src/modules/", dir, "index.ts");
+    const entry = path.join("./src/modules/", dir, "index.ts");
+    if (!fs.existsSync(entry)) return;
+    lib.entry[`modules/${dir}`] = entry;
     modulesJson.push(`./modules/${dir}.js`);
 });
 fs.writeFileSync("public/modules.json", JSON.stringify(modulesJson), "utf-8");
