@@ -30,6 +30,10 @@ Use `audioToolkit.analysisCache.enabled` to disable caching and `audioToolkit.an
 
 Set `audioToolkit.matrixRenderer` to `auto`, `webgl`, or `canvas2d` to compare matrix rendering. The module monitor reports texture-upload and draw time for WebGL, or total paint time for Canvas 2D.
 
+## Development
+
+Use the **Run Desktop Extension** launch configuration when testing librosa modules. **Run Web Extension** deliberately uses the browser entry point and supports waveform/spectrogram editing, but native Python analysis is unavailable there.
+
 ## Requirements
 
 None.

@@ -6,6 +6,33 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
+			"name": "Run Desktop Extension",
+			"type": "extensionHost",
+			"request": "launch",
+			"args": [
+				"${workspaceFolder}/examples",
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--extensionDevelopmentKind=workspace"
+			],
+			"outFiles": [
+				"${workspaceFolder}/dist/node/**/*.js"
+			],
+			"preLaunchTask": "${defaultBuildTask}"
+		},
+		{
+			"name": "Run Desktop Extension (No Building)",
+			"type": "extensionHost",
+			"request": "launch",
+			"args": [
+				"${workspaceFolder}/examples",
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--extensionDevelopmentKind=workspace"
+			],
+			"outFiles": [
+				"${workspaceFolder}/dist/node/**/*.js"
+			]
+		},
+		{
 			"name": "Run Web Extension",
 			"type": "extensionHost",
 			"debugWebWorkerHost": true,

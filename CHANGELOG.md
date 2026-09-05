@@ -12,6 +12,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Added compressed, automatically invalidated librosa result caching with LRU pruning, cache status, forced reanalysis, and a clear-cache command.
 - Fixed Matrix/Vector downsampling errors and a Windows/Python 3.13 crash in librosa chroma tuning detection.
 - Fixed hidden string-based analysis errors and added trusted-workspace virtual-environment discovery.
+- Added desktop extension-host debug configurations so local development no longer launches the web-only entry point by default.
 - Removed the Essentia WebAssembly integration.
 - Improved marker selection, range intersection, colors, accessibility, and batch-edit feedback.
 - Fixed custom editor hot-exit recovery and module-state synchronization during undo/revert.

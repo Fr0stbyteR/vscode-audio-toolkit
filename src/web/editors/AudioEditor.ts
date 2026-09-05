@@ -282,7 +282,7 @@ class MainEditorProvider implements vscode.CustomEditorProvider<AudioDocument>  
     }
 	public runAnalysis(uri: vscode.Uri, request: Parameters<AudioAnalysisService["analyze"]>[1]) {
 		if (!MainEditorProvider.analysisService) {
-			throw new Error("Native audio analysis is only available in desktop VS Code.");
+			throw new Error("Native audio analysis is unavailable in the Web Extension Host. Launch the 'Run Desktop Extension' debug configuration or install the desktop extension build.");
 		}
 		return MainEditorProvider.analysisService.analyze(uri, request);
 	}
