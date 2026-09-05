@@ -14,7 +14,16 @@ export default abstract class LibrosaMatrixModule<State extends LibrosaVisualiza
     protected hasData() { return !!this._dataSlices?.length; }
     protected consumeResult(result: AudioAnalysisResult) {
         if (!result.matrix?.length || !result.matrix[0]?.length) throw new Error("Librosa returned no matrix data.");
-        const matrix = result.matrix.map(frame => Float32Array.from(frame));
+        // Convert incrementally and release the JSON rows as soon as possible. Keeping the
+        // nested number arrays alive while allocating the Float32 copy can otherwise make a
+        // several-minute Mel result briefly consume hundreds of MB in the webview.
+        const rawMatrix = result.matrix;
+        const matrix = new Array<Float32Array>(rawMatrix.length);
+        for (let i = 0; i < rawMatrix.length; i++) {
+            matrix[i] = Float32Array.from(rawMatrix[i]);
+            rawMatrix[i] = [];
+        }
+        result.matrix = undefined;
         const hopLength = Number(result.metadata?.hopLength ?? 512);
         const audioSamplesPerFrame = hopLength / result.sampleRate * this.audioEditor.sampleRate;
         this._valueRange = [Number(result.metadata?.minValue ?? 0), Number(result.metadata?.maxValue ?? 1)];

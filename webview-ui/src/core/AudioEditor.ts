@@ -54,7 +54,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         beatsPerMinute: 60,
         beatsPerMeasure: 4,
         division: 16,
-        matrixRenderer: "auto"
+        matrixRenderer: "canvas2d"
     };
     static MODULES_MAP: Record<string, typeof AudioToolkitModule> = {};
     static DEFAULT_MODULES_STATE: AudioToolkitModulesState = [

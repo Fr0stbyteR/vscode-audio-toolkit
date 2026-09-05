@@ -65,11 +65,18 @@ export default class MatrixWebGLRenderer {
     private readonly texture: WebGLTexture;
     private matrix: Float32Array[] | undefined;
     private uploadedFrameRange: [number, number] = [-1, -1];
+    private contextLost = false;
 
     private constructor() {
         const gl = this.canvas.getContext("webgl2", { alpha: true, antialias: false, depth: false, preserveDrawingBuffer: true });
         if (!gl) throw new Error("WebGL 2 is unavailable.");
         this.gl = gl;
+        this.canvas.addEventListener("webglcontextlost", event => {
+            event.preventDefault();
+            this.contextLost = true;
+            this.matrix = undefined;
+            this.uploadedFrameRange = [-1, -1];
+        });
         const program = gl.createProgram();
         const texture = gl.createTexture();
         const buffer = gl.createBuffer();
@@ -100,6 +107,7 @@ export default class MatrixWebGLRenderer {
     }
 
     paint(target: CanvasRenderingContext2D, dataSlice: MatrixDataSlice, width: number, height: number, viewRange: [number, number], verticalZoom: number, verticalOffset: number, valueRange: [number, number]): MatrixWebGLStats | undefined {
+        if (this.contextLost || this.gl.isContextLost()) return undefined;
         const [, originalBins] = dataSlice.resizedMatrices.sizes[0];
         const drawFromBin = verticalOffset / 2 * originalBins / verticalZoom;
         const drawToBin = (verticalOffset / 2 + 1) * originalBins / verticalZoom;

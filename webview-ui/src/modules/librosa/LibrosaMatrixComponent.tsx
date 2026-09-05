@@ -34,16 +34,26 @@ const LibrosaMatrixComponent: FunctionComponent<VisualizationOptions<LibrosaMatr
         if (!canvas || !ctx || !dataSlices?.length) return;
         const [width, height] = setCanvasToFullSize(canvas);
         if (configuration.matrixRenderer !== "canvas2d" && dataSlices.length === 1) {
-            const stats = MatrixWebGLRenderer.forCanvas(canvas)?.paint(ctx, dataSlices[0], width, height, viewRange, verticalZoom, verticalOffset, module.valueRange);
-            if (stats) {
-                setRenderInfo(`WebGL 2 · upload ${stats.uploadMs.toFixed(2)} ms · draw ${stats.drawMs.toFixed(2)} ms`);
-                return;
+            try {
+                const stats = MatrixWebGLRenderer.forCanvas(canvas)?.paint(ctx, dataSlices[0], width, height, viewRange, verticalZoom, verticalOffset, module.valueRange);
+                if (stats) {
+                    setRenderInfo(`WebGL 2 · upload ${stats.uploadMs.toFixed(2)} ms · draw ${stats.drawMs.toFixed(2)} ms`);
+                    return;
+                }
+            } catch (error) {
+                console.error("Matrix WebGL rendering failed; falling back to Canvas 2D.", error);
             }
-            if (configuration.matrixRenderer === "webgl") setRenderInfo("WebGL unavailable or texture too large · Canvas 2D fallback");
+            setRenderInfo("WebGL unavailable or failed · Canvas 2D fallback");
         }
-        const started = performance.now();
-        await MatrixImageProcessor.paint(ctx, dataSlices, { width, height, verticalZoom, verticalOffset, minValue: module.valueRange[0], maxValue: module.valueRange[1] }, { viewRange }, {});
-        setRenderInfo(`Canvas 2D · ${(performance.now() - started).toFixed(2)} ms`);
+        try {
+            const started = performance.now();
+            await MatrixImageProcessor.paint(ctx, dataSlices, { width, height, verticalZoom, verticalOffset, minValue: module.valueRange[0], maxValue: module.valueRange[1] }, { viewRange }, {});
+            setRenderInfo(`Canvas 2D · ${(performance.now() - started).toFixed(2)} ms`);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.error("Matrix Canvas 2D rendering failed.", error);
+            setRenderInfo(`Render failed: ${message}`);
+        }
     }, [configuration.matrixRenderer, dataSlices, module.valueRange, verticalOffset, verticalZoom, viewRange]);
     const paintVerticalRuler = useCallback((ref: React.RefObject<HTMLCanvasElement>) => {
         const canvas = ref.current; const ctx = canvas?.getContext("2d"); if (!canvas || !ctx) return;

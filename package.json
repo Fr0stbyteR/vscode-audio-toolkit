@@ -123,8 +123,8 @@
           "title": "Matrix Renderer",
           "type": "string",
           "enum": ["auto", "webgl", "canvas2d"],
-          "default": "auto",
-          "description": "Renderer for librosa 2D matrix modules. Auto prefers WebGL 2 and falls back to Canvas 2D."
+          "default": "canvas2d",
+          "description": "Renderer for librosa 2D matrix modules. Canvas 2D is the stable default; WebGL 2 remains experimental."
         }
       }
     },

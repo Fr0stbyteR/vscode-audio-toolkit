@@ -69,6 +69,7 @@ class MatrixImageProcessor {
     static DEFAULT_MIN_PIXEL_WIDTH = 4;
     static DEFAULT_MIN_PIXEL_HEIGHT = 128;
     static MAX_BITMAP_SIZE = 1024 * 1024;
+    static MAX_BITMAP_DIMENSION = 16384;
     static generateResized(matrices: Float32Array[][], audioSamplesPerFrame: number, { resizeFactor = this.DEFAULT_MIN_PIXEL_WIDTH, minWidth = this.DEFAULT_MIN_PIXEL_WIDTH, minHeight = this.DEFAULT_MIN_PIXEL_HEIGHT }: Partial<MatrixResizeOptions> = {}) {
         const SharedArrayBuffer = globalThis.SharedArrayBuffer || globalThis.ArrayBuffer;
         const originalSize: [number, number] = [matrices[0].length, matrices[0][0].length];
@@ -89,11 +90,14 @@ class MatrixImageProcessor {
         let pFrame: number;
         let pBin: number;
         let m: number;
+        const minimumHeight = Math.min(oh, minHeight);
         for (w = ow; w >= minWidth; w = Math.ceil(w / resizeFactor)) {
             if (w !== ow) audioSamplesPerFrame *= resizeFactor;
             ph = oh;
             binsPerCell = 1;
-            for (h = oh; h >= minHeight; h = Math.ceil(h / resizeFactor)) {
+            // Low-bin matrices such as chroma (12 bins) still need horizontal
+            // resizes. Using minHeight directly skipped the loop entirely.
+            for (h = oh; h >= minimumHeight; h = h === 1 ? 0 : Math.ceil(h / resizeFactor)) {
                 if (w === ow && h === oh) continue;
                 if (h !== oh) binsPerCell *= resizeFactor;
                 size = [w, h];
@@ -165,7 +169,7 @@ class MatrixImageProcessor {
         return createImageBitmap(imageData);
     }
     static async getBitmaps(dataSlices: MatrixDataSlice[], destWidth: number, destHeight: number, $drawFrom: number, $drawTo: number, $drawFromBin: number, $drawToBin: number, numberOfChannels: number, minValue: number, maxValue: number) {
-        const { MAX_BITMAP_SIZE } = this;
+        const { MAX_BITMAP_SIZE, MAX_BITMAP_DIMENSION } = this;
         const bitmaps: { bitmap: ImageBitmap, drawParams: [number, number, number, number, number, number, number, number] }[][] = new Array(numberOfChannels).fill(null).map(() => []);
         const targetAudioSamplesPerPixel = ($drawTo - $drawFrom) / destWidth;
         const targetBinsPerCell = ($drawToBin - $drawFromBin) / destHeight;
@@ -233,7 +237,7 @@ class MatrixImageProcessor {
                             bitmaps[channel].push({ bitmap, drawParams: calcCoords() });
                         }
                     } else {
-                        bitmapWidth = Math.min(~~(MAX_BITMAP_SIZE / h), Math.ceil((endIndex - $bitmapStartPerChannel) / samplesPerPixel));
+                        bitmapWidth = Math.min(MAX_BITMAP_DIMENSION, ~~(MAX_BITMAP_SIZE / h), Math.ceil((endIndex - $bitmapStartPerChannel) / samplesPerPixel));
                         $bitmapEndPerChannel = Math.min($bitmapStartPerChannel - offsetFromFrameStart + bitmapWidth * samplesPerPixel, endIndex);
                         if ($bitmapEndPerChannel > $drawFrom) {
                             sliceStart = ~~(($bitmapStartPerChannel - startIndex) / samplesPerPixel);

@@ -1,11 +1,12 @@
 import "./AudioEditorMain.scss";
 import "./AudioEditorComponentContainer.scss";
-import { FunctionComponent, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { Fragment, FunctionComponent, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AudioEditorConfiguration, AudioEditorState } from "../core/AudioEditor";
 import { AudioEditorContext } from "./contexts";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { VisualizationStyleOptions, AudioToolkitModulesState } from "../core/AudioToolkitModule";
 import { getCssFromPosition, getRuler, setCanvasToFullSize } from "../utils";
+import ModuleErrorBoundary from "./ModuleErrorBoundary";
 
 interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRange" | "enabledChannels">, VisualizationStyleOptions {
     configuration: AudioEditorConfiguration;
@@ -319,8 +320,8 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                     const module = audioEditor.modulesInstance[i];
                     const { Component } = module;
                     const displayName = name ? `${name} - ${moduleName}` : moduleName;
-                    return (<>
-                        <div key={i} className={`editor-main-visualizer-container${visible ? "" : " collapse"}`} style={{ flex: typeof visible === "number" ? `0 0 ${visible}px` : visible ? "1 1 auto" : "0 0 auto" }}>
+                    return (<Fragment key={`${module.moduleId}:${i}`}>
+                        <div className={`editor-main-visualizer-container${visible ? "" : " collapse"}`} style={{ flex: typeof visible === "number" ? `0 0 ${visible}px` : visible ? "1 1 auto" : "0 0 auto" }}>
                             <div className="editor-main-visualizer-label">
                                 <VSCodeButton appearance="icon" title={visible ? "Collapse" : "Expand"} tabIndex={-1} onClick={() => handleClickCollapseVisualizer(i)}>
                                     <span className={`codicon codicon-chevron-${visible ? "down" : "right"}`}></span>
@@ -335,10 +336,14 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                                     <span className="codicon codicon-trash"></span>
                                 </VSCodeButton>
                             </div>
-                            {visible ? <div className={`editor-main-visualizer-component${configuring ? " configuring" : ""}${monitoring ? " monitoring" : ""}`} onKeyDown={handleStopPropagation} onKeyUp={handleStopPropagation}><Component module={module} moduleIndex={i} moduleState={state} {...moduleCommonProps} /></div> : null}
+                            {visible ? <div className={`editor-main-visualizer-component${configuring ? " configuring" : ""}${monitoring ? " monitoring" : ""}`} onKeyDown={handleStopPropagation} onKeyUp={handleStopPropagation}>
+                                <ModuleErrorBoundary moduleName={displayName} onRemove={() => handleClickRemoveVisualizer(i)}>
+                                    <Component module={module} moduleIndex={i} moduleState={state} {...moduleCommonProps} />
+                                </ModuleErrorBoundary>
+                            </div> : null}
                         </div>
                         <div className={`editor-main-divider${visible ? " draggable" : ""}`} onMouseDown={visible ? (e) => handleDividerMouseDown(e, i) : undefined} />
-                    </>);
+                    </Fragment>);
                 })}
             </div>
         </div>
