@@ -171,6 +171,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
                 const to = viewStart + Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * viewLength;
                 const range = [playhead, to].sort((a, b) => a - b) as [number, number];
                 setBulkSelRange(range);
+                audioEditor.setSelRange(range);
                 const markersInRange = module.getMarkersFromRange(range);
                 if (e.ctrlKey || e.metaKey) {
                     const set = new Set(selectedMarkersSet);
@@ -188,6 +189,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
             e.stopPropagation();
             e.preventDefault();
             setBulkSelRange(null);
+            audioEditor.emitSelRangeToPlay();
             document.removeEventListener("mousemove", handleMouseMove);
             document.removeEventListener("mouseup", handleMouseUp);
         };
@@ -247,6 +249,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
         handleMarkerMoveMouseDown: React.MouseEventHandler<HTMLDivElement>;
         handleMarkerDoubleClick: React.MouseEventHandler<HTMLDivElement>;
         handleMarkerKeyDown: React.KeyboardEventHandler<HTMLDivElement>;
+        labelCollides?: boolean;
     }[][] = [];
     let row = 0;
     let selected = false;
@@ -394,6 +397,14 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
             : `${formatMarkerTime(start, audioEditor.sampleRate)} – ${formatMarkerTime(end, audioEditor.sampleRate)}`;
         allMarkers[row].push({ index: i, name, time, color, start, end, left, width, row, selected, handleMarkerMoveMouseDown, handleMarkerResizeEndMouseDown, handleMarkerResizeStartMouseDown, handleMarkerDoubleClick, handleMarkerKeyDown });
     });
+    const pointMarkers = allMarkers.flat().filter(marker => marker.start === marker.end).sort((a, b) => a.start - b.start);
+    const visualizationWidth = divMainRef.current?.clientWidth ?? window.innerWidth;
+    pointMarkers.forEach((marker, index) => {
+        const next = pointMarkers[index + 1];
+        const availablePixels = ((next?.start ?? viewEnd) - marker.start) / Math.max(1, viewEnd - viewStart) * visualizationWidth;
+        const estimatedLabelWidth = Math.min(220, Math.max(48, (marker.name || `Marker ${marker.index + 1}`).length * 7 + 18));
+        marker.labelCollides = availablePixels < estimatedLabelWidth + 18;
+    });
     const firstVisibleMarker = allMarkers.flat()[0]?.index;
     return (<>
         <div className={`visualizer-component-container module-using-marker-container ${module.moduleId.replace(".", "-")}-container`}>
@@ -408,16 +419,19 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
                     <div className="marker-selection-overlay selrange" style={{ left: selLeft, width: selWidth }} hidden={!selRange}>
                         <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />
                         <div className="resize-handler resize-handler-e" onMouseDown={handleResizeEndMouseDown} />
+                        <VSCodeButton className="marker-selection-add" tabIndex={-1} aria-label="Add range marker" title="Add range marker from selection" appearance="icon" onClick={handleClickAddMarker} onMouseDown={handleAddMarkerMouseDown}>
+                            <span className="codicon codicon-add"></span>
+                        </VSCodeButton>
                     </div>
                     <div className="marker-playhead-overlay">
                         {
                             playhead < viewStart || playhead > viewEnd
                             ? null
-                            : <div className="playhead" style={{ left: playheadLeft }}>
+                            : !selRange ? <div className="playhead" style={{ left: playheadLeft }}>
                                 <VSCodeButton tabIndex={-1} aria-label="Add Marker" title="Add marker at playhead" appearance="icon" onClick={handleClickAddMarker} onMouseDown={handleAddMarkerMouseDown}>
                                     <span className="codicon codicon-add"></span>
                                 </VSCodeButton>
-                            </div>
+                            </div> : null
                         }
                     </div>
                     <div className="old-markers-container" onMouseDown={handleOldMarkersContainerMouseDown}>
@@ -426,8 +440,8 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
                             allMarkers.map((row, i) => (
                                 <div key={i} className="markers-row">
                                     {
-                                        row.map(({ index, name, time, color, start, end, left, width, selected, handleMarkerMoveMouseDown, handleMarkerResizeStartMouseDown, handleMarkerResizeEndMouseDown, handleMarkerDoubleClick, handleMarkerKeyDown }) => (
-                                            <div key={index} role="button" tabIndex={selected || (!selectedMarkers.length && index === firstVisibleMarker) ? 0 : -1} aria-label={`${name || `Marker ${index + 1}`}, ${time}`} aria-pressed={selected} title={`${name ? `${name} · ` : ""}${time}`} className={`marker${start === end ? " point" : " range"}${selected ? " selected" : ""}`} style={{ left, ...(start === end ? {} : { width }), "--marker-color": color } as React.CSSProperties} onMouseDown={handleMarkerMoveMouseDown} onDoubleClick={handleMarkerDoubleClick} onKeyDown={handleMarkerKeyDown}>
+                                        row.map(({ index, name, time, color, start, end, left, width, selected, labelCollides, handleMarkerMoveMouseDown, handleMarkerResizeStartMouseDown, handleMarkerResizeEndMouseDown, handleMarkerDoubleClick, handleMarkerKeyDown }) => (
+                                            <div key={index} role="button" tabIndex={selected || (!selectedMarkers.length && index === firstVisibleMarker) ? 0 : -1} aria-label={`${name || `Marker ${index + 1}`}, ${time}`} aria-pressed={selected} title={`${name ? `${name} · ` : ""}${time}`} className={`marker${start === end ? " point" : " range"}${selected ? " selected" : ""}${labelCollides ? " label-collides" : ""}`} style={{ left, ...(start === end ? {} : { width }), "--marker-color": color } as React.CSSProperties} onMouseDown={handleMarkerMoveMouseDown} onDoubleClick={handleMarkerDoubleClick} onKeyDown={handleMarkerKeyDown}>
                                                 <span className="marker-label"><strong>{name || `Marker ${index + 1}`}</strong><small>{time}</small></span>
                                                 {
                                                     start === end
@@ -452,7 +466,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
                     <div>
                         {calculatingError ? null : <VSCodeProgressRing />}
                         <div>
-                            {calculatingError ?? (Array.isArray(calculating) ? `${calculating[0]}% - ${calculating[1]} ...` : "")}
+                            {calculatingError ?? (Array.isArray(calculating) ? `${Math.max(0, Math.min(100, Math.round(calculating[0])))}% · Completed: ${calculating[1]}` : "Starting…")}
                         </div>
                     </div>
                 </div>
@@ -460,7 +474,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
             }
         </div>
         <div className={`visualizer-component-configuration module-using-marker-configuration ${module.moduleId.replace(".", "-")}-configuration-container`}>
-            {configurationContent ?? <div className="default-layout">{configurationContentChildren}<MarkerConfiguration {...{ module, selectedMarkers, setSelectedMarkers, color, setColor, markerClassName, markerName, setMarkerName }} /></div>}
+            {configurationContent ?? <div className="default-layout">{configurationContentChildren}{props.configurationMode === "appearance" ? <MarkerConfiguration {...{ module, selectedMarkers, setSelectedMarkers, color, setColor, markerClassName, markerName, setMarkerName }} /> : <div className="configuration-kind"><strong>Analysis</strong><span>This manual marker layer has no analysis parameters.</span></div>}</div>}
         </div>
         <div className="visualizer-component-monitor">{monitorContent}</div>
     </>);

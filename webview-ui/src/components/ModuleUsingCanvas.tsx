@@ -18,6 +18,7 @@ export interface ModuleUsingCanvasProps extends VisualizationOptions<AudioToolki
     onCursor?: (x: number, y: number, width: number, height: number) => any;
     showChannelEnableOverlay?: boolean;
     backgroundOpacity?: number;
+    foregroundOpacity?: number;
     paint: (canvasRef: React.RefObject<HTMLCanvasElement>) => void | Promise<void>;
     paintBackground?: (canvasRef: React.RefObject<HTMLCanvasElement>) => void | Promise<void>;
     paintVerticalRuler: (canvasRef: React.RefObject<HTMLCanvasElement>) => void | Promise<void>;
@@ -34,7 +35,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         defaultVerticalZoom, verticalZoom, setVerticalZoom,
         defaultVerticalOffset, verticalOffset, setVerticalOffset,
         cursorX, cursorY, onCursor,
-        showChannelEnableOverlay, backgroundOpacity,
+        showChannelEnableOverlay, backgroundOpacity, foregroundOpacity,
         configurationContent, monitorContent,
         viewRange, enabledChannels, selRange, playhead,
         configuring, monitoring, rerenderId, repaintId
@@ -244,7 +245,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
                 <canvas ref={canvasHorizontalRulerRef} />
             </div>
             <div ref={divMainRef} className="module-using-canvas-canvas-container visualizer-component-visualization-area" onMouseDown={handleCanvasMouseDown} onWheel={handleCanvasWheel}>
-                <canvas ref={canvasRef} />
+                <canvas ref={canvasRef} style={{ opacity: foregroundOpacity ?? 1 }} />
                 <div className="selrange" style={{ left: selLeft, width: selWidth }} hidden={!selRange}>
                     <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />
                     <div className="resize-handler resize-handler-e" onMouseDown={handleResizeEndMouseDown} />
@@ -277,7 +278,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
                     <div>
                         {calculatingError ? null : <VSCodeProgressRing />}
                         <div>
-                            {calculatingError ?? (Array.isArray(calculating) ? `${calculating[0]}% - ${calculating[1]} ...` : "")}
+                            {calculatingError ?? (Array.isArray(calculating) ? `${Math.max(0, Math.min(100, Math.round(calculating[0])))}% · Completed: ${calculating[1]}` : "Starting…")}
                         </div>
                     </div>
                 </div>

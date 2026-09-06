@@ -14,6 +14,7 @@ export interface ResizedMatrix {
     binsPerCell: number;
     data: Float32Array[][];
     imageBitmaps?: ImageBitmap[][];
+    imageBitmapStyle?: string;
 }
 
 export interface ResizedMatrices {
@@ -29,6 +30,21 @@ export interface MatrixPaintOptions {
     verticalOffset: number;
     minValue: number;
     maxValue: number;
+    colorMap: MatrixColorMap;
+}
+
+export type MatrixColorMap = "spectrum" | "inferno" | "grayscale";
+
+function colorizeMatrixValue(n: number, colorMap: MatrixColorMap): [number, number, number, number] {
+    if (colorMap === "grayscale") return [n, n, n, n];
+    if (colorMap === "inferno") {
+        const split = .65;
+        const from = n < split ? [0.001, 0, 0.014] : [0.735, 0.216, 0.33];
+        const to = n < split ? [0.735, 0.216, 0.33] : [0.988, 0.998, 0.645];
+        const t = n < split ? n / split : (n - split) / (1 - split);
+        return [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t, from[2] + (to[2] - from[2]) * t, n];
+    }
+    return hslToRgb([n / 2 + 2 / 3, 1, 0.5, n]) as [number, number, number, number];
 }
 
 export interface MatrixDataSlice {
@@ -141,7 +157,7 @@ class MatrixImageProcessor {
             return resizedMatrices.sizes.findIndex(([w, h]) => w === width && h === height);
         });
     }
-    static createBitmap(magnitudes: Float32Array[], minValue: number, maxValue: number): Promise<ImageBitmap> {
+    static createBitmap(magnitudes: Float32Array[], minValue: number, maxValue: number, colorMap: MatrixColorMap): Promise<ImageBitmap> {
         const width = magnitudes.length;
         const height = magnitudes[0].length;
         const imageData = new ImageData(width, height);
@@ -157,7 +173,7 @@ class MatrixImageProcessor {
                 v = magnitudes[x][height - 1 - y];
                 if (v < minValue) continue;
                 n = Math.max(0, Math.min(1, (v - minValue) / (maxValue - minValue)));
-                [r, g, b, a] = hslToRgb([n / 2 + 2 / 3, 1, 0.5, n]);
+                [r, g, b, a] = colorizeMatrixValue(n, colorMap);
                 z = (y * width + x) * 4;
                 // z = x * 4;
                 imageData.data[z] = ~~(r * 255);
@@ -168,7 +184,7 @@ class MatrixImageProcessor {
         }
         return createImageBitmap(imageData);
     }
-    static async getBitmaps(dataSlices: MatrixDataSlice[], destWidth: number, destHeight: number, $drawFrom: number, $drawTo: number, $drawFromBin: number, $drawToBin: number, numberOfChannels: number, minValue: number, maxValue: number) {
+    static async getBitmaps(dataSlices: MatrixDataSlice[], destWidth: number, destHeight: number, $drawFrom: number, $drawTo: number, $drawFromBin: number, $drawToBin: number, numberOfChannels: number, minValue: number, maxValue: number, colorMap: MatrixColorMap) {
         const { MAX_BITMAP_SIZE, MAX_BITMAP_DIMENSION } = this;
         const bitmaps: { bitmap: ImageBitmap, drawParams: [number, number, number, number, number, number, number, number] }[][] = new Array(numberOfChannels).fill(null).map(() => []);
         const targetAudioSamplesPerPixel = ($drawTo - $drawFrom) / destWidth;
@@ -206,6 +222,12 @@ class MatrixImageProcessor {
             }
             if ($bitmapStart >= $drawTo) break;
             const resize = resizedMatrices.resizes[bestResizesIndex[i]];
+            const bitmapStyle = `${minValue}:${maxValue}:${colorMap}`;
+            if (resize.imageBitmapStyle !== bitmapStyle) {
+                resize.imageBitmaps?.flat().forEach(bitmap => bitmap?.close());
+                resize.imageBitmaps = [];
+                resize.imageBitmapStyle = bitmapStyle;
+            }
             [w, h] = resizedMatrices.sizes[bestResizesIndex[i]];
             if (!resize.imageBitmaps) resize.imageBitmaps = [];
             samplesPerPixel = resize.audioSamplesPerFrame;
@@ -241,7 +263,7 @@ class MatrixImageProcessor {
                         $bitmapEndPerChannel = Math.min($bitmapStartPerChannel - offsetFromFrameStart + bitmapWidth * samplesPerPixel, endIndex);
                         if ($bitmapEndPerChannel > $drawFrom) {
                             sliceStart = ~~(($bitmapStartPerChannel - startIndex) / samplesPerPixel);
-                            bitmap = await this.createBitmap(magnitudes.slice(sliceStart, sliceStart + bitmapWidth), minValue, maxValue);
+                            bitmap = await this.createBitmap(magnitudes.slice(sliceStart, sliceStart + bitmapWidth), minValue, maxValue, colorMap);
                             bitmaps[channel].push({ bitmap, drawParams: calcCoords() });
                             resize.imageBitmaps[channel][$bitmap] = bitmap;
                         }
@@ -259,7 +281,7 @@ class MatrixImageProcessor {
     static async paint(
         ctx: CanvasRenderingContext2D,
         dataSlices: MatrixDataSlice[],
-        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, minValue = -100, maxValue = 0 }: Partial<MatrixPaintOptions>,
+        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, minValue = -100, maxValue = 0, colorMap = "spectrum" }: Partial<MatrixPaintOptions>,
         { viewRange }: Pick<VisualizationOptions<any>, "viewRange">,
         { separatorColor = "grey" }: Partial<Pick<VisualizationStyleOptions, "separatorColor">> = {}
     ) {
@@ -284,7 +306,7 @@ class MatrixImageProcessor {
         ctx.lineWidth = 1;
         // Horizontal Range
         const [$drawFrom, $drawTo] = viewRange; // Draw start-end
-        const bitmapsData = await this.getBitmaps(dataSlices, width, channelHeight, $drawFrom, $drawTo, $drawFromBin, $drawToBin, numberOfChannels, minValue, maxValue);
+        const bitmapsData = await this.getBitmaps(dataSlices, width, channelHeight, $drawFrom, $drawTo, $drawFromBin, $drawToBin, numberOfChannels, minValue, maxValue, colorMap);
         for (let channel = 0; channel < numberOfChannels; channel++) {
             ctx.save();
             ctx.imageSmoothingEnabled = false;

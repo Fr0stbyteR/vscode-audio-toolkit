@@ -1,5 +1,5 @@
 import { FunctionComponent, useCallback, useEffect, useState } from "react";
-import { VSCodeButton, VSCodeDivider } from "@vscode/webview-ui-toolkit/react";
+import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import ModuleUsingMarker from "../../components/ModuleUsingMarker";
 import ModuleConfigurationContent from "../../components/ModuleConfigurationContent";
 import { VisualizationOptions } from "../../core/AudioToolkitModule";
@@ -28,14 +28,16 @@ const LibrosaMarkerComponent: FunctionComponent<VisualizationOptions<LibrosaMark
     }, [configuration, gridColor, module, viewRange]);
     const analysisKeys = Object.keys(draft);
     const displayKeys = Object.keys(moduleState).filter(key => !["data", "name", ...analysisKeys].includes(key));
-    const configurationContentChildren = <>
+    const configurationContentChildren = props.configurationMode === "analysis" ? <>
+        <div className="configuration-kind"><strong>Analysis</strong><span>Changes apply when you reanalyze.</span></div>
         <ModuleConfigurationContent moduleId={module.moduleId} moduleState={draft} setModuleState={setDraft} optionsMetadata={module.getOptionsMetadata()} wrap={false} />
         <div className="analysis-actions">
             <VSCodeButton appearance="primary" title="Run librosa again and replace the cached result" onClick={() => module.setState({ ...moduleState, ...draft }, true)}>Reanalyze</VSCodeButton>
             <span>{moduleState.data?.length ?? 0} markers</span>
         </div>
         <div className="analysis-cache-status">{moduleState.data && !cacheInfo ? "Saved with project" : formatCacheInfo(cacheInfo)}</div>
-        <VSCodeDivider />
+    </> : <>
+        <div className="configuration-kind"><strong>Appearance</strong><span>Marker edits and colors apply instantly.</span></div>
         <ModuleConfigurationContent moduleId={module.moduleId} moduleState={moduleState} keys={displayKeys} setModuleState={state => module.setState(state)} optionsMetadata={module.getOptionsMetadata()} wrap={false} />
     </>;
     return <ModuleUsingMarker {...props} calculating={calculating} markerClassName={moduleState.name} markerData={moduleState.data ?? []} paintVerticalRuler={paintVerticalRuler} configurationContentChildren={configurationContentChildren} />;

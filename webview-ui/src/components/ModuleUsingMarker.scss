@@ -79,6 +79,25 @@
 
                 & > .marker-selection-overlay {
                     z-index: 2;
+
+                    & > .marker-selection-add {
+                        position: absolute;
+                        left: 50%;
+                        top: 50%;
+                        width: 26px;
+                        height: 26px;
+                        opacity: .86;
+                        transform: translate(-50%, -50%);
+                        border-radius: 50%;
+                        background: var(--vscode-button-background);
+                        color: var(--vscode-button-foreground);
+                        box-shadow: 0 2px 8px rgba(0, 0, 0, .4);
+                        pointer-events: auto;
+
+                        &:hover {
+                            opacity: 1;
+                        }
+                    }
                 }
                 
                 & div.selrange {
@@ -223,7 +242,7 @@
 
                         &.point > .marker-label {
                             position: absolute;
-                            visibility: hidden;
+                            visibility: visible;
                             top: 2px;
                             left: 13px;
                             max-width: 220px;
@@ -233,11 +252,20 @@
                             background: var(--vscode-editorHoverWidget-background);
                             color: var(--vscode-editorHoverWidget-foreground);
                             box-shadow: 0 3px 10px rgba(0, 0, 0, .35);
-                            opacity: 0;
-                            transform: translateY(-2px);
+                            opacity: .88;
+                            transform: translateY(0);
                             transition: opacity 80ms ease, transform 80ms ease;
                             pointer-events: none;
                             white-space: nowrap;
+                        }
+
+                        &.point > .marker-label small {
+                            display: none;
+                        }
+
+                        &.point.label-collides:not(:hover):not(:focus-visible):not(.selected) > .marker-label {
+                            visibility: hidden;
+                            opacity: 0;
                         }
 
                         &.point:hover > .marker-label,
@@ -246,6 +274,15 @@
                             visibility: visible;
                             opacity: 1;
                             transform: translateY(0);
+
+                            & small {
+                                display: block;
+                            }
+                        }
+
+                        &.point:hover > .marker-label small,
+                        &.point:focus-visible > .marker-label small {
+                            display: block;
                         }
 
                         & > div.resize-handler-w {

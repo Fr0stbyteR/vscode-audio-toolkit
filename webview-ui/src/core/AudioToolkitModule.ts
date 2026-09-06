@@ -27,6 +27,7 @@ export interface VisualizationOptions<T extends AudioToolkitModule, S = ReturnTy
     moduleState: S;
     configuration: AudioEditorConfiguration;
     configuring: boolean;
+    configurationMode: "analysis" | "appearance";
     monitoring: boolean;
     rerenderId: number;
 }

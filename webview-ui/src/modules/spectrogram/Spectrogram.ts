@@ -138,17 +138,17 @@ class Spectrogram implements AudioToolkitModule<State> {
     }
     calculate() {
         this.handleCalculate(async (onUpdate) => {
-            onUpdate(0, "Calculating channel 1");
+            onUpdate(0, "Analysis queued");
             const { timeDomainData, numberOfChannels, length } = this.audioEditor;
             const frequencyDomainData: FrequencyDomainChannelData[] = [];
             for (let channel = 0; channel < numberOfChannels; channel++) {
                 frequencyDomainData[channel] = await this.stftWorker.stft(timeDomainData[channel], { ...this.state });
-                onUpdate(80 / numberOfChannels, channel === numberOfChannels - 1 ? "Generating image" : `Calculating channel ${channel + 2}`);
+                onUpdate(80 / numberOfChannels, `Channel ${channel + 1} calculated`);
             }
             this._frequencyDomainData = frequencyDomainData;
             const resized = await this._worker.generateResized(frequencyDomainData, { ...this.state, startIndex: 0, endIndex: length });
             this._dataSlices = [resized];
-            onUpdate(20, "Done");
+            onUpdate(20, "Display data prepared");
             this.onDataChange?.(this._dataSlices);
         });
     }

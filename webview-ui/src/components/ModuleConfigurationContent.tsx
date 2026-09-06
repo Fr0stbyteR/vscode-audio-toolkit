@@ -13,13 +13,13 @@ export interface ConfigurationContentProps {
 }
 
 const ModuleConfigurationContent: FunctionComponent<ConfigurationContentProps> = ({ moduleId, moduleState, keys, optionsMetadata, setModuleState, wrap }) => {
+    const instanceId = useId();
     const moduleStateKeys = keys ?? Object.keys(moduleState);
     const wrapped = moduleStateKeys.map((k) => {
         if (!optionsMetadata[k]) return;
         const [description, ...range] = optionsMetadata[k];
         const value = moduleState[k];
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        const id = useId();
+        const id = `${instanceId}-${moduleId.replace(/[^a-z0-9_-]/gi, "-")}-${k}`;
         if (typeof value === "boolean") {
             return (
                 <div key={id}>
@@ -31,13 +31,16 @@ const ModuleConfigurationContent: FunctionComponent<ConfigurationContentProps> =
             return (
                 <div key={id}>
                     <label htmlFor={id}>{description}</label>
-                    <input type="number" {...{ id, min, step, max, value }} onChange={e => setModuleState({ ...moduleState, [k]: e.currentTarget.valueAsNumber })} />
+                    <input type="number" {...{ id, min, step, max, value }} onChange={e => {
+                        const nextValue = e.currentTarget.valueAsNumber;
+                        if (Number.isFinite(nextValue)) setModuleState({ ...moduleState, [k]: nextValue });
+                    }} />
                 </div>
             );
         } else if (typeof value === "string") {
             if (value.startsWith("#")) {
                 return (
-                    <div>
+                    <div key={id}>
                         <label htmlFor={id}>{description}</label>
                         <input {...{ id, value }} type="color" onChange={e => setModuleState({ ...moduleState, [k]: e.currentTarget.value })} />
                     </div>
@@ -45,7 +48,7 @@ const ModuleConfigurationContent: FunctionComponent<ConfigurationContentProps> =
             }
             if (range?.length) {
                 return (
-                    <div>
+                    <div key={id}>
                         <label htmlFor={id}>{description}</label>
                         <VSCodeDropdown {...{ id, value, title: value }} onInput={e => setModuleState({ ...moduleState, [k]: (e.currentTarget as HTMLInputElement).value })}>
                             {range.map((v, i) => <VSCodeOption key={i} value={v}>{v}</VSCodeOption>)}
@@ -54,7 +57,7 @@ const ModuleConfigurationContent: FunctionComponent<ConfigurationContentProps> =
                 );
             }
             return (
-                <div>
+                <div key={id}>
                     <label htmlFor={id}>{description}</label>
                     <VSCodeTextField {...{ id, value }} onInput={e => setModuleState({ ...moduleState, [k]: (e.currentTarget as HTMLInputElement).value })} />
                 </div>

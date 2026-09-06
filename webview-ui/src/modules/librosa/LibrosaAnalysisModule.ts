@@ -55,15 +55,19 @@ export default abstract class LibrosaAnalysisModule<State extends LibrosaVisuali
 
     async calculate(forceRefresh = false) {
         const calculationId = ++this.calculationId;
-        this.setCalculating([5, "Checking analysis cache"]);
+        this.setCalculating([5, "Analysis request prepared"]);
         try {
             const options = this.getAnalysisState() as Record<string, string | number | boolean | null>;
             const result = await this.audioEditor.analyze({ algorithm: this.algorithm, options, cachePolicy: forceRefresh ? "refresh" : "use" });
             if (calculationId !== this.calculationId) return;
             this._cacheInfo = result.cache;
             this.onCacheInfo?.(result.cache);
-            this.setCalculating([85, "Preparing display data"]);
+            this.setCalculating([85, result.cache?.status === "hit" ? "Cached analysis loaded" : "Native analysis completed"]);
+            await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+            if (calculationId !== this.calculationId) return;
             this.consumeResult(result);
+            this.setCalculating([100, "Display data prepared"]);
+            await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
             this.setCalculating(false);
         } catch (error) {
             if (calculationId !== this.calculationId) return;

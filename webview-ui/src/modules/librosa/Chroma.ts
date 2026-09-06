@@ -1,13 +1,12 @@
 import AudioEditor from "../../core/AudioEditor";
-import LibrosaMatrixModule from "./LibrosaMatrixModule";
-import { LibrosaVisualizationState } from "./LibrosaAnalysisModule";
+import LibrosaMatrixModule, { LibrosaMatrixVisualizationState } from "./LibrosaMatrixModule";
 
-interface State extends LibrosaVisualizationState { frameLength: number; hopLength: number; tuning: number; }
+interface State extends LibrosaMatrixVisualizationState { frameLength: number; hopLength: number; tuning: number; }
 export default class Chroma extends LibrosaMatrixModule<State> {
     static MODULE_ID = "librosa.chroma"; static MODULE_NAME = "Chroma (librosa)";
     static DEFAULT_ANALYSIS_STATE = { frameLength: 2048, hopLength: 512, tuning: 0 };
-    static DEFAULT_STATE: State = { name: "Chroma", color: "#ffffff", ...this.DEFAULT_ANALYSIS_STATE };
+    static DEFAULT_STATE: State = { name: "Chroma", color: "#ffffff", colorMap: "inferno", colorMin: 0, colorMax: 1, opacity: 1, ...this.DEFAULT_ANALYSIS_STATE };
     readonly unit = "Pitch class"; protected get algorithm() { return "chroma" as const; }
     static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<State> = {}) { const module = new Chroma(audioEditor, { ...this.DEFAULT_STATE, ...initialState }); void module.calculate(); return module; }
-    getOptionsMetadata(): Record<string, [string, ...unknown[]]> { return { name: ["Name"], color: ["Color"], frameLength: ["FFT size", 256, 256, 8192], hopLength: ["Hop length", 64, 64, 4096], tuning: ["Tuning offset (semitones)", -1, 0.01, 1] }; }
+    getOptionsMetadata(): Record<string, [string, ...unknown[]]> { return { name: ["Name"], colorMap: ["Color map", "inferno", "spectrum", "grayscale"], colorMin: ["Color range minimum (0–1)", 0, 0.01, 1], colorMax: ["Color range maximum (0–1)", 0, 0.01, 1], opacity: ["Layer opacity", 0.05, 0.05, 1], frameLength: ["FFT size", 256, 256, 8192], hopLength: ["Hop length", 64, 64, 4096], tuning: ["Tuning offset (semitones)", -1, 0.01, 1] }; }
 }

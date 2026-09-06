@@ -1,4 +1,4 @@
-import { FunctionComponent, useCallback, useEffect, useState } from "react";
+import { FunctionComponent, useCallback, useEffect, useMemo, useState } from "react";
 import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
 import MatrixImageProcessor, { MatrixCursorInfo } from "../../core/MatrixImageProcessor";
 import { VisualizationOptions } from "../../core/AudioToolkitModule";
@@ -22,6 +22,11 @@ const LibrosaMatrixComponent: FunctionComponent<VisualizationOptions<LibrosaMatr
     const [calculating, setCalculating] = useState<boolean | [number, string]>(module.isCalculating);
     const [renderInfo, setRenderInfo] = useState("Waiting for data");
     const [cacheInfo, setCacheInfo] = useState(module.cacheInfo);
+    const valueSpan = Math.max(Number.EPSILON, module.valueRange[1] - module.valueRange[0]);
+    const colorMin = Math.max(0, Math.min(1, moduleState.colorMin ?? 0));
+    const colorMax = Math.max(colorMin + Number.EPSILON, Math.min(1, moduleState.colorMax ?? 1));
+    const displayRange = useMemo<[number, number]>(() => [module.valueRange[0] + valueSpan * colorMin, module.valueRange[0] + valueSpan * colorMax], [colorMax, colorMin, module.valueRange, valueSpan]);
+    const colorMap = moduleState.colorMap ?? "inferno";
     useEffect(() => {
         module.onDataChange = data => setDataSlices(data as typeof module.dataSlices);
         module.onCalculating = setCalculating;
@@ -35,7 +40,7 @@ const LibrosaMatrixComponent: FunctionComponent<VisualizationOptions<LibrosaMatr
         const [width, height] = setCanvasToFullSize(canvas);
         if (configuration.matrixRenderer !== "canvas2d" && dataSlices.length === 1) {
             try {
-                const stats = MatrixWebGLRenderer.forCanvas(canvas)?.paint(ctx, dataSlices[0], width, height, viewRange, verticalZoom, verticalOffset, module.valueRange);
+                const stats = MatrixWebGLRenderer.forCanvas(canvas)?.paint(ctx, dataSlices[0], width, height, viewRange, verticalZoom, verticalOffset, displayRange, colorMap);
                 if (stats) {
                     setRenderInfo(`WebGL 2 · upload ${stats.uploadMs.toFixed(2)} ms · draw ${stats.drawMs.toFixed(2)} ms`);
                     return;
@@ -47,14 +52,14 @@ const LibrosaMatrixComponent: FunctionComponent<VisualizationOptions<LibrosaMatr
         }
         try {
             const started = performance.now();
-            await MatrixImageProcessor.paint(ctx, dataSlices, { width, height, verticalZoom, verticalOffset, minValue: module.valueRange[0], maxValue: module.valueRange[1] }, { viewRange }, {});
+            await MatrixImageProcessor.paint(ctx, dataSlices, { width, height, verticalZoom, verticalOffset, minValue: displayRange[0], maxValue: displayRange[1], colorMap }, { viewRange }, {});
             setRenderInfo(`Canvas 2D · ${(performance.now() - started).toFixed(2)} ms`);
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             console.error("Matrix Canvas 2D rendering failed.", error);
             setRenderInfo(`Render failed: ${message}`);
         }
-    }, [configuration.matrixRenderer, dataSlices, module.valueRange, verticalOffset, verticalZoom, viewRange]);
+    }, [colorMap, configuration.matrixRenderer, dataSlices, displayRange, verticalOffset, verticalZoom, viewRange]);
     const paintVerticalRuler = useCallback((ref: React.RefObject<HTMLCanvasElement>) => {
         const canvas = ref.current; const ctx = canvas?.getContext("2d"); if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
@@ -74,9 +79,9 @@ const LibrosaMatrixComponent: FunctionComponent<VisualizationOptions<LibrosaMatr
         const info = MatrixImageProcessor.getInfoFromCursor(dataSlices, x, y, { width, height, verticalZoom, verticalOffset }, { viewRange });
         setCursorX(info.x); setCursorY(info.y); setCursorInfo(info);
     }, [dataSlices, verticalOffset, verticalZoom, viewRange]);
-    const configurationContent = <LibrosaConfiguration module={module} moduleState={moduleState} />;
+    const configurationContent = <LibrosaConfiguration module={module} moduleState={moduleState} mode={props.configurationMode} />;
     const monitorContent = <div className="default-layout"><div>{formatCacheInfo(cacheInfo)}</div><div>{renderInfo}</div>{cursorInfo ? <><div>{cursorInfo.fromIndex}–{cursorInfo.toIndex} samples</div><div>Bin {cursorInfo.fromBin}–{cursorInfo.toBin}</div><div>{cursorInfo.value.toFixed(3)} {module.unit}</div></> : null}</div>;
-    return <ModuleUsingCanvas {...props} {...{ calculating, defaultVerticalOffset, verticalOffset, setVerticalOffset, defaultVerticalZoom, verticalZoom, setVerticalZoom, cursorX, cursorY, onCursor, paint, paintVerticalRuler, paintHorizontalRuler, configurationContent, monitorContent }} />;
+    return <ModuleUsingCanvas {...props} {...{ calculating, defaultVerticalOffset, verticalOffset, setVerticalOffset, defaultVerticalZoom, verticalZoom, setVerticalZoom, cursorX, cursorY, onCursor, paint, paintVerticalRuler, paintHorizontalRuler, configurationContent, monitorContent }} foregroundOpacity={moduleState.opacity ?? 1} />;
 };
 
 export default LibrosaMatrixComponent;

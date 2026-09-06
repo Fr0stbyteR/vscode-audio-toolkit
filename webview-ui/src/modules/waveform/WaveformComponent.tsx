@@ -67,7 +67,7 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (pr
         setCursorY(info.y);
         setCursorInfo(info);
     }, [dataSlices, verticalOffset, verticalZoom, viewRange]);
-    const configurationContent = (
+    const configurationContent = props.configurationMode === "appearance" ? (
         <div className="waveform-channel-enabler">
             {
                 enabledChannels.map((enabled, i) => (
@@ -79,7 +79,7 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (pr
                 ))
             }
         </div>
-    );
+    ) : <div className="default-layout"><div className="configuration-kind"><strong>Analysis</strong><span>The waveform has no analysis parameters.</span></div></div>;
     const monitorContent = cursorInfo ? (
         <div className="default-layout">
             <div>Sample index:</div>

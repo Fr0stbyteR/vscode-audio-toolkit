@@ -20,6 +20,7 @@ precision highp float;
 uniform sampler2D uData;
 uniform vec4 uRect;
 uniform vec2 uRange;
+uniform int uColorMap;
 in vec2 vUv;
 out vec4 outColor;
 
@@ -32,7 +33,17 @@ void main() {
     vec2 uv = mix(uRect.xy, uRect.zw, vUv);
     float value = texture(uData, uv).r;
     float strength = clamp((value - uRange.x) / max(0.000001, uRange.y - uRange.x), 0.0, 1.0);
-    vec3 color = hue(strength * 0.5 + 0.6666667);
+    vec3 color;
+    if (uColorMap == 1) {
+        color = vec3(strength);
+    } else if (uColorMap == 2) {
+        vec3 dark = vec3(0.001, 0.0, 0.014);
+        vec3 warm = vec3(0.735, 0.216, 0.33);
+        vec3 light = vec3(0.988, 0.998, 0.645);
+        color = strength < 0.65 ? mix(dark, warm, strength / 0.65) : mix(warm, light, (strength - 0.65) / 0.35);
+    } else {
+        color = hue(strength * 0.5 + 0.6666667);
+    }
     outColor = vec4(color, value < uRange.x ? 0.0 : strength);
 }`;
 
@@ -106,7 +117,7 @@ export default class MatrixWebGLRenderer {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     }
 
-    paint(target: CanvasRenderingContext2D, dataSlice: MatrixDataSlice, width: number, height: number, viewRange: [number, number], verticalZoom: number, verticalOffset: number, valueRange: [number, number]): MatrixWebGLStats | undefined {
+    paint(target: CanvasRenderingContext2D, dataSlice: MatrixDataSlice, width: number, height: number, viewRange: [number, number], verticalZoom: number, verticalOffset: number, valueRange: [number, number], colorMap: "spectrum" | "inferno" | "grayscale" = "spectrum"): MatrixWebGLStats | undefined {
         if (this.contextLost || this.gl.isContextLost()) return undefined;
         const [, originalBins] = dataSlice.resizedMatrices.sizes[0];
         const drawFromBin = verticalOffset / 2 * originalBins / verticalZoom;
@@ -152,6 +163,7 @@ export default class MatrixWebGLRenderer {
         gl.bindTexture(gl.TEXTURE_2D, this.texture);
         gl.uniform4f(gl.getUniformLocation(this.program, "uRect"), x0, y0, x1, y1);
         gl.uniform2f(gl.getUniformLocation(this.program, "uRange"), valueRange[0], valueRange[1]);
+        gl.uniform1i(gl.getUniformLocation(this.program, "uColorMap"), colorMap === "grayscale" ? 1 : colorMap === "inferno" ? 2 : 0);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         target.clearRect(0, 0, width, height);
         target.drawImage(this.canvas, 0, 0, width, height);

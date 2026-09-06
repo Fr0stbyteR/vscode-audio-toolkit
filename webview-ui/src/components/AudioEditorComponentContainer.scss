@@ -36,4 +36,19 @@
     &.monitoring > div.visualizer-component-monitor {
         display: block;
     }
+
+    .configuration-kind {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        padding: 7px 8px;
+        border-left: 2px solid var(--vscode-focusBorder);
+        background: var(--vscode-editorWidget-background);
+
+        & > span {
+            color: var(--vscode-descriptionForeground);
+            font-size: 11px;
+            line-height: 1.35;
+        }
+    }
 }

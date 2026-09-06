@@ -19,8 +19,11 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
     const [loop, setLoop] = useState(audioEditor.state.loop);
     const [enabledChannels, setEnabledChannels] = useState(audioEditor.state.enabledChannels);
     const [configuration, setConfiguration] = useState(audioEditor.configuration);
+    const [configurationMode, setConfigurationMode] = useState<"analysis" | "appearance">("analysis");
     const [configuring, setConfiguring] = useState(false);
     const [monitoring, setMonitoring] = useState(false);
+    const [overlayMode, setOverlayMode] = useState(() => localStorage.getItem("audioToolkit.overlayMode") === "true");
+    const [layersOpen, setLayersOpen] = useState(() => localStorage.getItem("audioToolkit.layersOpen") === "true");
     const [windowSize, setWindowSize] = useState([window.innerWidth, window.innerHeight]);
     const [modulesState, setModulesState] = useState<AudioToolkitModulesState>(audioEditor.modulesState);
     const phosphorColor = window.getComputedStyle(document.body).getPropertyValue("--vscode-menu-selectionBackground");
@@ -39,6 +42,7 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
         phosphorColor,
         playheadColor,
         configuration,
+        configurationMode,
         configuring,
         monitoring,
         gridColor,
@@ -87,11 +91,13 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
             window.removeEventListener("resize", handleWindowUiResized);
         };
     }, [audioEditor, handleModulesState, handleUiResized, handleWindowUiResized]);
+    useEffect(() => localStorage.setItem("audioToolkit.overlayMode", String(overlayMode)), [overlayMode]);
+    useEffect(() => localStorage.setItem("audioToolkit.layersOpen", String(layersOpen)), [layersOpen]);
     return (
         <div className="audio-editor-container">
             <div className="audio-editor-left-container">
-                <AudioEditorMap {...componentProps} {...{ setConfiguring, setMonitoring }} />
-                <AudioEditorMain {...componentProps} />
+                <AudioEditorMap {...componentProps} {...{ setConfiguring, setConfigurationMode, setMonitoring, overlayMode, setOverlayMode, layersOpen, setLayersOpen }} />
+                <AudioEditorMain {...componentProps} {...{ overlayMode, layersOpen, setLayersOpen }} />
                 <AudioEditorControls {...componentProps} />
                 <AudioEditorMonitor {...componentProps} />
             </div>

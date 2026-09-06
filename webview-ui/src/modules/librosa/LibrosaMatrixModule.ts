@@ -3,7 +3,14 @@ import MatrixImageProcessor, { MatrixDataSlice } from "../../core/MatrixImagePro
 import LibrosaAnalysisModule, { LibrosaVisualizationState } from "./LibrosaAnalysisModule";
 import LibrosaMatrixComponent from "./LibrosaMatrixComponent";
 
-export default abstract class LibrosaMatrixModule<State extends LibrosaVisualizationState> extends LibrosaAnalysisModule<State> {
+export interface LibrosaMatrixVisualizationState extends LibrosaVisualizationState {
+    colorMap: "spectrum" | "inferno" | "grayscale";
+    colorMin: number;
+    colorMax: number;
+    opacity: number;
+}
+
+export default abstract class LibrosaMatrixModule<State extends LibrosaMatrixVisualizationState> extends LibrosaAnalysisModule<State> {
     public readonly Component = LibrosaMatrixComponent;
     protected _dataSlices: MatrixDataSlice[] | undefined;
     protected _valueRange: [number, number] = [0, 1];

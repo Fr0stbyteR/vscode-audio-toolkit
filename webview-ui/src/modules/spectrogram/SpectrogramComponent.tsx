@@ -9,7 +9,7 @@ import VectorImageProcessor from "../../core/VectorImageProcessor";
 import MatrixImageProcessor, { MatrixCursorInfo } from "../../core/MatrixImageProcessor";
 import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
 import ModuleConfigurationContent from "../../components/ModuleConfigurationContent";
-import { VSCodeButton, VSCodeDivider } from "@vscode/webview-ui-toolkit/react";
+import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 
 const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>> = (props) => {
     const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
@@ -74,12 +74,11 @@ const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>>
     const calculationStateKeys = Object.keys(calculationState);
     const configurationContent = (
         <div className={`default-layout ${module.moduleId.replace(".", "-")}-configuration`}>
-            <ModuleConfigurationContent {...{ moduleId: module.moduleId, moduleState: calculationState, setModuleState: setCalculationState, keys: calculationStateKeys, optionsMetadata, wrap: false }} />
-            <div>
-                <VSCodeButton tabIndex={-1} title="Submit for Calculate" appearance="primary" onClick={() => setModuleState({ ...moduleState, ...calculationState })}>Calculate</VSCodeButton>
-            </div>
-            <VSCodeDivider />
-            <ModuleConfigurationContent {...{ moduleId: module.moduleId, moduleState, setModuleState, keys: Object.keys(moduleState).filter(k => calculationStateKeys.indexOf(k) === -1), optionsMetadata, wrap: false }} />
+            <div className="configuration-kind"><strong>{props.configurationMode === "analysis" ? "Analysis" : "Appearance"}</strong><span>{props.configurationMode === "analysis" ? "Changes apply when you recalculate." : "Changes apply instantly."}</span></div>
+            {props.configurationMode === "analysis" ? <>
+                <ModuleConfigurationContent {...{ moduleId: module.moduleId, moduleState: calculationState, setModuleState: setCalculationState, keys: calculationStateKeys, optionsMetadata, wrap: false }} />
+                <div><VSCodeButton tabIndex={-1} title="Recalculate spectrogram" appearance="primary" onClick={() => setModuleState({ ...moduleState, ...calculationState })}>Recalculate</VSCodeButton></div>
+            </> : <ModuleConfigurationContent {...{ moduleId: module.moduleId, moduleState, setModuleState, keys: Object.keys(moduleState).filter(k => calculationStateKeys.indexOf(k) === -1), optionsMetadata, wrap: false }} />}
         </div>
     );
     const monitorContent = (
