@@ -144,42 +144,6 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
     }, [audioEditor, selRange]);
-    const handleNewMarkersContainerMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-        e.stopPropagation();
-        e.preventDefault();
-        setSelectedMarkers([]);
-        const [viewStart, viewEnd] = viewRange;
-        const viewLength = viewEnd - viewStart;
-        const origin = { x: e.clientX, y: e.clientY };
-        const rect = e.currentTarget.getBoundingClientRect();
-        const playhead = viewStart + (e.clientX - rect.left) / rect.width * viewLength;
-        audioEditor.setPlayhead(playhead);
-        audioEditor.setSelRange(null);
-        const handleMouseMove = (e: MouseEvent) => {
-            e.stopPropagation();
-            e.preventDefault();
-            const x = e.clientX;
-            if (x === origin.x) {
-                audioEditor.setSelRange(null);
-            } else {
-                if (x > rect.right) audioEditor.scrollH((x - rect.right) / 1000);
-                else if (x < rect.left) audioEditor.scrollH((x - rect.left) / 1000);
-                const [viewStart, viewEnd] = audioEditor.state.viewRange;
-                const viewLength = viewEnd - viewStart;
-                const to = viewStart + Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * viewLength;
-                audioEditor.setSelRange([playhead, to]);
-            }
-        };
-        const handleMouseUp = (e: MouseEvent) => {
-            e.stopPropagation();
-            e.preventDefault();
-            audioEditor.emitSelRangeToPlay();
-            document.removeEventListener("mousemove", handleMouseMove);
-            document.removeEventListener("mouseup", handleMouseUp);
-        };
-        document.addEventListener("mousemove", handleMouseMove);
-        document.addEventListener("mouseup", handleMouseUp);
-    }, [audioEditor, viewRange]);
     const handleOldMarkersContainerMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         e.stopPropagation();
         e.preventDefault();
@@ -190,6 +154,8 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
         const origin = { x: e.clientX, y: e.clientY };
         const rect = e.currentTarget.getBoundingClientRect();
         const playhead = viewStart + (e.clientX - rect.left) / rect.width * viewLength;
+        audioEditor.setPlayhead(playhead);
+        if (!e.ctrlKey && !e.metaKey) audioEditor.setSelRange(null);
         const selectedMarkersSet = new Set(selectedMarkers);
         const handleMouseMove = (e: MouseEvent) => {
             e.stopPropagation();
@@ -439,24 +405,20 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
             </div>
             <div ref={divMainRef} className="markers-container visualizer-component-visualization-area" onWheel={handleWheel}>
                 <div className="markers">
-                    <div className="new-markers-container" onMouseDown={handleNewMarkersContainerMouseDown}>
-                        <div className="markers-row">
-                            <div className="selrange" style={{ left: selLeft, width: selWidth }} hidden={!selRange}>
-                                <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />
-                                <div className="resize-handler resize-handler-e" onMouseDown={handleResizeEndMouseDown} />
+                    <div className="marker-selection-overlay selrange" style={{ left: selLeft, width: selWidth }} hidden={!selRange}>
+                        <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />
+                        <div className="resize-handler resize-handler-e" onMouseDown={handleResizeEndMouseDown} />
+                    </div>
+                    <div className="marker-playhead-overlay">
+                        {
+                            playhead < viewStart || playhead > viewEnd
+                            ? null
+                            : <div className="playhead" style={{ left: playheadLeft }}>
+                                <VSCodeButton tabIndex={-1} aria-label="Add Marker" title="Add marker at playhead" appearance="icon" onClick={handleClickAddMarker} onMouseDown={handleAddMarkerMouseDown}>
+                                    <span className="codicon codicon-add"></span>
+                                </VSCodeButton>
                             </div>
-                            <div className="playhead-container">
-                                {
-                                    playhead < viewStart || playhead > viewEnd
-                                    ? null
-                                    : <div className="playhead" style={{ left: playheadLeft }}>
-                                        <VSCodeButton tabIndex={-1} aria-label="Add Marker" title="Add Marker" appearance="icon" onClick={handleClickAddMarker} onMouseDown={handleAddMarkerMouseDown}>
-                                            <span className="codicon codicon-add"></span>
-                                        </VSCodeButton>
-                                    </div>
-                                }
-                            </div>
-                        </div>  
+                        }
                     </div>
                     <div className="old-markers-container" onMouseDown={handleOldMarkersContainerMouseDown}>
                         <div className="selrange" style={{ left: bulkSelLeft, width: bulkSelWidth }} hidden={!bulkSelRange}></div>

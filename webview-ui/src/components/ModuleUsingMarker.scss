@@ -39,27 +39,49 @@
             overflow: hidden;
 
             & > div.markers {
-                display: flex;
-                flex-direction: column;
+                display: block;
                 position: relative;
                 height: 100%;
 
-                & > div.new-markers-container {
-                    position: relative;
-                    flex: 0 0 auto;
-                    display: block;
-                    width: 100%;
-                    border-bottom: 1px var(--vscode-menu-separatorBackground) solid;
-                }
-
                 & > div.old-markers-container {
                     position: relative;
-                    flex: 1 1 auto;
                     display: block;
                     width: 100%;
+                    height: 100%;
+                }
+
+                & > .marker-playhead-overlay {
+                    position: absolute;
+                    inset: 0;
+                    z-index: 6;
+                    overflow: hidden;
+                    pointer-events: none;
+
+                    & > .playhead {
+                        position: absolute;
+                        top: 0;
+                        bottom: 0;
+                        width: 0;
+                        border-right: 1px dashed var(--vscode-editorWarning-foreground);
+
+                        & > vscode-button {
+                            position: absolute;
+                            top: 4px;
+                            left: 4px;
+                            width: 22px;
+                            height: 22px;
+                            overflow: visible;
+                            pointer-events: auto;
+                            filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .45));
+                        }
+                    }
+                }
+
+                & > .marker-selection-overlay {
+                    z-index: 2;
                 }
                 
-                & > div div.selrange {
+                & div.selrange {
                     position: absolute;
                     display: block;
                     height: 100%;
@@ -99,16 +121,9 @@
                 & div.markers-row {
                     position: relative;
                     display: block;
-                    margin: 2px 0px;
-                    overflow: hidden;
-
-                    &::after {
-                        position: relative;
-                        display: inline-block;
-                        content: "\00a0";
-                        margin: 4px 0px;
-                        width: 0px;
-                    }
+                    height: 44px;
+                    margin: 0;
+                    overflow: visible;
 
                     & > div.marker {
                         position: absolute;
@@ -259,29 +274,6 @@
 
                         &.range:hover {
                             background: color-mix(in srgb, var(--marker-color) 26%, transparent);
-                        }
-                    }
-                    & > div.playhead-container {
-                        display: block;
-                        position: absolute;
-                        pointer-events: none;
-                        width: 100%;
-                        height: 100%;
-                        overflow: hidden;
-            
-                        & > div.playhead {
-                            display: block;
-                            position: absolute;
-                            width: 0px;
-                            height: 100%;
-                            border-right: 1px var(--vscode-editorWarning-foreground) dashed;
-        
-                            & > vscode-button {
-                                position: relative;
-                                margin-left: 4px;
-                                overflow: visible;
-                                pointer-events: auto;
-                            }
                         }
                     }
                 }
