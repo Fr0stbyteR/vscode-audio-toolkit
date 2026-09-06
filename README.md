@@ -10,7 +10,7 @@ A powerful tool for visualizing and analyzing audio files.
 
 + Saving the editor's state.
 
-+ Desktop analysis modules powered by librosa: beat/onset/non-silent markers, RMS, spectral centroid, YIN pitch, mel spectrogram, and chroma.
++ Desktop analysis modules powered by librosa: beat/onset/non-silent markers, RMS, onset strength, zero-crossing rate, spectral centroid/bandwidth/rolloff/flatness, YIN pitch, mel spectrogram, chroma, and MFCC.
 
 + Existing Vector and Matrix views are reused for continuous 1D/2D analysis results. Matrix views prefer an experimental WebGL 2 renderer and fall back to Canvas 2D.
 

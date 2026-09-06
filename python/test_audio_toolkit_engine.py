@@ -50,14 +50,17 @@ class AnalysisTests(unittest.TestCase):
         self.assertTrue(result["intervals"])
 
     def test_vector_features(self) -> None:
-        for algorithm in ("rms", "spectralCentroid", "pitch"):
+        for algorithm in (
+            "rms", "spectralCentroid", "spectralBandwidth", "spectralRolloff",
+            "spectralFlatness", "zeroCrossingRate", "onsetStrength", "pitch"
+        ):
             with self.subTest(algorithm=algorithm):
                 result = self.request(algorithm, frameLength=1024, hopLength=256)
                 self.assertTrue(result["vectors"])
                 self.assertTrue(result["vectors"][0])  # type: ignore[index]
 
     def test_matrix_features(self) -> None:
-        for algorithm in ("melSpectrogram", "chroma"):
+        for algorithm in ("melSpectrogram", "chroma", "mfcc"):
             with self.subTest(algorithm=algorithm):
                 result = self.request(algorithm, frameLength=1024, hopLength=256, melBins=32)
                 self.assertTrue(result["matrix"])

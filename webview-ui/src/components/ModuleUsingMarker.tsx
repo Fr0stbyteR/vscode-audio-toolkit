@@ -34,6 +34,13 @@ export interface ModuleUsingMarkerProps extends VisualizationOptions<IAudioToolk
     monitorContent?: JSX.Element;
 }
 
+function formatMarkerTime(samples: number, sampleRate: number) {
+    const seconds = Math.max(0, samples / sampleRate);
+    const minutes = Math.floor(seconds / 60);
+    const remainder = seconds - minutes * 60;
+    return minutes ? `${minutes}:${remainder.toFixed(3).padStart(6, "0")}` : `${remainder.toFixed(3)} s`;
+}
+
 const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => {
     const {
         markerClassName, markerData,
@@ -259,7 +266,9 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
     const bulkSelWidth = getCssFromPosition(viewRange, bulkSelStart, bulkSelEnd);
     const calculatingError = Array.isArray(calculating) && calculating[0] < 0 ? calculating[1] : null;
     const allMarkers: {
+        index: number;
         name: string;
+        time: string;
         color: string;
         start: number;
         end: number;
@@ -271,6 +280,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
         handleMarkerResizeEndMouseDown: React.MouseEventHandler<HTMLDivElement>;
         handleMarkerMoveMouseDown: React.MouseEventHandler<HTMLDivElement>;
         handleMarkerDoubleClick: React.MouseEventHandler<HTMLDivElement>;
+        handleMarkerKeyDown: React.KeyboardEventHandler<HTMLDivElement>;
     }[][] = [];
     let row = 0;
     let selected = false;
@@ -400,11 +410,25 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
             if (start === end) audioEditor.setPlayhead(start);
             else audioEditor.setSelRange([start, end]);
         };
+        const handleMarkerKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+            if (e.key === "Enter") {
+                if (start === end) audioEditor.setPlayhead(start);
+                else audioEditor.setSelRange([start, end]);
+            } else if (e.key === " ") {
+                setSelectedMarkers(current => current.includes(i) ? current.filter(index => index !== i) : [...current, i]);
+            } else return;
+            e.preventDefault();
+            e.stopPropagation();
+        };
         left = getCssFromPosition(viewRange, start);
         width = `max(${getCssFromPosition(viewRange, start, end)}, 6px)`;
         if (!allMarkers[row]) allMarkers[row] = [];
-        allMarkers[row].push({ name, color, start, end, left, width, row, selected, handleMarkerMoveMouseDown, handleMarkerResizeEndMouseDown, handleMarkerResizeStartMouseDown, handleMarkerDoubleClick });
+        const time = start === end
+            ? formatMarkerTime(start, audioEditor.sampleRate)
+            : `${formatMarkerTime(start, audioEditor.sampleRate)} – ${formatMarkerTime(end, audioEditor.sampleRate)}`;
+        allMarkers[row].push({ index: i, name, time, color, start, end, left, width, row, selected, handleMarkerMoveMouseDown, handleMarkerResizeEndMouseDown, handleMarkerResizeStartMouseDown, handleMarkerDoubleClick, handleMarkerKeyDown });
     });
+    const firstVisibleMarker = allMarkers.flat()[0]?.index;
     return (<>
         <div className={`visualizer-component-container module-using-marker-container ${module.moduleId.replace(".", "-")}-container`}>
             <div className="module-using-marker-background">
@@ -440,9 +464,9 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
                             allMarkers.map((row, i) => (
                                 <div key={i} className="markers-row">
                                     {
-                                        row.map(({ name, color, start, end, left, width, selected, handleMarkerMoveMouseDown, handleMarkerResizeStartMouseDown, handleMarkerResizeEndMouseDown, handleMarkerDoubleClick }, j) => (
-                                            <div key={j} role="button" aria-label={name || `Marker ${j + 1}`} aria-pressed={selected} className={`marker${start === end ? "" : " range"}${selected ? " selected" : ""}`} style={{ left, width, borderColor: color }} onMouseDown={handleMarkerMoveMouseDown} onDoubleClick={handleMarkerDoubleClick}>
-                                                <span>{name}</span>
+                                        row.map(({ index, name, time, color, start, end, left, width, selected, handleMarkerMoveMouseDown, handleMarkerResizeStartMouseDown, handleMarkerResizeEndMouseDown, handleMarkerDoubleClick, handleMarkerKeyDown }) => (
+                                            <div key={index} role="button" tabIndex={selected || (!selectedMarkers.length && index === firstVisibleMarker) ? 0 : -1} aria-label={`${name || `Marker ${index + 1}`}, ${time}`} aria-pressed={selected} title={`${name ? `${name} · ` : ""}${time}`} className={`marker${start === end ? " point" : " range"}${selected ? " selected" : ""}`} style={{ left, ...(start === end ? {} : { width }), "--marker-color": color } as React.CSSProperties} onMouseDown={handleMarkerMoveMouseDown} onDoubleClick={handleMarkerDoubleClick} onKeyDown={handleMarkerKeyDown}>
+                                                <span className="marker-label"><strong>{name || `Marker ${index + 1}`}</strong><small>{time}</small></span>
                                                 {
                                                     start === end
                                                     ? undefined

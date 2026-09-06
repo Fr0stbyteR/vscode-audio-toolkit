@@ -22,7 +22,11 @@ export interface AudioToolkitEdit {
     modulesState: AudioToolkitModulesState;
 }
 
-export type AudioAnalysisAlgorithm = "beats" | "onsets" | "nonSilent" | "rms" | "spectralCentroid" | "pitch" | "melSpectrogram" | "chroma";
+export type AudioAnalysisAlgorithm =
+    | "beats" | "onsets" | "nonSilent"
+    | "rms" | "zeroCrossingRate" | "onsetStrength"
+    | "spectralCentroid" | "spectralBandwidth" | "spectralRolloff" | "spectralFlatness"
+    | "pitch" | "melSpectrogram" | "chroma" | "mfcc";
 
 export interface AudioAnalysisRequest {
     algorithm: AudioAnalysisAlgorithm;

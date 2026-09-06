@@ -90,6 +90,61 @@ def analyze(payload: dict[str, Any]) -> dict[str, Any]:
             "hopLength": hop_length,
             "unit": "Hz",
         }
+    elif algorithm == "spectralBandwidth":
+        frame_length = int(options.get("frameLength", 2048))
+        hop_length = int(options.get("hopLength", 512))
+        power = float(options.get("power", 2.0))
+        bandwidth = librosa.feature.spectral_bandwidth(
+            y=y, sr=sample_rate, n_fft=frame_length,
+            hop_length=hop_length, p=power
+        )[0]
+        result["vectors"] = [bandwidth.tolist()]
+        result["metadata"] = {
+            "frameLength": frame_length, "hopLength": hop_length,
+            "power": power, "unit": "Hz"
+        }
+    elif algorithm == "spectralRolloff":
+        frame_length = int(options.get("frameLength", 2048))
+        hop_length = int(options.get("hopLength", 512))
+        roll_percent = float(options.get("rollPercent", 0.85))
+        rolloff = librosa.feature.spectral_rolloff(
+            y=y, sr=sample_rate, n_fft=frame_length,
+            hop_length=hop_length, roll_percent=roll_percent
+        )[0]
+        result["vectors"] = [rolloff.tolist()]
+        result["metadata"] = {
+            "frameLength": frame_length, "hopLength": hop_length,
+            "rollPercent": roll_percent, "unit": "Hz"
+        }
+    elif algorithm == "spectralFlatness":
+        frame_length = int(options.get("frameLength", 2048))
+        hop_length = int(options.get("hopLength", 512))
+        flatness = librosa.feature.spectral_flatness(
+            y=y, n_fft=frame_length, hop_length=hop_length
+        )[0]
+        result["vectors"] = [flatness.tolist()]
+        result["metadata"] = {
+            "frameLength": frame_length, "hopLength": hop_length,
+            "unit": "ratio"
+        }
+    elif algorithm == "zeroCrossingRate":
+        frame_length = int(options.get("frameLength", 2048))
+        hop_length = int(options.get("hopLength", 512))
+        rate = librosa.feature.zero_crossing_rate(
+            y, frame_length=frame_length, hop_length=hop_length
+        )[0]
+        result["vectors"] = [rate.tolist()]
+        result["metadata"] = {
+            "frameLength": frame_length, "hopLength": hop_length,
+            "unit": "ratio"
+        }
+    elif algorithm == "onsetStrength":
+        hop_length = int(options.get("hopLength", 512))
+        strength = librosa.onset.onset_strength(
+            y=y, sr=sample_rate, hop_length=hop_length
+        )
+        result["vectors"] = [strength.tolist()]
+        result["metadata"] = {"hopLength": hop_length, "unit": "strength"}
     elif algorithm == "pitch":
         frame_length = int(options.get("frameLength", 2048))
         hop_length = int(options.get("hopLength", 512))
@@ -154,6 +209,22 @@ def analyze(payload: dict[str, Any]) -> dict[str, Any]:
             "minValue": 0.0,
             "maxValue": 1.0,
             "unit": "strength",
+        }
+    elif algorithm == "mfcc":
+        frame_length = int(options.get("frameLength", 2048))
+        hop_length = int(options.get("hopLength", 512))
+        coefficients = int(options.get("coefficients", 20))
+        mfcc = librosa.feature.mfcc(
+            y=y, sr=sample_rate, n_mfcc=coefficients,
+            n_fft=frame_length, hop_length=hop_length
+        )
+        result["matrix"] = mfcc.T.tolist()
+        result["metadata"] = {
+            "frameLength": frame_length, "hopLength": hop_length,
+            "bins": coefficients,
+            "minValue": float(np.min(mfcc)),
+            "maxValue": float(np.max(mfcc)),
+            "unit": "coefficient"
         }
     else:
         fail(f"Unsupported analysis algorithm: {algorithm}")
