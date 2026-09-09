@@ -37,8 +37,8 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         cursorX, cursorY, onCursor,
         showChannelEnableOverlay, backgroundOpacity, foregroundOpacity,
         configurationContent, monitorContent,
-        viewRange, enabledChannels, selRange, playhead,
-        configuring, monitoring, rerenderId, repaintId
+        viewRange, enabledChannels, selRange,
+        configuring, monitoring, overlayMode, activeLayer, rerenderId, repaintId
     } = props;
     const audioEditor = useContext(AudioEditorContext)!;
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -47,6 +47,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
     const canvasHorizontalRulerRef = useRef<HTMLCanvasElement>(null);
     const divMainRef = useRef<HTMLDivElement>(null);
     const [cursorLocked, setCursorLocked] = useState(false);
+    const [layoutRevision, setLayoutRevision] = useState(0);
     const handleWindowKeyDown = useCallback((e: KeyboardEvent) => {
         if (monitoring && e.key === "l") setCursorLocked(l => !l);
     }, [monitoring]);
@@ -66,17 +67,39 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         };
     }, [handleDocumentMouseMove, handleWindowKeyDown]);
     useEffect(() => {
+        const element = divMainRef.current;
+        if (!element || typeof ResizeObserver === "undefined") return;
+        let frame = 0;
+        const observer = new ResizeObserver(() => {
+            cancelAnimationFrame(frame);
+            frame = requestAnimationFrame(() => setLayoutRevision(value => value + 1));
+        });
+        observer.observe(element);
+        return () => {
+            cancelAnimationFrame(frame);
+            observer.disconnect();
+        };
+    }, []);
+    useEffect(() => {
+        const rect = divMainRef.current?.getBoundingClientRect();
+        if (!rect || rect.width <= 0 || rect.height <= 0) return;
         void Promise.resolve().then(() => paint(canvasRef)).catch(error => console.error("Canvas paint failed.", error));
-    }, [paint, rerenderId, repaintId]);
+    }, [layoutRevision, paint, rerenderId, repaintId]);
     useEffect(() => {
+        const rect = divMainRef.current?.getBoundingClientRect();
+        if (!rect || rect.width <= 0 || rect.height <= 0) return;
         if (paintBackground) void Promise.resolve().then(() => paintBackground(backgroundCanvasRef)).catch(error => console.error("Canvas background paint failed.", error));
-    }, [paintBackground, rerenderId, repaintId]);
+    }, [layoutRevision, paintBackground, rerenderId, repaintId]);
     useEffect(() => {
+        const rect = divMainRef.current?.getBoundingClientRect();
+        if (!rect || rect.width <= 0 || rect.height <= 0) return;
         void Promise.resolve().then(() => paintVerticalRuler(canvasVerticalRulerRef)).catch(error => console.error("Canvas vertical ruler paint failed.", error));
-    }, [paintVerticalRuler, rerenderId, repaintId]);
+    }, [layoutRevision, paintVerticalRuler, rerenderId, repaintId]);
     useEffect(() => {
+        const rect = divMainRef.current?.getBoundingClientRect();
+        if (!rect || rect.width <= 0 || rect.height <= 0) return;
         void Promise.resolve().then(() => paintHorizontalRuler(canvasHorizontalRulerRef)).catch(error => console.error("Canvas horizontal ruler paint failed.", error));
-    }, [paintHorizontalRuler, rerenderId, repaintId]);
+    }, [layoutRevision, paintHorizontalRuler, rerenderId, repaintId]);
     const handleCanvasMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         (document.activeElement as HTMLElement)?.blur();
         e.stopPropagation();
@@ -225,11 +248,9 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
     }, [audioEditor, selRange]);
-    const [viewStart, viewEnd] = viewRange;
     const [selStart, selEnd] = selRange || [0, 0];
     const selLeft = getCssFromPosition(viewRange, selStart);
     const selWidth = getCssFromPosition(viewRange, selStart, selEnd);
-    const playheadLeft = getCssFromPosition(viewRange, playhead);
     const cursorXLeft = `${cursorX}px`;
     const cursorYTop = `${cursorY}px`;
     const calculatingError = Array.isArray(calculating) && calculating[0] < 0 ? calculating[1] : null;
@@ -259,16 +280,13 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
                 */}
             </div>
             {
-                monitoring
+                monitoring && (!overlayMode || activeLayer)
                 ? <div className="cursor-container">
                     {canvasRef.current && typeof cursorX === "number" && 0 <= cursorX && cursorX <= canvasRef.current.width ? <div className="cursor-x" style={{ left: cursorXLeft }} /> : null}
                     {canvasRef.current && typeof cursorY === "number" && 0 <= cursorY && cursorY <= canvasRef.current.height ? <div className="cursor-y" style={{ top: cursorYTop }} /> : null}
                 </div>
                 : null
             }
-            <div className="playhead-container">
-                {playhead < viewStart || playhead > viewEnd ? null : <div className="playhead" style={{ left: playheadLeft }} />}
-            </div>
             <div className="channel-enable-overlay">
                 {showChannelEnableOverlay ? enabledChannels.map((enabled, i) => <div key={i} className={enabled ? "" : "disabled"} />) : null}
             </div>

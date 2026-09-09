@@ -62,9 +62,9 @@ const AudioEditorControls: FunctionComponent<Props> = ({ playhead, playing, loop
             </span>
             <span className="editor-add-component">
                 <VSCodeDropdown className="editor-add-component-dropdown" value="none" onInput={handleAddModuleInput}>
-                <   VSCodeOption value="none">Add a Module</VSCodeOption>
+                    <VSCodeOption value="none">Add a Module</VSCodeOption>
                     {
-                        Object.keys(AudioEditor.MODULES_MAP).map(k => <VSCodeOption value={k}>{AudioEditor.MODULES_MAP[k].MODULE_NAME}</VSCodeOption>)
+                        Object.keys(AudioEditor.MODULES_MAP).map(moduleId => <VSCodeOption key={moduleId} value={moduleId}>{AudioEditor.MODULES_MAP[moduleId].MODULE_NAME}</VSCodeOption>)
                     }
                 </VSCodeDropdown>
             </span>

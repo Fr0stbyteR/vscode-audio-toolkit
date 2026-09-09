@@ -27,11 +27,26 @@ const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRang
     const divViewRangeRef = useRef<HTMLDivElement>(null);
     const module = audioEditor.modulesInstance[0] as Waveform;
     const [dataSlices, setDataSlices] = useState<typeof module.dataSlices>(module.dataSlices);
+    const [layoutRevision, setLayoutRevision] = useState(0);
     const handleDataChange = useCallback((dataSlices: typeof module.dataSlices) => setDataSlices(dataSlices), [module]);
     useEffect(() => {
         module.onDataChange = handleDataChange;
         return () => module.onDataChange = undefined;
     }, [handleDataChange, module]);
+    useEffect(() => {
+        const element = canvasRef.current?.parentElement;
+        if (!element || typeof ResizeObserver === "undefined") return;
+        let frame = 0;
+        const observer = new ResizeObserver(() => {
+            cancelAnimationFrame(frame);
+            frame = requestAnimationFrame(() => setLayoutRevision(value => value + 1));
+        });
+        observer.observe(element);
+        return () => {
+            cancelAnimationFrame(frame);
+            observer.disconnect();
+        };
+    }, []);
     const paint = useCallback(() => {
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext("2d");
@@ -40,7 +55,7 @@ const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRang
         const [width, height] = setCanvasToFullSize(canvas);
         VectorImageProcessor.paint(ctx, dataSlices, { width, height, verticalZoom: 1, verticalOffset: 0 }, { viewRange: [0, audioEditor.length] }, { phosphorColor });
     }, [dataSlices, audioEditor, phosphorColor]);
-    useEffect(paint, [paint, windowSize, phosphorColor, playheadColor]);
+    useEffect(paint, [layoutRevision, paint, windowSize, phosphorColor, playheadColor]);
     const handleMoveMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!canvasRef.current || !divViewRangeRef.current) return;
         e.stopPropagation();

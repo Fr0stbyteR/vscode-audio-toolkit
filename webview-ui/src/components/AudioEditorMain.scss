@@ -89,7 +89,7 @@
 
             & > .editor-main-visualizer-container {
                 position: absolute;
-                inset: 40px 0 0 0;
+                inset: 40px 0 0 24px;
                 display: flex;
                 min-height: 0;
                 pointer-events: none;
@@ -125,6 +125,14 @@
                     & > .visualizer-component-monitor {
                         display: none !important;
                     }
+
+                    .module-using-canvas-horizontal-ruler-container,
+                    .module-using-canvas-vertical-ruler-container,
+                    .module-using-marker-vertical-ruler-container,
+                    .cursor-container,
+                    .marker-playhead-overlay {
+                        display: none !important;
+                    }
                 }
             }
 
@@ -132,14 +140,23 @@
             .module-using-marker-background {
                 background: transparent !important;
             }
+
+            .module-using-canvas-canvas-container > canvas,
+            .module-using-marker-background > canvas {
+                mix-blend-mode: screen;
+            }
         }
 
         & > div.editor-main-playhead-container {
             display: block;
             position: absolute;
-            margin-top: 40px;
-            margin-left: 24px;
+            top: 40px;
+            bottom: 0;
+            left: 24px;
             width: calc(100% - var(--visualizer-right-spacing) - 24px);
+            pointer-events: none;
+            overflow: visible;
+            z-index: 900;
     
             &[hidden] {
                 display: none;
@@ -163,7 +180,17 @@
                 margin-top: -12px;
                 margin-left: -8px;
                 cursor: grab;
-                z-index: 1;
+                z-index: 2;
+                pointer-events: auto;
+            }
+
+            & > div.editor-main-playhead {
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                width: 0;
+                border-right: 1px dashed var(--vscode-editorWarning-foreground);
+                opacity: .9;
             }
         }
         

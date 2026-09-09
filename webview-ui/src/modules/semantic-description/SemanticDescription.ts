@@ -1,0 +1,40 @@
+import AudioEditor from "../../core/AudioEditor";
+import { AudioToolkitModule, AudioToolkitModuleState } from "../../core/AudioToolkitModule";
+import SemanticDescriptionComponent from "./SemanticDescriptionComponent";
+
+export interface SemanticDescriptionState extends AudioToolkitModuleState {
+    name: string;
+    contextSeconds: number;
+    maximumResults: number;
+    providerId: string;
+    autoAnalyze: boolean;
+    showRawOutput: boolean;
+}
+
+export default class SemanticDescription implements AudioToolkitModule<SemanticDescriptionState> {
+    static MODULE_ID = "embedding.semantic-description";
+    static MODULE_NAME = "CLAP description";
+    static DEFAULT_STATE: SemanticDescriptionState = {
+        name: "CLAP description",
+        contextSeconds: 6,
+        maximumResults: 8,
+        providerId: "",
+        autoAnalyze: true,
+        showRawOutput: true
+    };
+    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<SemanticDescriptionState> = {}) {
+        return new SemanticDescription(audioEditor, { ...this.DEFAULT_STATE, ...initialState });
+    }
+
+    readonly moduleId = SemanticDescription.MODULE_ID;
+    readonly Component = SemanticDescriptionComponent;
+    readonly sharableData = Promise.resolve(null);
+    onStateChange: ((newState: SemanticDescriptionState) => unknown) | undefined;
+
+    private constructor(public readonly audioEditor: AudioEditor, private state: SemanticDescriptionState) {}
+    getState() { return this.state; }
+    setState(newState: SemanticDescriptionState) {
+        this.state = newState;
+        this.onStateChange?.(newState);
+    }
+}

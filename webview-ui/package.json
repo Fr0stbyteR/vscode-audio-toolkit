@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "start": "vite",
+    "start:standalone": "vite --config vite.standalone.config.ts --host 127.0.0.1",
     "build": "tsc && vite build",
+    "build:standalone": "tsc && vite build --config vite.standalone.config.ts",
     "lint": "eslint src --ext ts,tsx",
     "watch": "vite build --mode development --watch",
     "preview": "vite preview"

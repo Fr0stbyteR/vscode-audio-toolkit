@@ -1,11 +1,15 @@
 out
 dist
 node_modules
+.standalone-data/
+.venv-standalone/
 .vscode-test-web/
 .venv-librosa/
 __pycache__/
 *.py[cod]
 *.vsix
+.env
+!.env.example
 examples/
 webview-ui/src/modules/score
 local

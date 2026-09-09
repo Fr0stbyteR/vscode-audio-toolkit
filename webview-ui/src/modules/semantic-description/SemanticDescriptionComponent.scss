@@ -1,0 +1,134 @@
+.semantic-description-container {
+    --visualizer-right-spacing: 0px;
+    min-height: 150px;
+    z-index: 901;
+    background: var(--vscode-editor-background);
+
+    .semantic-description-area {
+        padding: 12px 16px;
+        box-sizing: border-box;
+        overflow: auto !important;
+    }
+
+    &.is-overlay:not(.is-active) {
+        pointer-events: none;
+        opacity: .82;
+    }
+}
+
+.semantic-card {
+    width: 100%;
+    min-height: 100%;
+    padding: 4px 0;
+    box-sizing: border-box;
+}
+
+.semantic-summary, .semantic-result > div:first-child, .semantic-score, .semantic-error {
+    display: flex;
+    align-items: center;
+}
+
+.semantic-summary {
+    gap: 9px;
+    min-height: 32px;
+    padding: 7px 10px;
+    margin-bottom: 9px;
+    border-left: 2px solid var(--vscode-focusBorder);
+    background: var(--vscode-editorWidget-background);
+    span { color: var(--vscode-descriptionForeground); font-size: 10px; text-transform: uppercase; }
+    strong { font-size: 14px; color: var(--vscode-foreground); }
+    small { margin-left: auto; color: var(--vscode-descriptionForeground); }
+}
+
+.semantic-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+    gap: 6px;
+}
+
+.semantic-result {
+    padding: 7px 8px;
+    border: 1px solid var(--vscode-widget-border, #30363d);
+    border-radius: 4px;
+    background: var(--vscode-sideBar-background);
+
+    > div:first-child { justify-content: space-between; gap: 8px; }
+    strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+    > div:first-child span { color: var(--vscode-descriptionForeground); font-size: 9px; }
+}
+
+.semantic-score {
+    position: relative;
+    height: 3px;
+    margin-top: 7px;
+    border-radius: 2px;
+    background: var(--vscode-progressBar-background, #0e639c);
+    opacity: .34;
+    i { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--vscode-focusBorder); }
+    span { position: absolute; right: 0; bottom: 4px; color: var(--vscode-descriptionForeground); font: 9px var(--vscode-editor-font-family); }
+}
+
+.semantic-disclaimer {
+    margin-top: 8px;
+    color: var(--vscode-descriptionForeground);
+    font-size: 10px;
+}
+
+.semantic-raw {
+    max-height: 230px;
+    overflow: auto;
+    border: 1px solid var(--vscode-widget-border, #30363d);
+    border-radius: 4px;
+    background: var(--vscode-sideBar-background);
+}
+
+.semantic-raw-note {
+    position: sticky;
+    z-index: 1;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--vscode-widget-border, #30363d);
+    background: var(--vscode-editorWidget-background);
+    span { color: var(--vscode-descriptionForeground); font-size: 10px; line-height: 1.35; }
+}
+
+.semantic-raw-row {
+    display: grid;
+    grid-template-columns: 26px minmax(160px, 1fr) 58px 58px;
+    align-items: center;
+    min-height: 27px;
+    padding: 0 8px;
+    border-bottom: 1px solid color-mix(in srgb, var(--vscode-widget-border, #30363d) 55%, transparent);
+    font: 10px var(--vscode-editor-font-family);
+    &:last-child { border-bottom: 0; }
+    strong { text-align: right; color: var(--vscode-focusBorder); font-variant-numeric: tabular-nums; }
+}
+
+.semantic-rank, .semantic-family { color: var(--vscode-descriptionForeground); }
+.semantic-prompt { overflow: hidden; padding-right: 8px; text-overflow: ellipsis; white-space: nowrap; }
+
+.semantic-empty { display: flex; align-items: center; gap: 9px; min-height: 62px; color: var(--vscode-descriptionForeground); }
+.semantic-error { align-items: flex-start; gap: 9px; padding: 10px; color: var(--vscode-errorForeground); background: var(--vscode-inputValidation-errorBackground); border: 1px solid var(--vscode-inputValidation-errorBorder); }
+.semantic-error > div { display: flex; flex-direction: column; gap: 3px; }
+.semantic-error span { font-size: 11px; }
+
+.semantic-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 9px;
+    font-size: 11px;
+    label { display: flex; flex-direction: column; gap: 4px; }
+    label > span { color: var(--vscode-descriptionForeground); }
+    input, select, button { color: var(--vscode-input-foreground); background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border, transparent); padding: 4px 6px; }
+    button { cursor: pointer; background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+    .semantic-checkbox { flex-direction: row; align-items: center; }
+}
+
+.semantic-monitor { padding: 9px; }
+.semantic-monitor > div { display: flex; flex-direction: column; gap: 2px; margin-bottom: 9px; }
+.semantic-monitor span { color: var(--vscode-descriptionForeground); font-size: 10px; }
+.semantic-monitor strong { overflow-wrap: anywhere; font-size: 11px; }

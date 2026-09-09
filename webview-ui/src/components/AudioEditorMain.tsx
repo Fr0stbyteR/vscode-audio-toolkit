@@ -1,6 +1,6 @@
 import "./AudioEditorMain.scss";
 import "./AudioEditorComponentContainer.scss";
-import { Fragment, FunctionComponent, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { Fragment, FunctionComponent, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AudioEditorConfiguration, AudioEditorState } from "../core/AudioEditor";
 import { AudioEditorContext } from "./contexts";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
@@ -297,6 +297,19 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
     // useEffect(() => void vscode.setState(visualizersState), [visualizersState]);
     useEffect(paintVerticalRuler, [paintVerticalRuler, rerenderId]);
     useEffect(() => setRerenderId(performance.now()), [configuring, monitoring]);
+    useLayoutEffect(() => {
+        let secondFrame = 0;
+        const firstFrame = requestAnimationFrame(() => {
+            secondFrame = requestAnimationFrame(() => {
+                setRerenderId(performance.now());
+                audioEditor.emit("uiResized");
+            });
+        });
+        return () => {
+            cancelAnimationFrame(firstFrame);
+            cancelAnimationFrame(secondFrame);
+        };
+    }, [activeLayerIndex, audioEditor, configuring, monitoring, overlayMode]);
     useEffect(() => {
         if (!visualizersState[activeLayerIndex]) setActiveLayerIndex(Math.max(1, visualizersState.length - 1));
     }, [activeLayerIndex, visualizersState]);
@@ -362,7 +375,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                             </div>
                             {visible ? <div className={`editor-main-visualizer-component${configuring ? " configuring" : ""}${monitoring ? " monitoring" : ""}`} onKeyDown={handleStopPropagation} onKeyUp={handleStopPropagation}>
                                 <ModuleErrorBoundary moduleName={displayName} onRemove={() => handleClickRemoveVisualizer(i)}>
-                                    <Component module={module} moduleIndex={i} moduleState={state} {...moduleCommonProps} />
+                                    <Component module={module} moduleIndex={i} moduleState={state} {...moduleCommonProps} activeLayer={activeLayerIndex === i} />
                                 </ModuleErrorBoundary>
                             </div> : null}
                         </div>

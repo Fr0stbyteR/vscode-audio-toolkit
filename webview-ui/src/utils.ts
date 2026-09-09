@@ -302,22 +302,35 @@ export const getRuler = (range: [number, number], unit: AudioUnit, { sampleRate 
 };
 
 export const generateRuler = (steps: number[], multiplier: number, initialMultiplier: number, calcPixels: (input: number) => number, coarseMinPixels = 25, refinedMinPixels = 3) => {
+    const validSteps = steps.filter(value => Number.isFinite(value) && value > 0);
+    if (!validSteps.length) return [1, 1] as [number, number];
+    const scaleMultiplier = Number.isFinite(multiplier) && multiplier > 1 ? multiplier : 10;
+    const startingMultiplier = Number.isFinite(initialMultiplier) && initialMultiplier > 0 ? initialMultiplier : 1;
     let coarse: number | undefined;
     let refined: number | undefined;
     let step = 0;
-    let grid: number;
-    do {
-        grid = steps[step] * initialMultiplier;
-        if (step + 1 < steps.length) {
+    let grid = startingMultiplier;
+    let currentMultiplier = startingMultiplier;
+    // A hidden/collapsed canvas has a zero pixel scale. The old unbounded loop
+    // multiplied forever in that state and eventually got stuck at Infinity.
+    for (let iteration = 0; iteration < 256 && (!coarse || !refined); iteration++) {
+        grid = validSteps[step] * currentMultiplier;
+        if (!Number.isFinite(grid) || grid <= 0) break;
+        if (step + 1 < validSteps.length) {
             step++;
         } else {
             step = 0;
-            initialMultiplier *= multiplier;
+            currentMultiplier *= scaleMultiplier;
         }
-        if (!coarse && calcPixels(grid) >= coarseMinPixels) coarse = grid;
-        if (!refined && calcPixels(grid) >= refinedMinPixels) refined = grid;
-    } while (!coarse || !refined);
-    return [coarse, refined];
+        const pixels = calcPixels(grid);
+        if (!Number.isFinite(pixels)) break;
+        if (!coarse && pixels >= coarseMinPixels) coarse = grid;
+        if (!refined && pixels >= refinedMinPixels) refined = grid;
+    }
+    const fallback = Number.isFinite(grid) && grid > 0 ? grid : startingMultiplier;
+    refined ??= coarse ?? fallback;
+    coarse ??= refined;
+    return [coarse, refined] as [number, number];
 };
 
 export const getCssFromPosition = (viewRange: [number, number], pos1: number, pos2?: number) => {

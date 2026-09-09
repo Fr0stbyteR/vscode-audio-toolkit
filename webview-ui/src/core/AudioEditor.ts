@@ -8,6 +8,42 @@ import Spectrogram from "../modules/spectrogram/Spectrogram";
 import Waveform from "../modules/waveform/Waveform";
 import { AudioAnalysisRequest, AudioAnalysisResult } from "../../../src/web/proxies/VSCodeAudioEditor.types";
 
+export interface SemanticDescriptionRequest {
+    startSeconds: number;
+    endSeconds: number;
+    timelineDurationSeconds?: number;
+    maximumResults: number;
+    providerId?: string;
+}
+
+export interface SemanticDescriptionItem {
+    labelId: string;
+    text: string;
+    family: string;
+    score: number;
+}
+
+export interface RawSemanticMatch {
+    prompt: string;
+    labelId: string;
+    family: string;
+    score: number;
+    cosineSimilarity: number;
+}
+
+export interface SemanticDescriptionResult {
+    assetId: string;
+    startSeconds: number;
+    endSeconds: number;
+    providerId: string;
+    providerName: string;
+    summary: string;
+    descriptions: SemanticDescriptionItem[];
+    rawMatches: RawSemanticMatch[];
+    scoreKind: "cosine-similarity-not-probability";
+    cached: boolean;
+}
+
 export type {
     AudioEditorConfiguration,
     AudioUnit
@@ -72,14 +108,14 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
             Modules.forEach(Module => this.MODULES_MAP[Module.MODULE_ID] = Module);
         }
     }
-    static async fromData(data: ArrayBuffer, context: AudioContext, configuration: Partial<AudioEditorConfiguration> = {}, modulesState?: AudioToolkitModulesState, uri?: string, workspaceUri = location.href, analyze?: (request: AudioAnalysisRequest) => Promise<AudioAnalysisResult>) {
+    static async fromData(data: ArrayBuffer, context: AudioContext, configuration: Partial<AudioEditorConfiguration> = {}, modulesState?: AudioToolkitModulesState, uri?: string, workspaceUri = location.href, analyze?: (request: AudioAnalysisRequest) => Promise<AudioAnalysisResult>, describeSemantics?: (request: SemanticDescriptionRequest) => Promise<SemanticDescriptionResult>) {
         if (!Object.keys(this.MODULES_MAP).length) {
             await this.loadModulesFromJson("./modules.json", import.meta.url);
         }
         const audioBuffer = await context.decodeAudioData(data);
         const operableAudioBuffer: OperableAudioBuffer = Object.setPrototypeOf(audioBuffer, OperableAudioBuffer.prototype);
         const timeDomainData = operableAudioBuffer.toArray(true);
-        const audioEditor = new AudioEditor(operableAudioBuffer, timeDomainData, context, { ...this.DEFAULT_CONFIGURATION, ...configuration }, uri, workspaceUri, analyze);
+        const audioEditor = new AudioEditor(operableAudioBuffer, timeDomainData, context, { ...this.DEFAULT_CONFIGURATION, ...configuration }, uri, workspaceUri, analyze, describeSemantics);
         await audioEditor.initPlayer();
         const state = modulesState ?? (audioBuffer.duration > 60 ? this.DEFAULT_MODULES_STATE.slice(0, 2) : this.DEFAULT_MODULES_STATE);
         await audioEditor.initModules(state);
@@ -149,7 +185,8 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         private _configuration: AudioEditorConfiguration,
         private _uri: string | undefined,
         private _workspaceUri: string | undefined,
-        private readonly _analyze?: (request: AudioAnalysisRequest) => Promise<AudioAnalysisResult>
+        private readonly _analyze?: (request: AudioAnalysisRequest) => Promise<AudioAnalysisResult>,
+        private readonly _describeSemantics?: (request: SemanticDescriptionRequest) => Promise<SemanticDescriptionResult>
     ) {
         super();
         this.setState({
@@ -160,6 +197,10 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     analyze(request: AudioAnalysisRequest) {
         if (!this._analyze) return Promise.reject(new Error("No audio analysis backend is available."));
         return this._analyze(request);
+    }
+    describeSemantics(request: SemanticDescriptionRequest) {
+        if (!this._describeSemantics) return Promise.reject(new Error("No music embedding backend is available."));
+        return this._describeSemantics(request);
     }
     private async initPlayer() {
         this._player = await AudioPlayer.init(this);

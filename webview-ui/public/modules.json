@@ -1,1 +1,1 @@
-["./modules/librosa.js","./modules/marker.js","./modules/spectrogram.js","./modules/waveform.js"]
+["./modules/librosa.js","./modules/marker.js","./modules/semantic-description.js","./modules/spectrogram.js","./modules/waveform.js"]

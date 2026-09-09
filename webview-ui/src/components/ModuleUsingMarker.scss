@@ -62,18 +62,30 @@
                         top: 0;
                         bottom: 0;
                         width: 0;
-                        border-right: 1px dashed var(--vscode-editorWarning-foreground);
 
                         & > vscode-button {
                             position: absolute;
-                            top: 4px;
-                            left: 4px;
-                            width: 22px;
-                            height: 22px;
+                            top: 8px;
+                            left: 0;
                             overflow: visible;
                             pointer-events: auto;
-                            filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .45));
+                            transform: translateX(-50%);
                         }
+                    }
+                }
+
+                .marker-add-button {
+                    width: 26px;
+                    height: 26px;
+                    opacity: .9;
+                    border: 1px solid color-mix(in srgb, var(--vscode-button-background) 72%, white);
+                    border-radius: 50%;
+                    background: var(--vscode-button-background);
+                    color: var(--vscode-button-foreground);
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, .45);
+
+                    &:hover {
+                        opacity: 1;
                     }
                 }
 
@@ -84,19 +96,8 @@
                         position: absolute;
                         left: 50%;
                         top: 50%;
-                        width: 26px;
-                        height: 26px;
-                        opacity: .86;
                         transform: translate(-50%, -50%);
-                        border-radius: 50%;
-                        background: var(--vscode-button-background);
-                        color: var(--vscode-button-foreground);
-                        box-shadow: 0 2px 8px rgba(0, 0, 0, .4);
                         pointer-events: auto;
-
-                        &:hover {
-                            opacity: 1;
-                        }
                     }
                 }
                 

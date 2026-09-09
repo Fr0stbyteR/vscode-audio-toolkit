@@ -337,6 +337,12 @@ class VectorImageProcessor {
         { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, labelsWidth = 0, labelMode = "decibel", labelUnit = labelMode === "decibel" ? "dB" : "" }: Partial<VectorPaintOptions>,
         { gridColor = "rgb(0, 53, 0)", gridRulerColor = "white", textColor = "white", labelFont = 'Consolas, "Courier New", "SF Mono", Monaco, Menlo, Courier, monospace' }: Partial<Pick<VisualizationStyleOptions, "gridColor" | "gridRulerColor" | "textColor" | "labelFont">> = {}
     ) {
+        if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0 ||
+            !Number.isFinite(numberOfChannels) || numberOfChannels <= 0 ||
+            !Number.isFinite(verticalZoom) || verticalZoom <= 0 || !Number.isFinite(verticalOffset)) {
+            ctx.clearRect(0, 0, Math.max(0, width || 0), Math.max(0, height || 0));
+            return;
+        }
         const channelHeight = height / numberOfChannels;
 
         ctx.save();
@@ -348,6 +354,10 @@ class VectorImageProcessor {
         let y: number;
         const yMin = (verticalOffset - 1) / verticalZoom;
         const yMax = (verticalOffset + 1) / verticalZoom;
+        if (!Number.isFinite(yMin) || !Number.isFinite(yMax) || yMax <= yMin) {
+            ctx.restore();
+            return;
+        }
         let coarse = 0.1;
         let refined = 0.01;
         let db: number;

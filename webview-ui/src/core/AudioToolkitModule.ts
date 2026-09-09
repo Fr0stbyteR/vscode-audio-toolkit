@@ -21,6 +21,8 @@ export interface VisualizationStyleOptions {
     monospaceFont: string;
 }
 
+export const VISUALIZER_RULER_WIDTH = 170;
+
 export interface VisualizationOptions<T extends AudioToolkitModule, S = ReturnType<T["getState"]>> extends VisualizationStyleOptions, Pick<AudioEditorState, "playhead" | "selRange" | "viewRange" | "enabledChannels"> {
     module: T;
     moduleIndex: number;
@@ -29,6 +31,8 @@ export interface VisualizationOptions<T extends AudioToolkitModule, S = ReturnTy
     configuring: boolean;
     configurationMode: "analysis" | "appearance";
     monitoring: boolean;
+    overlayMode: boolean;
+    activeLayer: boolean;
     rerenderId: number;
 }
 

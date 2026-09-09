@@ -191,11 +191,11 @@ const AudioEditorMonitor: FunctionComponent<Props> = ({ playhead, selRange, view
                     </VSCodeDataGridRow>
                     <VSCodeDataGridRow>
                         <VSCodeDataGridCell grid-column="1">Selection</VSCodeDataGridCell>
-                        {selRowSamples.map((s, i) => (<VSCodeDataGridCell grid-column={`${i + 2}`}><TimeInput samples={s} sampleRate={sampleRate} {...configuration} onChange={selRowOnChanges[i]} /></VSCodeDataGridCell>))}
+                        {selRowSamples.map((s, i) => (<VSCodeDataGridCell key={`selection-${i}`} grid-column={`${i + 2}`}><TimeInput samples={s} sampleRate={sampleRate} {...configuration} onChange={selRowOnChanges[i]} /></VSCodeDataGridCell>))}
                     </VSCodeDataGridRow>
                     <VSCodeDataGridRow>
                         <VSCodeDataGridCell grid-column="1">View</VSCodeDataGridCell>
-                        {viewRowSamples.map((s, i) => (<VSCodeDataGridCell grid-column={`${i + 2}`}><TimeInput samples={s} sampleRate={sampleRate} {...configuration} onChange={viewRowOnChanges[i]} /></VSCodeDataGridCell>))}
+                        {viewRowSamples.map((s, i) => (<VSCodeDataGridCell key={`view-${i}`} grid-column={`${i + 2}`}><TimeInput samples={s} sampleRate={sampleRate} {...configuration} onChange={viewRowOnChanges[i]} /></VSCodeDataGridCell>))}
                     </VSCodeDataGridRow>
                 </VSCodeDataGrid>
             </div>

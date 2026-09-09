@@ -3,7 +3,7 @@ import { FunctionComponent, useCallback, useContext, useEffect, useState } from 
 import { AudioEditorContext } from "../../components/contexts";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { setCanvasToFullSize } from "../../utils";
-import { VisualizationOptions } from "../../core/AudioToolkitModule";
+import { VISUALIZER_RULER_WIDTH, VisualizationOptions } from "../../core/AudioToolkitModule";
 import Waveform from "./Waveform";
 import VectorImageProcessor, { VectorCursorInfo } from "../../core/VectorImageProcessor";
 import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
@@ -51,7 +51,7 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (pr
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        VectorImageProcessor.paintHorizontalRuler(ctx, module.audioEditor.numberOfChannels, { width, height, verticalZoom, verticalOffset, labelMode: "decibel", labelsWidth: 80 }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
+        VectorImageProcessor.paintHorizontalRuler(ctx, module.audioEditor.numberOfChannels, { width, height, verticalZoom, verticalOffset, labelMode: "decibel", labelsWidth: VISUALIZER_RULER_WIDTH }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
     }, [module, verticalZoom, verticalOffset, gridColor, gridRulerColor, textColor, monospaceFont]);
     const onCursor = useCallback((x: number, y: number, width: number, height: number) => {
         if (y < 0 || y > height) setCursorY(undefined);

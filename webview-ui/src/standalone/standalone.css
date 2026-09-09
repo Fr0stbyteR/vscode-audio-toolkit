@@ -1,0 +1,85 @@
+:root {
+    color-scheme: dark;
+    --vscode-foreground: #cccccc;
+    --vscode-font-size: 13px;
+    --vscode-font-weight: 400;
+    --vscode-font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    --vscode-editor-font-family: "SFMono-Regular", Consolas, monospace;
+    --vscode-editor-font-size: 12px;
+    --vscode-editor-background: #1e1e1e;
+    --vscode-sideBar-background: #181818;
+    --vscode-panel-background: #181818;
+    --vscode-input-background: #313131;
+    --vscode-input-foreground: #cccccc;
+    --vscode-input-border: #3c3c3c;
+    --vscode-input-placeholderForeground: #8b8b8b;
+    --vscode-button-background: #0e639c;
+    --vscode-button-hoverBackground: #1177bb;
+    --vscode-button-foreground: #ffffff;
+    --vscode-button-secondaryBackground: #3a3d41;
+    --vscode-button-secondaryHoverBackground: #45494e;
+    --vscode-button-secondaryForeground: #ffffff;
+    --vscode-focusBorder: #007fd4;
+    --vscode-textLink-foreground: #4daafc;
+    --vscode-textLink-activeForeground: #75beff;
+    --vscode-menu-selectionBackground: #4b83d1;
+    --vscode-editorWarning-foreground: #d7ba7d;
+    --vscode-menu-separatorBackground: #3c3c3c;
+    --vscode-menu-foreground: #cccccc;
+    --vscode-list-highlightForeground: #ffffff;
+    --vscode-list-hoverBackground: #2a2d2e;
+    --vscode-list-activeSelectionBackground: #04395e;
+    --vscode-list-activeSelectionForeground: #ffffff;
+    --vscode-panel-border: #2b2b2b;
+    --vscode-widget-border: #454545;
+    --vscode-editorWidget-background: #252526;
+    --vscode-editorHoverWidget-background: #252526;
+    --vscode-editorHoverWidget-foreground: #cccccc;
+    --vscode-descriptionForeground: #9d9d9d;
+    --vscode-errorForeground: #f48771;
+    --vscode-sash-hoverBorder: #007fd4;
+    --vscode-panelTitle-activeBorder: #0078d4;
+    --vscode-minimapSlider-background: #79797933;
+    --vscode-minimapSlider-hoverBackground: #64646459;
+    --vscode-minimapSlider-activeBackground: #bfbfbf33;
+    --vscode-settings-numberInputBackground: #313131;
+    --vscode-settings-numberInputForeground: #cccccc;
+    --vscode-debugIcon-startForeground: #89d185;
+    --vscode-debugIcon-stopForeground: #f48771;
+    --vscode-debugIcon-pauseForeground: #75beff;
+    --vscode-debugIcon-continueForeground: #89d185;
+    --vscode-debugIcon-restartForeground: #89d185;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { width: 100%; height: 100%; margin: 0; }
+body { padding: 0; overflow: hidden; background: #1e1e1e; }
+button { width: auto; border-radius: 5px; font-weight: 650; }
+
+.standalone-shell { display: grid; grid-template: 58px 1fr / 270px minmax(0, 1fr); height: 100%; background: #1e1e1e; }
+.app-header { grid-column: 1 / -1; display: grid; grid-template-columns: 270px 1fr auto; align-items: center; border-bottom: 1px solid #2b2b2b; background: #181818; z-index: 5; }
+.brand { height: 100%; display: flex; align-items: center; gap: 11px; padding: 0 16px; border-right: 1px solid #2a3139; }
+.brand-mark { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid #48b4e5; border-radius: 7px; color: #70d0f7; font: 700 11px var(--vscode-editor-font-family); }
+.brand div, .current-file { display: flex; flex-direction: column; min-width: 0; }
+.brand small, .current-file small { color: #75808c; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.current-file { padding: 0 22px; }
+.current-file > span, .eyebrow { color: #71808c; font: 700 9px/1.6 var(--vscode-editor-font-family); letter-spacing: .13em; }
+.backend-button { height: 32px; margin-right: 14px; display: flex; align-items: center; gap: 8px; padding: 0 11px; color: #b9c3cd; background: #191e24; border: 1px solid #303841; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #66717c; }
+.status-dot.online { background: #58d68d; box-shadow: 0 0 8px #58d68d88; }.status-dot.offline { background: #ef6c72; }.status-dot.checking, .status-dot.idle { background: #f5c76c; }
+.backend-popover { position: fixed; z-index: 20; right: 14px; top: 52px; width: min(420px, calc(100vw - 28px)); padding: 16px; border: 1px solid #37414b; border-radius: 8px; background: #181d23; box-shadow: 0 18px 50px #0009; }
+.backend-popover label { display: block; margin-bottom: 12px; color: #b8c2cc; font-size: 11px; }.backend-popover label span { color: #6f7b87; }.backend-popover input { margin-top: 6px; border: 1px solid #303943 !important; border-radius: 4px; }.backend-popover > div { display: flex; justify-content: flex-end; gap: 8px; }
+.file-explorer { grid-row: 2; overflow: auto; border-right: 1px solid #2b2b2b; background: #181818; }
+.panel-heading { display: flex; justify-content: space-between; align-items: center; min-height: 62px; padding: 12px 12px 9px 16px; border-bottom: 1px solid #242b32; }.panel-heading > div { display: flex; flex-direction: column; min-width: 0; }.panel-heading strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.icon-button { width: 28px; height: 28px; padding: 0; font-size: 20px; line-height: 1; background: transparent; color: #8fd9f8; }.icon-button:hover { background: #27313a; }
+.hidden-input { display: none !important; }.browser-note, .error-text { margin: 10px 14px; color: #e9a2a6; font-size: 11px; }.browser-note { color: #98a3ae; }
+.file-tree, .file-tree ul { list-style: none; margin: 0; padding: 0; }.file-tree ul { padding-left: 15px; }.tree-row { width: 100%; height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 9px; color: #aeb8c2; background: transparent; border-radius: 0; font-weight: 450; text-align: left; }.tree-row:hover { background: #222931; }.tree-row.active { color: #effaff; background: #153b4d; }.tree-chevron { width: 14px; flex: 0 0 14px; color: #8995a0; font-size: 13px !important; }.tree-icon { width: 18px; flex: 0 0 18px; color: #58bbe7; font-size: 16px !important; }.tree-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.empty-tree { display: flex; min-height: 280px; padding: 44px 22px; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; color: #8a96a1; }.empty-tree > span { color: #d2dae2; font-size: 14px; }.empty-tree small { max-width: 190px; line-height: 1.5; }
+.web-editor { position: relative; grid-column: 2; grid-row: 2; min-width: 0; height: 100%; overflow: hidden; align-items: stretch; justify-content: stretch; background: #1e1e1e; }
+.web-editor .audio-editor-container { width: 100%; height: 100%; }.web-editor .audio-editor-left-container { width: 100%; }
+.welcome { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 32px; }.welcome-wave { color: #57c2ef; font: 200 90px/1 serif; text-shadow: 0 0 28px #3aa8d955; }.welcome h1 { margin: 8px 0 12px; color: #edf4f8; font-size: clamp(32px, 5vw, 64px); line-height: .98; letter-spacing: -.04em; }.welcome p { max-width: 590px; color: #91a0ad; }.privacy-flow { display: flex; gap: 12px; margin-top: 22px; color: #82909b; font: 600 10px var(--vscode-editor-font-family); }.privacy-flow b { color: #3e9dc5; }
+.loading-overlay { position: absolute; z-index: 10; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #101317dd; }.spinner { width: 26px; height: 26px; border: 2px solid #31414d; border-top-color: #58c7f2; border-radius: 50%; animation: spin .7s linear infinite; }@keyframes spin { to { transform: rotate(360deg); } }
+.banner { position: absolute; z-index: 12; top: 12px; left: 12px; right: 12px; display: flex; gap: 10px; padding: 10px 12px; border: 1px solid #723b40; border-radius: 6px; background: #341e22; }
+
+@media (max-width: 760px) {
+    .standalone-shell { grid-template-columns: 210px minmax(0, 1fr); }.app-header { grid-template-columns: 210px 1fr auto; }.backend-button { font-size: 0; }.backend-button .codicon, .backend-button .status-dot { font-size: 14px; }.current-file small { display: none; }
+}

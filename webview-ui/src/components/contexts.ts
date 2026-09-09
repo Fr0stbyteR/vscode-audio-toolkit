@@ -1,6 +1,6 @@
 import React from "react";
 import AudioEditor from "../core/AudioEditor";
-import AudioEditorWebview from "../AudioEditorWebview";
+import type AudioEditorWebview from "../AudioEditorWebview";
 
 export const AudioEditorContext = React.createContext<AudioEditor | null>(null);
 

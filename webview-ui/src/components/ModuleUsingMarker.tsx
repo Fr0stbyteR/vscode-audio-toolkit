@@ -49,7 +49,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
         backgroundOpacity,
         configurationContent, configurationContentChildren, monitorContent,
         viewRange, enabledChannels, selRange, playhead,
-        configuring, monitoring, rerenderId, repaintId
+        configuring, monitoring, overlayMode, activeLayer, rerenderId, repaintId
     } = props;
     const audioEditor = useContext(AudioEditorContext)!;
     const randomColor = useRef(`#${Math.floor(Math.random() * (16 ** 6)).toString(16).padStart(6, "0")}`).current;
@@ -60,12 +60,27 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
     const backgroundCanvasRef = useRef<HTMLCanvasElement>(null);
     const canvasVerticalRulerRef = useRef<HTMLCanvasElement>(null);
     const divMainRef = useRef<HTMLDivElement>(null);
+    const [layoutRevision, setLayoutRevision] = useState(0);
     useEffect(() => {
         if (paintBackground) void Promise.resolve().then(() => paintBackground(backgroundCanvasRef)).catch(error => console.error("Marker background paint failed.", error));
-    }, [paintBackground, rerenderId, repaintId]);
+    }, [layoutRevision, paintBackground, rerenderId, repaintId]);
     useEffect(() => {
         void Promise.resolve().then(() => paintVerticalRuler(canvasVerticalRulerRef)).catch(error => console.error("Marker ruler paint failed.", error));
-    }, [paintVerticalRuler, rerenderId, repaintId]);
+    }, [layoutRevision, paintVerticalRuler, rerenderId, repaintId]);
+    useEffect(() => {
+        const element = divMainRef.current;
+        if (!element || typeof ResizeObserver === "undefined") return;
+        let frame = 0;
+        const observer = new ResizeObserver(() => {
+            cancelAnimationFrame(frame);
+            frame = requestAnimationFrame(() => setLayoutRevision(value => value + 1));
+        });
+        observer.observe(element);
+        return () => {
+            cancelAnimationFrame(frame);
+            observer.disconnect();
+        };
+    }, []);
     const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
         if (!e.deltaX && !e.deltaY) return;
         let divMainFlexContainer = e.currentTarget.parentElement;
@@ -419,7 +434,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
                     <div className="marker-selection-overlay selrange" style={{ left: selLeft, width: selWidth }} hidden={!selRange}>
                         <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />
                         <div className="resize-handler resize-handler-e" onMouseDown={handleResizeEndMouseDown} />
-                        <VSCodeButton className="marker-selection-add" tabIndex={-1} aria-label="Add range marker" title="Add range marker from selection" appearance="icon" onClick={handleClickAddMarker} onMouseDown={handleAddMarkerMouseDown}>
+                        <VSCodeButton className="marker-add-button marker-selection-add" tabIndex={-1} aria-label="Add range marker" title="Add range marker from selection" appearance="icon" onClick={handleClickAddMarker} onMouseDown={handleAddMarkerMouseDown}>
                             <span className="codicon codicon-add"></span>
                         </VSCodeButton>
                     </div>
@@ -427,8 +442,8 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
                         {
                             playhead < viewStart || playhead > viewEnd
                             ? null
-                            : !selRange ? <div className="playhead" style={{ left: playheadLeft }}>
-                                <VSCodeButton tabIndex={-1} aria-label="Add Marker" title="Add marker at playhead" appearance="icon" onClick={handleClickAddMarker} onMouseDown={handleAddMarkerMouseDown}>
+                            : !selRange && (!overlayMode || activeLayer) ? <div className="playhead" style={{ left: playheadLeft }}>
+                                <VSCodeButton className="marker-add-button marker-point-add" tabIndex={-1} aria-label="Add Marker" title="Add marker at playhead" appearance="icon" onClick={handleClickAddMarker} onMouseDown={handleAddMarkerMouseDown}>
                                     <span className="codicon codicon-add"></span>
                                 </VSCodeButton>
                             </div> : null
