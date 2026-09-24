@@ -62,21 +62,16 @@
                         top: 0;
                         bottom: 0;
                         width: 0;
-
-                        & > vscode-button {
-                            position: absolute;
-                            top: 8px;
-                            left: 0;
-                            overflow: visible;
-                            pointer-events: auto;
-                            transform: translateX(-50%);
-                        }
                     }
                 }
 
                 .marker-add-button {
-                    width: 26px;
-                    height: 26px;
+                    position: absolute;
+                    pointer-events: auto;
+                    z-index: 2;
+                    left: calc(50% + 1.5px);
+                    top: 50%;
+                    transform: translate(-50%, -50%);
                     opacity: .9;
                     border: 1px solid color-mix(in srgb, var(--vscode-button-background) 72%, white);
                     border-radius: 50%;
@@ -90,13 +85,8 @@
                 }
 
                 & > .marker-selection-overlay {
-                    z-index: 2;
 
                     & > .marker-selection-add {
-                        position: absolute;
-                        left: 50%;
-                        top: 50%;
-                        transform: translate(-50%, -50%);
                         pointer-events: auto;
                     }
                 }

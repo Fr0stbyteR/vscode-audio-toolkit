@@ -2,6 +2,7 @@ out
 dist
 node_modules
 .standalone-data/
+.standalone-logs/
 .venv-standalone/
 .vscode-test-web/
 .venv-librosa/

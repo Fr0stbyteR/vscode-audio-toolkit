@@ -204,22 +204,22 @@
     
             &.active {
                 transition: all .1s ease-out 0s;
-                flex: 0 0 6px;
-                height: 6px;
+                flex: 0 0 8px;
+                height: 8px;
                 padding: 2px 0px;
                 background-color: var(--vscode-sash-hoverBorder);
             }
 
             &.draggable {
                 cursor: ns-resize;
-                flex: 0 0 2px;
-                padding: 4px 0px;
+                flex: 0 0 8px;
+                padding: 3px 0px;
                 transition: all 0s;
                 background-color: var(--vscode-menu-separatorBackground);
                 background-clip: content-box;
         
                 &:hover, &.active {
-                    flex: 0 0 6px;
+                    flex: 0 0 8px;
                     padding: 2px 0px;
                     background-color: var(--vscode-sash-hoverBorder);
                 }

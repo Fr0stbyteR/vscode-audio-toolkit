@@ -47,10 +47,18 @@
 }
 
 .semantic-result {
+    display: block;
+    width: 100%;
     padding: 7px 8px;
     border: 1px solid var(--vscode-widget-border, #30363d);
     border-radius: 4px;
+    color: inherit;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
     background: var(--vscode-sideBar-background);
+
+    &:hover { border-color: var(--vscode-focusBorder); background: var(--vscode-list-hoverBackground); }
 
     > div:first-child { justify-content: space-between; gap: 8px; }
     strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
@@ -72,6 +80,7 @@
     margin-top: 8px;
     color: var(--vscode-descriptionForeground);
     font-size: 10px;
+    .codicon { margin-right: 4px; }
 }
 
 .semantic-raw {
@@ -97,14 +106,23 @@
 
 .semantic-raw-row {
     display: grid;
+    width: 100%;
     grid-template-columns: 26px minmax(160px, 1fr) 58px 58px;
     align-items: center;
     min-height: 27px;
     padding: 0 8px;
     border-bottom: 1px solid color-mix(in srgb, var(--vscode-widget-border, #30363d) 55%, transparent);
+    border-top: 0;
+    border-right: 0;
+    border-left: 0;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    background: transparent;
     font: 10px var(--vscode-editor-font-family);
     &:last-child { border-bottom: 0; }
     strong { text-align: right; color: var(--vscode-focusBorder); font-variant-numeric: tabular-nums; }
+    &:hover { background: var(--vscode-list-hoverBackground); }
 }
 
 .semantic-rank, .semantic-family { color: var(--vscode-descriptionForeground); }

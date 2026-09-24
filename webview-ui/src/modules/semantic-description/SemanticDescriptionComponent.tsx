@@ -2,6 +2,7 @@ import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
 import { SemanticDescriptionResult } from "../../core/AudioEditor";
 import { VisualizationOptions } from "../../core/AudioToolkitModule";
 import SemanticDescription, { SemanticDescriptionState } from "./SemanticDescription";
+import ClapRelevanceCurve from "./ClapRelevanceCurve";
 import "./SemanticDescriptionComponent.scss";
 
 const FAMILY_NAMES: Record<string, string> = {
@@ -69,6 +70,20 @@ const SemanticDescriptionComponent: FunctionComponent<VisualizationOptions<Seman
     }, [duration, manualRevision, module, moduleState.autoAnalyze, moduleState.maximumResults, moduleState.providerId, range]);
 
     const update = (change: Partial<SemanticDescriptionState>) => module.setState({ ...moduleState, ...change });
+    const plotRelevance = async (keyword: string, prompts: string[]) => {
+        const normalizedPrompts = [...new Set(prompts.map(value => value.trim()).filter(Boolean))];
+        try {
+            await module.audioEditor.addModule(ClapRelevanceCurve.MODULE_ID, {
+                ...ClapRelevanceCurve.DEFAULT_STATE,
+                name: keyword,
+                keyword,
+                prompts: normalizedPrompts.length ? normalizedPrompts : [keyword],
+                providerId: moduleState.providerId
+            }, `CLAP · ${keyword}`, true);
+        } catch (reason) {
+            setError(reason instanceof Error ? reason.message : String(reason));
+        }
+    };
     const configurationContent = configurationMode === "appearance"
         ? <div className="semantic-settings"><div className="configuration-kind"><strong>Appearance</strong><span>此模块会自动使用编辑器主题色。</span></div></div>
         : <div className="semantic-settings">
@@ -94,18 +109,18 @@ const SemanticDescriptionComponent: FunctionComponent<VisualizationOptions<Seman
                     {!error && result ? <>
                         <div className="semantic-summary"><span>CLAP suggests</span><strong>{result.summary}</strong>{loading ? <small>正在更新…</small> : result.cached ? <small>缓存</small> : null}</div>
                         {moduleState.showRawOutput ? <div className="semantic-raw">
-                            <div className="semantic-raw-note"><strong>Raw prompt similarities</strong><span>CLAP 的模型输出是 embedding。这里展示 embedding 与每条候选 prompt 直接计算的分数，尚未合并成中文标签。</span></div>
-                            {(result.rawMatches ?? []).map((item, index) => <div className="semantic-raw-row" key={`${item.labelId}:${item.prompt}`}>
+                            <div className="semantic-raw-note"><strong>Raw prompt similarities</strong><span>CLAP 的模型输出是 embedding。点击任意 prompt，可新建它在整段音频上的相关性曲线。</span></div>
+                            {(result.rawMatches ?? []).map((item, index) => <button type="button" className="semantic-raw-row" key={`${item.labelId}:${item.prompt}`} title={`Plot “${item.prompt}” over time`} onClick={() => void plotRelevance(item.prompt, [item.prompt])}>
                                 <span className="semantic-rank">{index + 1}</span>
                                 <span className="semantic-prompt">{item.prompt}</span>
                                 <span className="semantic-family">{FAMILY_NAMES[item.family] || item.family}</span>
                                 <strong title={`Mapped score: ${item.score.toFixed(4)}`}>{item.cosineSimilarity.toFixed(4)}</strong>
-                            </div>)}
-                        </div> : <div className="semantic-results">{result.descriptions.map(item => <div className="semantic-result" key={item.labelId} title={`${item.text}: ${(item.score * 100).toFixed(1)}% similarity`}>
+                            </button>)}
+                        </div> : <div className="semantic-results">{result.descriptions.map(item => <button type="button" className="semantic-result" key={item.labelId} title={`Plot ${item.text} over time`} onClick={() => void plotRelevance(item.text, (result.rawMatches ?? []).filter(match => match.labelId === item.labelId).map(match => match.prompt))}>
                                 <div><strong>{item.text}</strong><span>{FAMILY_NAMES[item.family] || item.family}</span></div>
                                 <div className="semantic-score"><i style={{ width: `${Math.max(2, item.score * 100)}%` }} /><span>{Math.round(item.score * 100)}</span></div>
-                            </div>)}</div>}
-                        <div className="semantic-disclaimer">数值是文字与音频的相似度，用于排序，并非识别概率。</div>
+                            </button>)}</div>}
+                        <div className="semantic-disclaimer"><span className="codicon codicon-graph-line" /> 点击描述可建立整首时间曲线。数值是文字与音频的相似度，并非识别概率。</div>
                     </> : null}
                 </div>
             </div>

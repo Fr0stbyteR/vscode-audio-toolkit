@@ -1,4 +1,4 @@
-import { SemanticDescriptionRequest, SemanticDescriptionResult } from "../core/AudioEditor";
+import { SemanticCurveRequest, SemanticCurveResult, SemanticDescriptionRequest, SemanticDescriptionResult } from "../core/AudioEditor";
 import { BackendSettings } from "./BackendClient";
 
 interface InteractiveAsset { id: string; }
@@ -6,6 +6,7 @@ interface InteractiveAsset { id: string; }
 export default class MusicAnalysisClient {
     private readonly assets = new Map<string, Promise<InteractiveAsset>>();
     private readonly descriptions = new Map<string, Promise<SemanticDescriptionResult>>();
+    private readonly curves = new Map<string, Promise<SemanticCurveResult>>();
 
     constructor(public readonly settings: BackendSettings) {}
 
@@ -72,6 +73,33 @@ export default class MusicAnalysisClient {
         })();
         this.descriptions.set(key, promise);
         promise.catch(() => this.descriptions.delete(key));
+        return promise;
+    }
+
+    async relevanceCurve(file: File, request: SemanticCurveRequest): Promise<SemanticCurveResult> {
+        let asset = await this.upload(file);
+        const key = JSON.stringify([asset.id, request.keyword, request.prompts, request.timelineDurationSeconds, request.windowSeconds, request.hopSeconds, request.aggregation, request.providerId || "auto"]);
+        if (request.cachePolicy !== "refresh") {
+            const cached = this.curves.get(key);
+            if (cached) return { ...(await cached), cached: true };
+        }
+        const promise = (async () => {
+            const send = (assetId: string) => fetch(this.url(`v1/interactive-assets/${encodeURIComponent(assetId)}:relevance-curve`), {
+                method: "POST",
+                headers: this.headers({ "Content-Type": "application/json" }),
+                body: JSON.stringify(request)
+            });
+            let response = await send(asset.id);
+            if (response.status === 404) {
+                this.assets.delete(this.fileKey(file));
+                asset = await this.upload(file);
+                response = await send(asset.id);
+            }
+            if (!response.ok) throw new Error(await this.readError(response));
+            return response.json() as Promise<SemanticCurveResult>;
+        })();
+        this.curves.set(key, promise);
+        promise.catch(() => this.curves.delete(key));
         return promise;
     }
 

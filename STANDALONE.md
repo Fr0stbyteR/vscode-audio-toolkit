@@ -5,6 +5,30 @@ librosa analysis engine. It does not require a VS Code extension host.
 
 ## Run locally
 
+On Windows, with the frontend dependencies and both Python environments installed,
+double-click `start-standalone.cmd`, or run the three services together from
+this repository:
+
+```powershell
+.\start-standalone.ps1
+```
+
+The script finds `music-embedding-analysis` beside this repository by default;
+use `-MusicBackendPath` if it lives elsewhere. It creates missing `.env` files
+from their `.env.example` templates, waits for the frontend and librosa API,
+opens the browser, and reports when CLAP finishes loading. Press `Q` or Ctrl+C
+in the launcher to stop the services. Logs go to `.standalone-logs/`. Run with
+`-Check` to validate paths, dependencies, and ports without starting anything,
+or `-NoBrowser` to keep the browser closed.
+
+Initial setup is still needed once: install `webview-ui` dependencies with
+`npm ci --prefix webview-ui`, install `standalone-server/requirements.txt` in
+`.venv-standalone` (or reuse `.venv-librosa`), and install the music backend in
+its own `.venv` as described in that repository's README. The launcher reports
+which environment is missing.
+
+### Manual startup
+
 Create a Python environment and install the server dependencies:
 
 ```powershell

@@ -44,6 +44,37 @@ export interface SemanticDescriptionResult {
     cached: boolean;
 }
 
+export interface SemanticCurveRequest {
+    keyword: string;
+    prompts: string[];
+    timelineDurationSeconds?: number;
+    windowSeconds: number;
+    hopSeconds: number;
+    aggregation: "mean" | "max";
+    providerId?: string;
+    cachePolicy: "use" | "refresh";
+}
+
+export interface SemanticCurvePoint {
+    timeSeconds: number;
+    score: number;
+    cosineSimilarity: number;
+}
+
+export interface SemanticCurveResult {
+    assetId: string;
+    keyword: string;
+    prompts: string[];
+    providerId: string;
+    providerName: string;
+    windowSeconds: number;
+    hopSeconds: number;
+    aggregation: "mean" | "max";
+    points: SemanticCurvePoint[];
+    scoreKind: "cosine-similarity-not-probability";
+    cached: boolean;
+}
+
 export type {
     AudioEditorConfiguration,
     AudioUnit
@@ -108,14 +139,14 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
             Modules.forEach(Module => this.MODULES_MAP[Module.MODULE_ID] = Module);
         }
     }
-    static async fromData(data: ArrayBuffer, context: AudioContext, configuration: Partial<AudioEditorConfiguration> = {}, modulesState?: AudioToolkitModulesState, uri?: string, workspaceUri = location.href, analyze?: (request: AudioAnalysisRequest) => Promise<AudioAnalysisResult>, describeSemantics?: (request: SemanticDescriptionRequest) => Promise<SemanticDescriptionResult>) {
+    static async fromData(data: ArrayBuffer, context: AudioContext, configuration: Partial<AudioEditorConfiguration> = {}, modulesState?: AudioToolkitModulesState, uri?: string, workspaceUri = location.href, analyze?: (request: AudioAnalysisRequest) => Promise<AudioAnalysisResult>, describeSemantics?: (request: SemanticDescriptionRequest) => Promise<SemanticDescriptionResult>, analyzeSemanticCurve?: (request: SemanticCurveRequest) => Promise<SemanticCurveResult>) {
         if (!Object.keys(this.MODULES_MAP).length) {
             await this.loadModulesFromJson("./modules.json", import.meta.url);
         }
         const audioBuffer = await context.decodeAudioData(data);
         const operableAudioBuffer: OperableAudioBuffer = Object.setPrototypeOf(audioBuffer, OperableAudioBuffer.prototype);
         const timeDomainData = operableAudioBuffer.toArray(true);
-        const audioEditor = new AudioEditor(operableAudioBuffer, timeDomainData, context, { ...this.DEFAULT_CONFIGURATION, ...configuration }, uri, workspaceUri, analyze, describeSemantics);
+        const audioEditor = new AudioEditor(operableAudioBuffer, timeDomainData, context, { ...this.DEFAULT_CONFIGURATION, ...configuration }, uri, workspaceUri, analyze, describeSemantics, analyzeSemanticCurve);
         await audioEditor.initPlayer();
         const state = modulesState ?? (audioBuffer.duration > 60 ? this.DEFAULT_MODULES_STATE.slice(0, 2) : this.DEFAULT_MODULES_STATE);
         await audioEditor.initModules(state);
@@ -186,7 +217,8 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         private _uri: string | undefined,
         private _workspaceUri: string | undefined,
         private readonly _analyze?: (request: AudioAnalysisRequest) => Promise<AudioAnalysisResult>,
-        private readonly _describeSemantics?: (request: SemanticDescriptionRequest) => Promise<SemanticDescriptionResult>
+        private readonly _describeSemantics?: (request: SemanticDescriptionRequest) => Promise<SemanticDescriptionResult>,
+        private readonly _analyzeSemanticCurve?: (request: SemanticCurveRequest) => Promise<SemanticCurveResult>
     ) {
         super();
         this.setState({
@@ -201,6 +233,10 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     describeSemantics(request: SemanticDescriptionRequest) {
         if (!this._describeSemantics) return Promise.reject(new Error("No music embedding backend is available."));
         return this._describeSemantics(request);
+    }
+    analyzeSemanticCurve(request: SemanticCurveRequest) {
+        if (!this._analyzeSemanticCurve) return Promise.reject(new Error("No music embedding backend is available."));
+        return this._analyzeSemanticCurve(request);
     }
     private async initPlayer() {
         this._player = await AudioPlayer.init(this);

@@ -1,0 +1,16 @@
+.clap-curve-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 9px;
+    font-size: 11px;
+    label { display: flex; flex-direction: column; gap: 4px; }
+    label > span, .configuration-kind span { color: var(--vscode-descriptionForeground); }
+    input, textarea, select, button { box-sizing: border-box; width: 100%; padding: 4px 6px; color: var(--vscode-input-foreground); background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border, transparent); font: inherit; }
+    textarea { resize: vertical; }
+    button { cursor: pointer; color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
+}
+.clap-curve-setting-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.clap-curve-monitor { padding: 9px; }
+.clap-curve-monitor > div { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+.clap-curve-monitor span { color: var(--vscode-descriptionForeground); font-size: 10px; }

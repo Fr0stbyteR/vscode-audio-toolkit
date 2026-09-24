@@ -1,6 +1,7 @@
 :root {
     color-scheme: dark;
     --vscode-foreground: #cccccc;
+    --vscode-editor-foreground: #cccccc;
     --vscode-font-size: 13px;
     --vscode-font-weight: 400;
     --vscode-font-family: Inter, ui-sans-serif, system-ui, sans-serif;
@@ -26,7 +27,7 @@
     --vscode-editorWarning-foreground: #d7ba7d;
     --vscode-menu-separatorBackground: #3c3c3c;
     --vscode-menu-foreground: #cccccc;
-    --vscode-list-highlightForeground: #ffffff;
+    --vscode-list-highlightForeground: #2aaaff;
     --vscode-list-hoverBackground: #2a2d2e;
     --vscode-list-activeSelectionBackground: #04395e;
     --vscode-list-activeSelectionForeground: #ffffff;

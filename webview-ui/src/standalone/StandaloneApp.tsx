@@ -133,7 +133,8 @@ const StandaloneApp: FunctionComponent = () => {
                 undefined,
                 undefined,
                 request => client.analyze(file, request, setLoading),
-                request => musicClient.describe(file, request)
+                request => musicClient.describe(file, request),
+                request => musicClient.relevanceCurve(file, request)
             );
             nextEditor.on("modulesState", state => localStorage.setItem(MODULES_KEY, JSON.stringify(state)));
             editorRef.current = nextEditor;
