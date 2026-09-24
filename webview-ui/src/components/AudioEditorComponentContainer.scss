@@ -37,18 +37,9 @@
         display: block;
     }
 
-    .configuration-kind {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-        padding: 7px 8px;
-        border-left: 2px solid var(--vscode-focusBorder);
-        background: var(--vscode-editorWidget-background);
-
-        & > span {
-            color: var(--vscode-descriptionForeground);
-            font-size: 11px;
-            line-height: 1.35;
-        }
-    }
+    .configuration-sections { display: flex; flex-direction: column; min-height: 0; gap: 12px; }
+    .configuration-section { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    .configuration-section + .configuration-section { padding-top: 10px; border-top: 1px solid var(--vscode-panel-border); }
+    .configuration-section h4 { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--vscode-descriptionForeground); font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; }
+    .configuration-empty { color: var(--vscode-descriptionForeground); font-size: 11px; }
 }

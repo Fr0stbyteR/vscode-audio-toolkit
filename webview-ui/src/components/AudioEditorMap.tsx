@@ -13,15 +13,16 @@ interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRa
     configuring: boolean,
     monitoring: boolean,
     setConfiguring: React.Dispatch<React.SetStateAction<boolean>>;
-    configurationMode: "analysis" | "appearance";
-    setConfigurationMode: React.Dispatch<React.SetStateAction<"analysis" | "appearance">>;
+    configurationMode: "analysis" | "appearance" | "both";
+    setConfigurationMode: React.Dispatch<React.SetStateAction<"analysis" | "appearance" | "both">>;
     setMonitoring: React.Dispatch<React.SetStateAction<boolean>>;
     overlayMode: boolean;
     setOverlayMode: React.Dispatch<React.SetStateAction<boolean>>;
     layersOpen: boolean;
     setLayersOpen: React.Dispatch<React.SetStateAction<boolean>>;
+    standalone?: boolean;
 }
-const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRange, phosphorColor, playheadColor, windowSize, configuring, monitoring, setConfiguring, configurationMode, setConfigurationMode, setMonitoring, overlayMode, setOverlayMode, layersOpen, setLayersOpen }) => {
+const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRange, phosphorColor, playheadColor, windowSize, configuring, monitoring, setConfiguring, configurationMode, setConfigurationMode, setMonitoring, overlayMode, setOverlayMode, layersOpen, setLayersOpen, standalone }) => {
     const audioEditor = useContext(AudioEditorContext)!;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const divViewRangeRef = useRef<HTMLDivElement>(null);
@@ -160,6 +161,12 @@ const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRang
         audioEditor.zoomH(ref, e.deltaY < 0 ? 1 : -1);
     }, [audioEditor]);
     const handleClickSelectAll = useCallback(() => audioEditor.setViewRangeToAll(), [audioEditor]);
+    const toggleConfiguration = (kind: "analysis" | "appearance") => {
+        if (!configuring) { setConfigurationMode(kind); setConfiguring(true); return; }
+        if (configurationMode === "both") { setConfigurationMode(kind === "analysis" ? "appearance" : "analysis"); return; }
+        if (configurationMode === kind) { setConfiguring(false); return; }
+        setConfigurationMode("both");
+    };
     const { length } = audioEditor;
     const range: [number, number] = [0, length];
     const [viewStart, viewEnd] = viewRange;
@@ -170,7 +177,7 @@ const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRang
     const selWidth = getCssFromPosition(range, selStart, selEnd);
     const playheadLeft = getCssFromPosition(range, playhead);
     return (
-        <div className={`editor-map${configuring ? " configuring" : ""}${monitoring ? " monitoring" : ""}`}>
+        <div className={`editor-map${!standalone && configuring ? " configuring" : ""}${!standalone && monitoring ? " monitoring" : ""}`}>
             <div className="editor-map-canvas-container" onWheel={handleWheel}>
                 <canvas ref={canvasRef} />
                 <div className="editor-map-playhead" style={{ left: playheadLeft }}></div>
@@ -186,31 +193,31 @@ const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRang
                         <span className="codicon codicon-symbol-array"></span>
                     </VSCodeButton>
                 </span>
-                <span className="editor-map-toggle-configuration">
-                    <VSCodeButton tabIndex={-1} aria-label="Analysis settings" className={configuring && configurationMode === "analysis" ? "active" : ""} title="Analysis settings (requires recalculation)" appearance="icon" onClick={() => { setConfigurationMode("analysis"); setConfiguring(v => configurationMode === "analysis" ? !v : true); }}>
+                {!standalone ? <span className="editor-map-toggle-configuration">
+                    <VSCodeButton tabIndex={-1} aria-label="Analysis settings" className={configuring && configurationMode !== "appearance" ? "active" : ""} title="Analysis settings (requires recalculation)" appearance="icon" onClick={() => toggleConfiguration("analysis")}>
                         <span className="codicon codicon-beaker"></span>
                     </VSCodeButton>
-                </span>
-                <span className="editor-map-toggle-configuration">
-                    <VSCodeButton tabIndex={-1} aria-label="Appearance settings" className={configuring && configurationMode === "appearance" ? "active" : ""} title="Appearance settings (instant)" appearance="icon" onClick={() => { setConfigurationMode("appearance"); setConfiguring(v => configurationMode === "appearance" ? !v : true); }}>
+                </span> : null}
+                {!standalone ? <span className="editor-map-toggle-configuration">
+                    <VSCodeButton tabIndex={-1} aria-label="Appearance settings" className={configuring && configurationMode !== "analysis" ? "active" : ""} title="Appearance settings (instant)" appearance="icon" onClick={() => toggleConfiguration("appearance")}>
                         <span className="codicon codicon-paintcan"></span>
                     </VSCodeButton>
-                </span>
-                <span className="editor-map-toggle-monitoring">
+                </span> : null}
+                {!standalone ? <span className="editor-map-toggle-monitoring">
                     <VSCodeButton tabIndex={-1} aria-label="Toggle Data Monitoring" className={monitoring ? "active" : ""} title="Toggle Data Monitoring" appearance="icon" onClick={() => setMonitoring(v => !v)}>
                         <span className="codicon codicon-info"></span>
                     </VSCodeButton>
-                </span>
-                <span>
+                </span> : null}
+                {!standalone ? <span>
                     <VSCodeButton tabIndex={-1} aria-label="Overlay modules" className={overlayMode ? "active" : ""} title="Overlay modules" appearance="icon" onClick={() => setOverlayMode(v => !v)}>
                         <span className="codicon codicon-layers"></span>
                     </VSCodeButton>
-                </span>
-                <span>
+                </span> : null}
+                {!standalone ? <span>
                     <VSCodeButton tabIndex={-1} aria-label="Layers" className={layersOpen ? "active" : ""} title="Layers" appearance="icon" onClick={() => setLayersOpen(v => !v)}>
                         <span className="codicon codicon-list-tree"></span>
                     </VSCodeButton>
-                </span>
+                </span> : null}
             </div>
         </div>
     );

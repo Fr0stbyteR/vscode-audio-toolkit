@@ -148,6 +148,7 @@ const StandaloneApp: FunctionComponent = () => {
         }
     }, [client, musicClient]);
 
+
     const saveSettings = () => {
         const normalized = { ...draftSettings, baseUrl: draftSettings.baseUrl.trim() || defaultSettings.baseUrl };
         localStorage.setItem(SETTINGS_KEY, JSON.stringify({ baseUrl: normalized.baseUrl }));
@@ -183,11 +184,14 @@ const StandaloneApp: FunctionComponent = () => {
             <label>Bearer token <span>(saved in this browser)</span><input type="password" value={draftMusicSettings.token} onChange={event => setDraftMusicSettings(value => ({ ...value, token: event.target.value }))} /></label>
             <div><button className="secondary" onClick={() => setSettingsOpen(false)}>Cancel</button><button onClick={saveSettings}>Connect</button></div>
         </section>}
-        <FileExplorer activeId={entry?.id} onOpen={openEntry} />
+        <aside className="workspace-sidebar">
+            <FileExplorer activeId={entry?.id} onOpen={openEntry} />
+            <div id="standalone-layers-host" />
+        </aside>
         <main className="web-editor">
             {error && <div className="banner error-text"><strong>Could not open audio</strong><span>{error}</span></div>}
             {loading && <div className="loading-overlay"><span className="spinner" /><strong>{loading}</strong></div>}
-            {editor ? <AudioEditorContext.Provider value={editor}><AudioEditorContainer key={`${entry?.id}:${editor.length}:${editor.sampleRate}`} /></AudioEditorContext.Provider> : <div className="welcome">
+            {editor ? <AudioEditorContext.Provider value={editor}><AudioEditorContainer standalone key={`${entry?.id}:${editor.length}:${editor.sampleRate}`} /></AudioEditorContext.Provider> : <div className="welcome">
                 <div className="welcome-wave">∿</div>
                 <span className="eyebrow">STANDALONE ANALYSIS WORKSPACE</span>
                 <h1>Open a folder.<br />Listen closer.</h1>

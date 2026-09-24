@@ -126,11 +126,16 @@
                         display: none !important;
                     }
 
-                    .module-using-canvas-horizontal-ruler-container,
-                    .module-using-canvas-vertical-ruler-container,
-                    .module-using-marker-vertical-ruler-container,
                     .cursor-container,
                     .marker-playhead-overlay {
+                        display: none !important;
+                    }
+                }
+
+                &:not(.axis-layer) > .editor-main-visualizer-component {
+                    .module-using-canvas-horizontal-ruler-container,
+                    .module-using-canvas-vertical-ruler-container,
+                    .module-using-marker-vertical-ruler-container {
                         display: none !important;
                     }
                 }
@@ -151,7 +156,7 @@
             display: block;
             position: absolute;
             top: 40px;
-            bottom: 0;
+            height: 100vw;
             left: 24px;
             width: calc(100% - var(--visualizer-right-spacing) - 24px);
             pointer-events: none;

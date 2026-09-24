@@ -24,8 +24,8 @@ class Waveform implements AudioToolkitModule<WaveformState> {
     static MODULE_ID = "waveform";
     static MODULE_NAME = "Waveform";
     static DEFAULT_STATE: WaveformState = { name: "" };
-    static async fromAudioData(audioEditor: AudioEditor, { name = this.DEFAULT_STATE.name }: Partial<WaveformState> = this.DEFAULT_STATE, sharableData?: Record<string, Promise<{ dataSlices?: VectorDataSlice[] } | null>>) {
-        const waveform = new Waveform(audioEditor, { name });
+    static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<WaveformState> = this.DEFAULT_STATE, sharableData?: Record<string, Promise<{ dataSlices?: VectorDataSlice[] } | null>>) {
+        const waveform = new Waveform(audioEditor, { ...this.DEFAULT_STATE, ...initialState });
         const dataSlices = (await (sharableData?.[this.MODULE_ID]))?.dataSlices;
         if (dataSlices) {
             waveform._dataSlices = dataSlices;

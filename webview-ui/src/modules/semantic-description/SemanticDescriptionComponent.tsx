@@ -1,4 +1,7 @@
 import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
+import ConfigurationSections from "../../components/ConfigurationSections";
 import { SemanticDescriptionResult } from "../../core/AudioEditor";
 import { VisualizationOptions } from "../../core/AudioToolkitModule";
 import SemanticDescription, { SemanticDescriptionState } from "./SemanticDescription";
@@ -9,6 +12,28 @@ const FAMILY_NAMES: Record<string, string> = {
     instrument: "乐器", voice: "人声", technique: "演奏法", texture: "织体",
     affect: "情绪", production: "制作", rhythm: "律动", genre: "风格"
 };
+const FAMILY_HUES: Record<string, number> = {
+    instrument: 205, voice: 328, technique: 28, texture: 265,
+    affect: 48, production: 165, rhythm: 8, genre: 125
+};
+const FAMILY_ORDER = ["instrument", "voice", "technique", "texture", "rhythm", "affect", "production", "genre"];
+const groupByFamily = <T extends { family: string }>(items: T[]) => {
+    const families = [...new Set(items.map(item => item.family))].sort((a, b) => {
+        const aIndex = FAMILY_ORDER.indexOf(a);
+        const bIndex = FAMILY_ORDER.indexOf(b);
+        return (aIndex < 0 ? FAMILY_ORDER.length : aIndex) - (bIndex < 0 ? FAMILY_ORDER.length : bIndex) || a.localeCompare(b);
+    });
+    return families.map(family => ({ family, items: items.filter(item => item.family === family) }));
+};
+const badgeStyle = (family: string, relevance: number): React.CSSProperties => ({
+    "--badge-hue": FAMILY_HUES[family] ?? 205,
+    "--button-secondary-background": `hsl(${FAMILY_HUES[family] ?? 205} 16% ${22 + relevance * 7}%)`,
+    "--button-secondary-hover-background": `hsl(${FAMILY_HUES[family] ?? 205} 23% ${27 + relevance * 7}%)`,
+    "--button-secondary-foreground": `hsl(${FAMILY_HUES[family] ?? 205} 25% 88%)`,
+    "--button-border": `hsl(${FAMILY_HUES[family] ?? 205} 20% ${36 + relevance * 8}%)`,
+    "--button-padding-horizontal": "8px",
+    "--button-padding-vertical": "4px"
+} as React.CSSProperties);
 
 const SemanticDescriptionComponent: FunctionComponent<VisualizationOptions<SemanticDescription>> = props => {
     const { module, moduleState, playhead, selRange, configurationMode, overlayMode, activeLayer } = props;
@@ -84,21 +109,25 @@ const SemanticDescriptionComponent: FunctionComponent<VisualizationOptions<Seman
             setError(reason instanceof Error ? reason.message : String(reason));
         }
     };
-    const configurationContent = configurationMode === "appearance"
-        ? <div className="semantic-settings"><div className="configuration-kind"><strong>Appearance</strong><span>此模块会自动使用编辑器主题色。</span></div></div>
-        : <div className="semantic-settings">
-            <div className="configuration-kind"><strong>CLAP analysis</strong><span>改变这些设置会重新进行文字匹配。</span></div>
+    const configurationContent = <ConfigurationSections mode={configurationMode} analysis={<div className="semantic-settings">
             <label>Cursor context <span>{moduleState.contextSeconds.toFixed(1)} s</span><input type="range" min="1" max="20" step="0.5" value={moduleState.contextSeconds} onChange={event => update({ contextSeconds: +event.target.value })} /></label>
             <label>Results<input type="number" min="1" max="20" value={moduleState.maximumResults} onChange={event => update({ maximumResults: Math.max(1, Math.min(20, +event.target.value || 1)) })} /></label>
             <label>Provider<select value={moduleState.providerId} onChange={event => update({ providerId: event.target.value })}><option value="">Auto</option><option value="laion_clap_music_htsat_base">LAION-CLAP</option><option value="muq_mulan_large">MuQ-MuLan</option><option value="mock">Mock (test)</option></select></label>
             <label className="semantic-checkbox"><input type="checkbox" checked={moduleState.autoAnalyze} onChange={event => update({ autoAnalyze: event.target.checked })} />Follow cursor and selection</label>
-            <label className="semantic-checkbox"><input type="checkbox" checked={moduleState.showRawOutput} onChange={event => update({ showRawOutput: event.target.checked })} />Show raw prompt matches</label>
             <button onClick={() => setManualRevision(value => value + 1)}>Analyze now</button>
-        </div>;
+        </div>} />;
     const monitorContent = <div className="semantic-monitor default-layout">
         <div><span>Provider</span><strong>{result?.providerName || "—"}</strong></div>
-        <div><span>Cache</span><strong>{result ? (result.cached ? "Hit" : "Miss") : "—"}</strong></div>
+        <div><span>Descriptions</span><strong>{result?.descriptions.length ?? "—"}</strong></div>
     </div>;
+    const inspectorConfigRoot = document.getElementById("inspector-config-root");
+    const inspectorData = document.getElementById("inspector-data");
+    const scores = result?.descriptions.map(item => item.score) ?? [];
+    const minScore = scores.length ? Math.min(...scores) : 0;
+    const maxScore = scores.length ? Math.max(...scores) : 1;
+    const rawScores = result?.rawMatches?.map(item => item.cosineSimilarity) ?? [];
+    const minRawScore = rawScores.length ? Math.min(...rawScores) : 0;
+    const maxRawScore = rawScores.length ? Math.max(...rawScores) : 1;
 
     return <>
         <div className={`visualizer-component-container semantic-description-container${overlayMode ? " is-overlay" : ""}${activeLayer ? " is-active" : ""}`}>
@@ -107,26 +136,34 @@ const SemanticDescriptionComponent: FunctionComponent<VisualizationOptions<Seman
                     {error ? <div className="semantic-error"><span className="codicon codicon-warning" /><div><strong>无法取得 CLAP 描述</strong><span>{error}</span></div></div> : null}
                     {!error && !result && loading ? <div className="semantic-empty"><span className="spinner" />正在匹配候选文字…</div> : null}
                     {!error && result ? <>
-                        <div className="semantic-summary"><span>CLAP suggests</span><strong>{result.summary}</strong>{loading ? <small>正在更新…</small> : result.cached ? <small>缓存</small> : null}</div>
-                        {moduleState.showRawOutput ? <div className="semantic-raw">
-                            <div className="semantic-raw-note"><strong>Raw prompt similarities</strong><span>CLAP 的模型输出是 embedding。点击任意 prompt，可新建它在整段音频上的相关性曲线。</span></div>
-                            {(result.rawMatches ?? []).map((item, index) => <button type="button" className="semantic-raw-row" key={`${item.labelId}:${item.prompt}`} title={`Plot “${item.prompt}” over time`} onClick={() => void plotRelevance(item.prompt, [item.prompt])}>
-                                <span className="semantic-rank">{index + 1}</span>
-                                <span className="semantic-prompt">{item.prompt}</span>
-                                <span className="semantic-family">{FAMILY_NAMES[item.family] || item.family}</span>
-                                <strong title={`Mapped score: ${item.score.toFixed(4)}`}>{item.cosineSimilarity.toFixed(4)}</strong>
-                            </button>)}
-                        </div> : <div className="semantic-results">{result.descriptions.map(item => <button type="button" className="semantic-result" key={item.labelId} title={`Plot ${item.text} over time`} onClick={() => void plotRelevance(item.text, (result.rawMatches ?? []).filter(match => match.labelId === item.labelId).map(match => match.prompt))}>
-                                <div><strong>{item.text}</strong><span>{FAMILY_NAMES[item.family] || item.family}</span></div>
-                                <div className="semantic-score"><i style={{ width: `${Math.max(2, item.score * 100)}%` }} /><span>{Math.round(item.score * 100)}</span></div>
-                            </button>)}</div>}
-                        <div className="semantic-disclaimer"><span className="codicon codicon-graph-line" /> 点击描述可建立整首时间曲线。数值是文字与音频的相似度，并非识别概率。</div>
+                        <div className="semantic-groups">{groupByFamily([...result.descriptions, ...(result.rawMatches ?? [])]).map(({ family }) => <section className="semantic-family-group" key={family}>
+                            <h4>{FAMILY_NAMES[family] || family}</h4><div className="semantic-family-badges">{result.descriptions.filter(item => item.family === family).map(item => {
+                            const relevance = (item.score - minScore) / Math.max(0.001, maxScore - minScore);
+                            return <VSCodeButton appearance="secondary" className="semantic-result" key={item.labelId}
+                                style={badgeStyle(item.family, relevance)}
+                                title={`${item.text} · ${FAMILY_NAMES[item.family] || item.family} · similarity ${item.score.toFixed(3)} · Click to plot`}
+                                onClick={() => void plotRelevance(item.text, (result.rawMatches ?? []).filter(match => match.labelId === item.labelId).map(match => match.prompt))}>
+                                {item.text}
+                            </VSCodeButton>;
+                        })}</div>
+                            {result.rawMatches?.some(item => item.family === family) ? <div className="semantic-family-raw">
+                                <span>Raw prompt matches</span><div className="semantic-family-badges">{result.rawMatches.filter(item => item.family === family).map((item, index) => {
+                                const relevance = (item.cosineSimilarity - minRawScore) / Math.max(0.001, maxRawScore - minRawScore);
+                                return <VSCodeButton appearance="secondary" className="semantic-result semantic-raw-badge" key={`${item.labelId}:${item.prompt}:${index}`}
+                                    style={badgeStyle(item.family, relevance)}
+                                    title={`${item.prompt} · ${FAMILY_NAMES[item.family] || item.family} · similarity ${item.cosineSimilarity.toFixed(3)} · Click to plot`}
+                                    onClick={() => void plotRelevance(item.prompt, [item.prompt])}>
+                                    {item.prompt}
+                                </VSCodeButton>;
+                            })}</div></div> : null}
+                        </section>)}</div>
+                        {loading ? <span className="semantic-updating">Updating…</span> : null}
                     </> : null}
                 </div>
             </div>
         </div>
-        <div className="visualizer-component-configuration">{configurationContent}</div>
-        <div className="visualizer-component-monitor">{monitorContent}</div>
+        {inspectorConfigRoot ? (activeLayer ? createPortal(configurationContent, inspectorConfigRoot) : null) : <div className="visualizer-component-configuration">{configurationContent}</div>}
+        {inspectorData ? (activeLayer ? createPortal(monitorContent, inspectorData) : null) : <div className="visualizer-component-monitor">{monitorContent}</div>}
     </>;
 };
 

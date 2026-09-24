@@ -15,6 +15,9 @@ export type AudioToolkitModulesState = { moduleId: string, moduleName: string; v
 
 export interface AudioToolkitModuleState {
     name: string;
+    overlayOpacity?: number;
+    referenceOverlay?: "none" | "waveform" | "spectrogram";
+    referenceOpacity?: number;
     // [key: string]: any;
 }
 

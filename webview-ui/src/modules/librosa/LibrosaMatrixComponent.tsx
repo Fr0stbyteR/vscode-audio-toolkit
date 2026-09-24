@@ -1,7 +1,7 @@
 import { FunctionComponent, useCallback, useEffect, useMemo, useState } from "react";
 import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
 import MatrixImageProcessor, { MatrixCursorInfo } from "../../core/MatrixImageProcessor";
-import { VISUALIZER_RULER_WIDTH, VisualizationOptions } from "../../core/AudioToolkitModule";
+import { getVisualizerRulerWidth, VisualizationOptions } from "../../core/AudioToolkitModule";
 import VectorImageProcessor from "../../core/VectorImageProcessor";
 import { setCanvasToFullSize } from "../../utils";
 import LibrosaConfiguration from "./LibrosaConfiguration";
@@ -72,7 +72,7 @@ const LibrosaMatrixComponent: FunctionComponent<VisualizationOptions<LibrosaMatr
         const toBin = (verticalOffset / 2 + 1) * module.bins / verticalZoom;
         const rulerZoom = 2 / Math.max(1, toBin - fromBin);
         const rulerOffset = ((fromBin + toBin) / 2) * rulerZoom;
-        VectorImageProcessor.paintHorizontalRuler(ctx, 1, { width, height, verticalZoom: rulerZoom, verticalOffset: rulerOffset, labelMode: "linear", labelUnit: module.unit, labelsWidth: VISUALIZER_RULER_WIDTH }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
+        VectorImageProcessor.paintHorizontalRuler(ctx, 1, { width, height, verticalZoom: rulerZoom, verticalOffset: rulerOffset, labelMode: "linear", labelUnit: module.unit, labelsWidth: getVisualizerRulerWidth(canvas) }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
     }, [gridColor, gridRulerColor, module.bins, module.unit, monospaceFont, textColor, verticalOffset, verticalZoom]);
     const onCursor = useCallback((x: number, y: number, width: number, height: number) => {
         if (!dataSlices?.length || x < 0 || x > width || y < 0 || y > height) { setCursorX(undefined); setCursorY(undefined); setCursorInfo(null); return; }

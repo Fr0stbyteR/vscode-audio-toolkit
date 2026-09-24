@@ -5,7 +5,7 @@
     padding: 9px;
     font-size: 11px;
     label { display: flex; flex-direction: column; gap: 4px; }
-    label > span, .configuration-kind span { color: var(--vscode-descriptionForeground); }
+    label > span { color: var(--vscode-descriptionForeground); }
     input, textarea, select, button { box-sizing: border-box; width: 100%; padding: 4px 6px; color: var(--vscode-input-foreground); background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border, transparent); font: inherit; }
     textarea { resize: vertical; }
     button { cursor: pointer; color: var(--vscode-button-foreground); background: var(--vscode-button-background); }

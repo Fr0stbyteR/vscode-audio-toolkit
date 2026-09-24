@@ -8,7 +8,6 @@ export interface SemanticDescriptionState extends AudioToolkitModuleState {
     maximumResults: number;
     providerId: string;
     autoAnalyze: boolean;
-    showRawOutput: boolean;
 }
 
 export default class SemanticDescription implements AudioToolkitModule<SemanticDescriptionState> {
@@ -19,8 +18,7 @@ export default class SemanticDescription implements AudioToolkitModule<SemanticD
         contextSeconds: 6,
         maximumResults: 8,
         providerId: "",
-        autoAnalyze: true,
-        showRawOutput: true
+        autoAnalyze: true
     };
     static async fromAudioData(audioEditor: AudioEditor, initialState: Partial<SemanticDescriptionState> = {}) {
         return new SemanticDescription(audioEditor, { ...this.DEFAULT_STATE, ...initialState });

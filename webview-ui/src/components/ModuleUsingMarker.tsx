@@ -1,9 +1,11 @@
 import "./ModuleUsingMarker.scss";
 import { FunctionComponent, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AudioToolkitModule, AudioToolkitModuleState, VisualizationOptions } from "../core/AudioToolkitModule";
 import { AudioEditorContext } from "./contexts";
 import { VSCodeButton, VSCodeProgressRing, VSCodeTextField } from "@vscode/webview-ui-toolkit/react";
 import { getCssFromPosition } from "../utils";
+import ConfigurationSections from "./ConfigurationSections";
 
 export interface AudioMarker {
     position: number | [number, number];
@@ -488,10 +490,11 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
                 : null
             }
         </div>
-        <div className={`visualizer-component-configuration module-using-marker-configuration ${module.moduleId.replace(".", "-")}-configuration-container`}>
-            {configurationContent ?? <div className="default-layout">{configurationContentChildren}{props.configurationMode === "appearance" ? <MarkerConfiguration {...{ module, selectedMarkers, setSelectedMarkers, color, setColor, markerClassName, markerName, setMarkerName }} /> : <div className="configuration-kind"><strong>Analysis</strong><span>This manual marker layer has no analysis parameters.</span></div>}</div>}
-        </div>
-        <div className="visualizer-component-monitor">{monitorContent}</div>
+        {document.getElementById("inspector-config-root") ? (activeLayer ? createPortal(configurationContent ?? <ConfigurationSections mode="both" appearance={<MarkerConfiguration {...{ module, selectedMarkers, setSelectedMarkers, color, setColor, markerClassName, markerName, setMarkerName }} />} />, document.getElementById("inspector-config-root")!) : null) :
+            <div className={`visualizer-component-configuration module-using-marker-configuration ${module.moduleId.replace(".", "-")}-configuration-container`}>
+                {configurationContent ?? <div className="default-layout">{configurationContentChildren}<ConfigurationSections mode={props.configurationMode} appearance={<MarkerConfiguration {...{ module, selectedMarkers, setSelectedMarkers, color, setColor, markerClassName, markerName, setMarkerName }} />} /></div>}
+            </div>}
+        {document.getElementById("inspector-data") ? (activeLayer && monitorContent ? createPortal(monitorContent, document.getElementById("inspector-data")!) : null) : <div className="visualizer-component-monitor">{monitorContent}</div>}
     </>);
 };
 

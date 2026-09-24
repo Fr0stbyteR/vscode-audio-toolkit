@@ -3,10 +3,11 @@ import { FunctionComponent, useCallback, useContext, useEffect, useState } from 
 import { AudioEditorContext } from "../../components/contexts";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { setCanvasToFullSize } from "../../utils";
-import { VISUALIZER_RULER_WIDTH, VisualizationOptions } from "../../core/AudioToolkitModule";
+import { getVisualizerRulerWidth, VisualizationOptions } from "../../core/AudioToolkitModule";
 import Waveform from "./Waveform";
 import VectorImageProcessor, { VectorCursorInfo } from "../../core/VectorImageProcessor";
 import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
+import ConfigurationSections from "../../components/ConfigurationSections";
 
 const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (props) => {
     const { module, viewRange, enabledChannels, phosphorColor, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
@@ -51,7 +52,7 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (pr
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        VectorImageProcessor.paintHorizontalRuler(ctx, module.audioEditor.numberOfChannels, { width, height, verticalZoom, verticalOffset, labelMode: "decibel", labelsWidth: VISUALIZER_RULER_WIDTH }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
+        VectorImageProcessor.paintHorizontalRuler(ctx, module.audioEditor.numberOfChannels, { width, height, verticalZoom, verticalOffset, labelMode: "decibel", labelsWidth: getVisualizerRulerWidth(canvas) }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
     }, [module, verticalZoom, verticalOffset, gridColor, gridRulerColor, textColor, monospaceFont]);
     const onCursor = useCallback((x: number, y: number, width: number, height: number) => {
         if (y < 0 || y > height) setCursorY(undefined);
@@ -67,7 +68,7 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (pr
         setCursorY(info.y);
         setCursorInfo(info);
     }, [dataSlices, verticalOffset, verticalZoom, viewRange]);
-    const configurationContent = props.configurationMode === "appearance" ? (
+    const configurationContent = <div className="default-layout"><ConfigurationSections mode={props.configurationMode} appearance={
         <div className="waveform-channel-enabler">
             {
                 enabledChannels.map((enabled, i) => (
@@ -79,7 +80,7 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (pr
                 ))
             }
         </div>
-    ) : <div className="default-layout"><div className="configuration-kind"><strong>Analysis</strong><span>The waveform has no analysis parameters.</span></div></div>;
+    } /></div>;
     const monitorContent = cursorInfo ? (
         <div className="default-layout">
             <div>Sample index:</div>

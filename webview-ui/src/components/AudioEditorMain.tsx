@@ -4,6 +4,7 @@ import { Fragment, FunctionComponent, useCallback, useContext, useEffect, useLay
 import { AudioEditorConfiguration, AudioEditorState } from "../core/AudioEditor";
 import { AudioEditorContext } from "./contexts";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
+import { createPortal } from "react-dom";
 import { VisualizationStyleOptions, AudioToolkitModulesState } from "../core/AudioToolkitModule";
 import { getCssFromPosition, getRuler, setCanvasToFullSize } from "../utils";
 import ModuleErrorBoundary from "./ModuleErrorBoundary";
@@ -12,22 +13,24 @@ interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRa
     configuration: AudioEditorConfiguration;
     windowSize: number[];
     configuring: boolean;
-    configurationMode: "analysis" | "appearance";
+    configurationMode: "analysis" | "appearance" | "both";
     monitoring: boolean;
     visualizersState: AudioToolkitModulesState;
     overlayMode: boolean;
+    setOverlayMode: React.Dispatch<React.SetStateAction<boolean>>;
     layersOpen: boolean;
     setLayersOpen: React.Dispatch<React.SetStateAction<boolean>>;
+    activeLayerIndex: number;
+    setActiveLayerIndex: React.Dispatch<React.SetStateAction<number>>;
 }
 
 const AudioEditorMain: FunctionComponent<Props> = (props) => {
-    const { playhead, viewRange, selRange, windowSize, gridRulerColor, textColor, labelFont, configuration: { audioUnit, beatsPerMeasure, beatsPerMinute, division }, configuring, monitoring, visualizersState, overlayMode, layersOpen, setLayersOpen } = props;
+    const { playhead, viewRange, selRange, windowSize, gridRulerColor, textColor, labelFont, configuration: { audioUnit, beatsPerMeasure, beatsPerMinute, division }, configuring, monitoring, visualizersState, overlayMode, setOverlayMode, layersOpen, setLayersOpen, activeLayerIndex, setActiveLayerIndex } = props;
     const audioEditor = useContext(AudioEditorContext)!;
     const divSelRangeRef = useRef<HTMLDivElement>(null);
     const divVerticalRulerRef = useRef<HTMLDivElement>(null);
     const canvasVerticalRulerRef = useRef<HTMLCanvasElement>(null);
     const [rerenderId, setRerenderId] = useState(performance.now());
-    const [activeLayerIndex, setActiveLayerIndex] = useState(Math.max(1, visualizersState.length - 1));
     const [draggedLayerIndex, setDraggedLayerIndex] = useState<number | null>(null);
     const handlePlayheadHandlerMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!divVerticalRulerRef.current) return;
@@ -312,7 +315,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
     }, [activeLayerIndex, audioEditor, configuring, monitoring, overlayMode]);
     useEffect(() => {
         if (!visualizersState[activeLayerIndex]) setActiveLayerIndex(Math.max(1, visualizersState.length - 1));
-    }, [activeLayerIndex, visualizersState]);
+    }, [activeLayerIndex, setActiveLayerIndex, visualizersState]);
 
     const [viewStart, viewEnd] = viewRange;
     const [selStart, selEnd] = selRange || [0, 0];
@@ -320,14 +323,51 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
     const selWidth = getCssFromPosition(viewRange, selStart, selEnd);
     const playheadLeft = getCssFromPosition(viewRange, playhead);
     const moduleCommonProps = { ...props, rerenderId };
+    const hasCanvasAxis = (index: number) => {
+        const id = visualizersState[index]?.moduleId ?? "";
+        return !!id && id !== "embedding.semantic-description" && !id.includes("marker");
+    };
+    let axisLayerIndex = activeLayerIndex;
+    if (overlayMode && !hasCanvasAxis(activeLayerIndex)) {
+        for (let index = visualizersState.length - 1; index > 0; index--) {
+            if (visualizersState[index].visible && hasCanvasAxis(index)) { axisLayerIndex = index; break; }
+        }
+    }
+    const sidebarHost = document.getElementById("standalone-layers-host");
+    const inlinePanels = !sidebarHost;
+    const layersPanel = <div className={`editor-layers-panel${layersOpen ? "" : " collapsed"}`}>
+        <div className="editor-layers-header"><strong>Layers</strong><span>{visualizersState.length - 1}</span><VSCodeButton appearance="icon" aria-label={layersOpen ? "Collapse layers" : "Expand layers"} title={layersOpen ? "Collapse layers" : "Expand layers"} onClick={() => setLayersOpen(value => !value)}><span className={`codicon codicon-chevron-${layersOpen ? "down" : "right"}`} /></VSCodeButton></div>
+        {layersOpen ? <><div className="editor-layer-layout" role="group" aria-label="Layer layout">
+            <VSCodeButton appearance="secondary" className={!overlayMode ? "active" : ""} onClick={() => setOverlayMode(false)}>Columns</VSCodeButton>
+            <VSCodeButton appearance="secondary" className={overlayMode ? "active" : ""} onClick={() => setOverlayMode(true)}>Overlay</VSCodeButton>
+        </div>
+        <div className="editor-layers-list">
+            {visualizersState.map((layer, i) => ({ layer, i })).slice(1).reverse().map(({ layer, i }) => {
+                const displayName = layer.state.name ? `${layer.state.name} - ${layer.moduleName}` : layer.moduleName;
+                return <div key={`${layer.moduleId}:${i}`} className={`editor-layer${activeLayerIndex === i ? " active" : ""}`} draggable onDragStart={() => setDraggedLayerIndex(i)} onDragEnd={() => setDraggedLayerIndex(null)} onDragOver={e => e.preventDefault()} onDrop={() => { if (draggedLayerIndex !== null && draggedLayerIndex !== i) { audioEditor.moveModule(draggedLayerIndex, i); setActiveLayerIndex(i); } setDraggedLayerIndex(null); }} onClick={() => setActiveLayerIndex(i)}>
+                    <div className="editor-layer-main">
+                        <VSCodeButton appearance="icon" title={layer.visible ? "Hide layer" : "Show layer"} aria-label={layer.visible ? "Hide layer" : "Show layer"} onClick={e => { e.stopPropagation(); audioEditor.setModuleVisible(i, !layer.visible); }}><span className={`codicon codicon-eye${layer.visible ? "" : "-closed"}`} /></VSCodeButton>
+                        <span className="codicon codicon-gripper" />
+                        <span className="editor-layer-name" title={displayName}>{displayName}</span>
+                        <VSCodeButton appearance="icon" title="Delete layer" aria-label="Delete layer" onClick={e => { e.stopPropagation(); handleClickRemoveVisualizer(i); }}><span className="codicon codicon-trash" /></VSCodeButton>
+                    </div>
+                    {overlayMode && layer.visible ? <label className="editor-layer-opacity" onClick={e => e.stopPropagation()}>
+                        <span>Opacity</span><input aria-label={`${displayName} opacity`} type="range" min="0" max="1" step="0.05" value={layer.state.overlayOpacity ?? 1} onChange={e => audioEditor.modulesInstance[i].setState({ ...layer.state, overlayOpacity: Number(e.target.value) })} /><output>{Math.round((layer.state.overlayOpacity ?? 1) * 100)}%</output>
+                    </label> : null}
+                </div>;
+            })}
+        </div>
+        <div className="editor-layers-hint">Drag to reorder · top layers draw in front</div></> : null}
+    </div>;
     return (
         <div className="editor-main">
+            {sidebarHost ? createPortal(layersPanel, sidebarHost) : null}
             <div className={`editor-main-flex${overlayMode ? " overlay-mode" : ""}`}>
-                <div className={`editor-main-playhead-container${configuring ? " configuring" : ""}${monitoring ? " monitoring" : ""}`} hidden={playhead < viewStart || playhead > viewEnd}>
+                <div className={`editor-main-playhead-container${inlinePanels && configuring ? " configuring" : ""}${inlinePanels && monitoring ? " monitoring" : ""}`} hidden={playhead < viewStart || playhead > viewEnd}>
                     <div className="editor-main-playhead-handler" style={{ left: playheadLeft }} onMouseDown={handlePlayheadHandlerMouseDown} />
                     <div className="editor-main-playhead" style={{ left: playheadLeft }}></div>
                 </div>
-                <div className={`editor-main-vertical-ruler-area${configuring ? " configuring" : ""}${monitoring ? " monitoring" : ""}`} ref={divVerticalRulerRef} onMouseDown={handlePlayheadHandlerMouseDown} onDoubleClick={handlePlayheadHandlerDoubleClick}>
+                <div className={`editor-main-vertical-ruler-area${inlinePanels && configuring ? " configuring" : ""}${inlinePanels && monitoring ? " monitoring" : ""}`} ref={divVerticalRulerRef} onMouseDown={handlePlayheadHandlerMouseDown} onDoubleClick={handlePlayheadHandlerDoubleClick}>
                     <canvas ref={canvasVerticalRulerRef} />
                     <div className="editor-main-selrange-handler" ref={divSelRangeRef} style={{ left: selLeft, width: `calc(${selWidth} - 4px)` }} hidden={!selRange} >
                         <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />
@@ -335,21 +375,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                         <div className="resize-handler resize-handler-e" onMouseDown={handleResizeEndMouseDown} />
                     </div>
                 </div>
-                {layersOpen ? <div className="editor-layers-panel">
-                    <div className="editor-layers-header"><strong>Layers</strong><VSCodeButton appearance="icon" title="Close layers" onClick={() => setLayersOpen(false)}><span className="codicon codicon-close" /></VSCodeButton></div>
-                    <div className="editor-layers-list">
-                        {visualizersState.map((layer, i) => ({ layer, i })).slice(1).reverse().map(({ layer, i }) => {
-                            const displayName = layer.state.name ? `${layer.state.name} - ${layer.moduleName}` : layer.moduleName;
-                            return <div key={`${layer.moduleId}:${i}`} className={`editor-layer${activeLayerIndex === i ? " active" : ""}`} draggable onDragStart={() => setDraggedLayerIndex(i)} onDragEnd={() => setDraggedLayerIndex(null)} onDragOver={e => e.preventDefault()} onDrop={() => { if (draggedLayerIndex !== null && draggedLayerIndex !== i) { audioEditor.moveModule(draggedLayerIndex, i); setActiveLayerIndex(i); } setDraggedLayerIndex(null); }} onClick={() => setActiveLayerIndex(i)}>
-                                <VSCodeButton appearance="icon" title={layer.visible ? "Hide layer" : "Show layer"} aria-label={layer.visible ? "Hide layer" : "Show layer"} onClick={e => { e.stopPropagation(); audioEditor.setModuleVisible(i, !layer.visible); }}><span className={`codicon codicon-eye${layer.visible ? "" : "-closed"}`} /></VSCodeButton>
-                                <span className="codicon codicon-gripper" />
-                                <span className="editor-layer-name" title={displayName}>{displayName}</span>
-                                <VSCodeButton appearance="icon" title="Delete layer" aria-label="Delete layer" onClick={e => { e.stopPropagation(); handleClickRemoveVisualizer(i); }}><span className="codicon codicon-trash" /></VSCodeButton>
-                            </div>;
-                        })}
-                    </div>
-                    <div className="editor-layers-hint">Drag to reorder · top layers render in front</div>
-                </div> : null}
+                {layersOpen && !sidebarHost ? layersPanel : null}
                 <div className="editor-main-divider" />
                 {visualizersState.map(({ moduleName, visible, state }, i) => {
                     if (i === 0) return undefined;
@@ -358,7 +384,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                     const { Component } = module;
                     const displayName = name ? `${name} - ${moduleName}` : moduleName;
                     return (<Fragment key={`${module.moduleId}:${i}`}>
-                        <div className={`editor-main-visualizer-container${visible ? "" : " collapse"}${activeLayerIndex === i ? " active-layer" : ""}`} style={{ flex: typeof visible === "number" ? `0 0 ${visible}px` : visible ? "1 1 auto" : "0 0 auto", ...(overlayMode ? { zIndex: i } : {}) }} onMouseDown={() => setActiveLayerIndex(i)}>
+                        <div className={`editor-main-visualizer-container${visible ? "" : " collapse"}${activeLayerIndex === i ? " active-layer" : ""}${axisLayerIndex === i ? " axis-layer" : ""}`} style={{ flex: typeof visible === "number" ? `0 0 ${visible}px` : visible ? "1 1 auto" : "0 0 auto", ...(overlayMode ? { zIndex: i, opacity: Math.max(0, Math.min(1, state.overlayOpacity ?? 1)) } : {}) }} onMouseDown={() => setActiveLayerIndex(i)}>
                             <div className="editor-main-visualizer-label">
                                 <VSCodeButton appearance="icon" title={visible ? "Collapse" : "Expand"} tabIndex={-1} onClick={() => handleClickCollapseVisualizer(i)}>
                                     <span className={`codicon codicon-chevron-${visible ? "down" : "right"}`}></span>
@@ -373,11 +399,11 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                                     <span className="codicon codicon-trash"></span>
                                 </VSCodeButton>
                             </div>
-                            {visible ? <div className={`editor-main-visualizer-component${configuring ? " configuring" : ""}${monitoring ? " monitoring" : ""}`} onKeyDown={handleStopPropagation} onKeyUp={handleStopPropagation}>
+                            <div className={`editor-main-visualizer-component${inlinePanels && configuring ? " configuring" : ""}${inlinePanels && monitoring ? " monitoring" : ""}`} onMouseDownCapture={() => setActiveLayerIndex(i)} onFocusCapture={() => setActiveLayerIndex(i)} onKeyDown={handleStopPropagation} onKeyUp={handleStopPropagation}>
                                 <ModuleErrorBoundary moduleName={displayName} onRemove={() => handleClickRemoveVisualizer(i)}>
                                     <Component module={module} moduleIndex={i} moduleState={state} {...moduleCommonProps} activeLayer={activeLayerIndex === i} />
                                 </ModuleErrorBoundary>
-                            </div> : null}
+                            </div>
                         </div>
                         <div className={`editor-main-divider${visible ? " draggable" : ""}`} onMouseDown={visible ? (e) => handleDividerMouseDown(e, i) : undefined} />
                     </Fragment>);

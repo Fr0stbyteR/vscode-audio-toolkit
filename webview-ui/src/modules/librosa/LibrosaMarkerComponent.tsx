@@ -7,6 +7,7 @@ import VectorImageProcessor from "../../core/VectorImageProcessor";
 import { setCanvasToFullSize } from "../../utils";
 import LibrosaMarkerModule from "./LibrosaMarkerModule";
 import { formatCacheInfo } from "./LibrosaCacheInfo";
+import ConfigurationSections from "../../components/ConfigurationSections";
 
 const LibrosaMarkerComponent: FunctionComponent<VisualizationOptions<LibrosaMarkerModule>> = props => {
     const { module, moduleState, viewRange, gridColor, configuration } = props;
@@ -28,19 +29,17 @@ const LibrosaMarkerComponent: FunctionComponent<VisualizationOptions<LibrosaMark
     }, [configuration, gridColor, module, viewRange]);
     const analysisKeys = Object.keys(draft);
     const displayKeys = Object.keys(moduleState).filter(key => !["data", "name", ...analysisKeys].includes(key));
-    const configurationContentChildren = props.configurationMode === "analysis" ? <>
-        <div className="configuration-kind"><strong>Analysis</strong><span>Changes apply when you reanalyze.</span></div>
+    const configurationContent = <div className="default-layout"><ConfigurationSections mode={props.configurationMode} analysis={<>
         <ModuleConfigurationContent moduleId={module.moduleId} moduleState={draft} setModuleState={setDraft} optionsMetadata={module.getOptionsMetadata()} wrap={false} />
         <div className="analysis-actions">
             <VSCodeButton appearance="primary" title="Run librosa again and replace the cached result" onClick={() => module.setState({ ...moduleState, ...draft }, true)}>Reanalyze</VSCodeButton>
             <span>{moduleState.data?.length ?? 0} markers</span>
         </div>
         <div className="analysis-cache-status">{moduleState.data && !cacheInfo ? "Saved with project" : formatCacheInfo(cacheInfo)}</div>
-    </> : <>
-        <div className="configuration-kind"><strong>Appearance</strong><span>Marker edits and colors apply instantly.</span></div>
+    </>} appearance={<>
         <ModuleConfigurationContent moduleId={module.moduleId} moduleState={moduleState} keys={displayKeys} setModuleState={state => module.setState(state)} optionsMetadata={module.getOptionsMetadata()} wrap={false} />
-    </>;
-    return <ModuleUsingMarker {...props} calculating={calculating} markerClassName={moduleState.name} markerData={moduleState.data ?? []} paintVerticalRuler={paintVerticalRuler} configurationContentChildren={configurationContentChildren} />;
+    </>} /></div>;
+    return <ModuleUsingMarker {...props} calculating={calculating} markerClassName={moduleState.name} markerData={moduleState.data ?? []} paintVerticalRuler={paintVerticalRuler} configurationContent={configurationContent} />;
 };
 
 export default LibrosaMarkerComponent;

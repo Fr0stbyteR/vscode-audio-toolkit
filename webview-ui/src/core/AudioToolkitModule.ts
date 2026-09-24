@@ -22,6 +22,11 @@ export interface VisualizationStyleOptions {
 }
 
 export const VISUALIZER_RULER_WIDTH = 170;
+export function getVisualizerRulerWidth(canvas: HTMLCanvasElement): number {
+    const editor = canvas.closest<HTMLElement>(".audio-editor-container");
+    const cssWidth = editor ? Number.parseFloat(getComputedStyle(editor).getPropertyValue("--visualizer-right-spacing")) : NaN;
+    return Number.isFinite(cssWidth) ? cssWidth : VISUALIZER_RULER_WIDTH;
+}
 
 export interface VisualizationOptions<T extends AudioToolkitModule, S = ReturnType<T["getState"]>> extends VisualizationStyleOptions, Pick<AudioEditorState, "playhead" | "selRange" | "viewRange" | "enabledChannels"> {
     module: T;
@@ -29,7 +34,7 @@ export interface VisualizationOptions<T extends AudioToolkitModule, S = ReturnTy
     moduleState: S;
     configuration: AudioEditorConfiguration;
     configuring: boolean;
-    configurationMode: "analysis" | "appearance";
+    configurationMode: "analysis" | "appearance" | "both";
     monitoring: boolean;
     overlayMode: boolean;
     activeLayer: boolean;

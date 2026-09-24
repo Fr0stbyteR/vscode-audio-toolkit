@@ -1,6 +1,7 @@
 import { FunctionComponent, useCallback, useEffect, useMemo, useState } from "react";
 import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
-import { VISUALIZER_RULER_WIDTH, VisualizationOptions } from "../../core/AudioToolkitModule";
+import ConfigurationSections from "../../components/ConfigurationSections";
+import { getVisualizerRulerWidth, VisualizationOptions } from "../../core/AudioToolkitModule";
 import VectorImageProcessor, { VectorCursorInfo } from "../../core/VectorImageProcessor";
 import { setCanvasToFullSize } from "../../utils";
 import ClapRelevanceCurve, { ClapRelevanceCurveState } from "./ClapRelevanceCurve";
@@ -64,7 +65,7 @@ const ClapRelevanceCurveComponent: FunctionComponent<VisualizationOptions<ClapRe
     const paintHorizontalRuler = useCallback((ref: React.RefObject<HTMLCanvasElement>) => {
         const canvas = ref.current; const ctx = canvas?.getContext("2d"); if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        VectorImageProcessor.paintHorizontalRuler(ctx, 1, { width, height, verticalZoom, verticalOffset, labelMode: "linear", labelUnit: "cos", labelsWidth: VISUALIZER_RULER_WIDTH }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
+        VectorImageProcessor.paintHorizontalRuler(ctx, 1, { width, height, verticalZoom, verticalOffset, labelMode: "linear", labelUnit: "cos", labelsWidth: getVisualizerRulerWidth(canvas) }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
     }, [gridColor, gridRulerColor, monospaceFont, textColor, verticalOffset, verticalZoom]);
     const onCursor = useCallback((x: number, y: number, width: number, height: number) => {
         if (!dataSlices?.length || x < 0 || x > width || y < 0 || y > height) { setCursorInfo(null); setCursorX(undefined); setCursorY(undefined); return; }
@@ -77,17 +78,16 @@ const ClapRelevanceCurveComponent: FunctionComponent<VisualizationOptions<ClapRe
         const prompts = draft.prompts.map(value => value.trim()).filter(Boolean);
         module.setState({ ...draft, keyword, name: keyword, prompts: prompts.length ? prompts : [keyword] }, forceRefresh);
     };
-    const configurationContent = props.configurationMode === "appearance"
-        ? <div className="clap-curve-settings"><div className="configuration-kind"><strong>Appearance</strong><span>Changes apply instantly.</span></div><label>Curve color<input type="color" value={moduleState.color} onChange={event => module.setState({ ...moduleState, color: event.target.value })} /></label></div>
-        : <div className="clap-curve-settings">
-            <div className="configuration-kind"><strong>CLAP relevance</strong><span>Each point compares a sliding audio window with these prompts.</span></div>
+    const configurationContent = <ConfigurationSections mode={props.configurationMode}
+        appearance={<div className="clap-curve-settings"><label>Curve color<input type="color" value={moduleState.color} onChange={event => module.setState({ ...moduleState, color: event.target.value })} /></label></div>}
+        analysis={<div className="clap-curve-settings">
             <label>Keyword<input value={draft.keyword} onChange={event => setDraft({ ...draft, keyword: event.target.value })} /></label>
             <label>Prompts <span>One prompt per line; multiple prompts are aggregated.</span><textarea rows={4} value={draft.prompts.join("\n")} onChange={event => setDraft({ ...draft, prompts: event.target.value.split("\n") })} /></label>
             <div className="clap-curve-setting-row"><label>Window (s)<input type="number" min="1" max="30" step="0.5" value={draft.windowSeconds} onChange={event => setDraft({ ...draft, windowSeconds: +event.target.value })} /></label><label>Hop (s)<input type="number" min="0.1" max="10" step="0.1" value={draft.hopSeconds} onChange={event => setDraft({ ...draft, hopSeconds: +event.target.value })} /></label></div>
             <label>Prompt aggregation<select value={draft.aggregation} onChange={event => setDraft({ ...draft, aggregation: event.target.value as "mean" | "max" })}><option value="mean">Mean</option><option value="max">Maximum</option></select></label>
             <label>Provider<select value={draft.providerId} onChange={event => setDraft({ ...draft, providerId: event.target.value })}><option value="">Auto</option><option value="laion_clap_music_htsat_base">LAION-CLAP</option><option value="muq_mulan_large">MuQ-MuLan</option><option value="mock">Mock (test)</option></select></label>
             <button onClick={() => apply(true)}>Analyze curve</button>
-        </div>;
+        </div>} />;
     const monitorContent = <div className="default-layout clap-curve-monitor"><div><span>Keyword</span><strong>{moduleState.keyword}</strong></div><div><span>Provider</span><strong>{result?.providerName || "—"}</strong></div><div><span>Samples</span><strong>{result?.points.length ?? "—"}</strong></div><div><span>Cache</span><strong>{result ? (result.cached ? "Hit" : "Miss") : "—"}</strong></div>{cursorInfo ? <div><span>Similarity</span><strong>{typeof cursorInfo.value === "number" ? cursorInfo.value.toFixed(4) : "—"}</strong></div> : null}</div>;
     return <ModuleUsingCanvas {...props} {...{ calculating, defaultVerticalOffset, verticalOffset, setVerticalOffset, defaultVerticalZoom, verticalZoom, setVerticalZoom, cursorX, cursorY, onCursor, paint, paintVerticalRuler, paintHorizontalRuler, configurationContent, monitorContent }} />;
 };

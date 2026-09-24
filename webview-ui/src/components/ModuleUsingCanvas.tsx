@@ -2,8 +2,14 @@ import "./ModuleUsingCanvas.scss";
 import { FunctionComponent, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AudioEditorContext } from "./contexts";
 import { AudioToolkitModule, VisualizationOptions } from "../core/AudioToolkitModule";
+import AudioEditor from "../core/AudioEditor";
+import VectorImageProcessor, { VectorDataSlice } from "../core/VectorImageProcessor";
+import MatrixImageProcessor, { MatrixDataSlice } from "../core/MatrixImageProcessor";
+import Waveform from "../modules/waveform/Waveform";
+import Spectrogram from "../modules/spectrogram/Spectrogram";
 import { VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
-import { getCssFromPosition } from "../utils";
+import { getCssFromPosition, setCanvasToFullSize } from "../utils";
+import { createPortal } from "react-dom";
 
 export interface ModuleUsingCanvasProps extends VisualizationOptions<AudioToolkitModule> {
     calculating?: boolean | [number, string];
@@ -28,9 +34,11 @@ export interface ModuleUsingCanvasProps extends VisualizationOptions<AudioToolki
     monitorContent?: JSX.Element;
 }
 
+const referenceSpectrograms = new WeakMap<AudioEditor, Promise<Spectrogram>>();
+
 const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => {
     const {
-        module, calculating,
+        module, moduleState, calculating,
         paint, paintBackground, paintVerticalRuler, paintHorizontalRuler,
         defaultVerticalZoom, verticalZoom, setVerticalZoom,
         defaultVerticalOffset, verticalOffset, setVerticalOffset,
@@ -42,6 +50,9 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
     } = props;
     const audioEditor = useContext(AudioEditorContext)!;
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const referenceCanvasRef = useRef<HTMLCanvasElement>(null);
+    const referencePaintRevision = useRef(0);
+    const [referenceData, setReferenceData] = useState<{ kind: "waveform" | "spectrogram"; slices: VectorDataSlice[] | MatrixDataSlice[] }>();
     const backgroundCanvasRef = useRef<HTMLCanvasElement>(null);
     const canvasVerticalRulerRef = useRef<HTMLCanvasElement>(null);
     const canvasHorizontalRulerRef = useRef<HTMLCanvasElement>(null);
@@ -85,6 +96,59 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         if (!rect || rect.width <= 0 || rect.height <= 0) return;
         void Promise.resolve().then(() => paint(canvasRef)).catch(error => console.error("Canvas paint failed.", error));
     }, [layoutRevision, paint, rerenderId, repaintId]);
+    useEffect(() => {
+        let cancelled = false;
+        const kind = overlayMode ? "none" : moduleState.referenceOverlay ?? "none";
+        setReferenceData(undefined);
+        if (kind === "none" || kind === module.moduleId) return;
+        const load = async () => {
+            if (kind === "waveform") {
+                const waveform = audioEditor.modulesInstance.find(instance => instance.moduleId === Waveform.MODULE_ID) as Waveform | undefined;
+                if (!waveform) return;
+                const slices = waveform.dataSlices ?? (await waveform.sharableData)?.dataSlices;
+                if (!cancelled && slices?.length) setReferenceData({ kind, slices });
+            } else {
+                let spectrogram = audioEditor.modulesInstance.find(instance => instance.moduleId === Spectrogram.MODULE_ID) as Spectrogram | undefined;
+                if (!spectrogram) {
+                    let pending = referenceSpectrograms.get(audioEditor);
+                    if (!pending) {
+                        pending = Spectrogram.fromAudioData(audioEditor);
+                        referenceSpectrograms.set(audioEditor, pending);
+                    }
+                    spectrogram = await pending;
+                }
+                const slices = spectrogram.dataSlices ?? (await spectrogram.sharableData)?.dataSlices;
+                if (!cancelled && slices?.length) setReferenceData({ kind, slices });
+            }
+        };
+        void load().catch(error => console.error("Reference overlay failed.", error));
+        return () => { cancelled = true; };
+    }, [audioEditor, module.moduleId, moduleState.referenceOverlay, overlayMode]);
+    useEffect(() => {
+        const canvas = referenceCanvasRef.current;
+        const rect = divMainRef.current?.getBoundingClientRect();
+        if (!canvas || !rect || rect.width <= 0 || rect.height <= 0) return;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const revision = ++referencePaintRevision.current;
+        const [width, height] = setCanvasToFullSize(canvas);
+        ctx.clearRect(0, 0, width, height);
+        if (overlayMode || !referenceData) return;
+        if (referenceData.kind === "waveform") {
+            VectorImageProcessor.paint(ctx, referenceData.slices as VectorDataSlice[], { width, height, paintSeparator: false }, { viewRange }, { phosphorColor: "#78d8ff" });
+        } else {
+            const buffer = document.createElement("canvas");
+            buffer.width = width;
+            buffer.height = height;
+            const bufferContext = buffer.getContext("2d");
+            if (!bufferContext) return;
+            void MatrixImageProcessor.paint(bufferContext, referenceData.slices as MatrixDataSlice[], { width, height, minValue: -90, maxValue: -5 }, { viewRange }, {}).then(() => {
+                if (revision !== referencePaintRevision.current) return;
+                ctx.clearRect(0, 0, width, height);
+                ctx.drawImage(buffer, 0, 0);
+            }).catch(error => console.error("Reference spectrogram paint failed.", error));
+        }
+    }, [layoutRevision, overlayMode, referenceData, rerenderId, viewRange]);
     useEffect(() => {
         const rect = divMainRef.current?.getBoundingClientRect();
         if (!rect || rect.width <= 0 || rect.height <= 0) return;
@@ -254,6 +318,17 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
     const cursorXLeft = `${cursorX}px`;
     const cursorYTop = `${cursorY}px`;
     const calculatingError = Array.isArray(calculating) && calculating[0] < 0 ? calculating[1] : null;
+    const inspectorConfigRoot = document.getElementById("inspector-config-root");
+    const inspectorAppearance = document.getElementById("inspector-appearance");
+    const inspectorData = document.getElementById("inspector-data");
+    const referenceControls = <div className="canvas-reference-controls">
+        <label>Reference layer<select value={moduleState.referenceOverlay ?? "none"} onChange={event => module.setState({ ...moduleState, referenceOverlay: event.target.value as "none" | "waveform" | "spectrogram" })}>
+            <option value="none">None</option>
+            {module.moduleId !== "waveform" ? <option value="waveform">Waveform</option> : null}
+            {module.moduleId !== "spectrogram" ? <option value="spectrogram">Spectrogram</option> : null}
+        </select></label>
+        {moduleState.referenceOverlay && moduleState.referenceOverlay !== "none" ? <label>Reference opacity <output>{Math.round((moduleState.referenceOpacity ?? .35) * 100)}%</output><input type="range" min="0" max="1" step="0.05" value={moduleState.referenceOpacity ?? .35} onChange={event => module.setState({ ...moduleState, referenceOpacity: Number(event.target.value) })} /></label> : null}
+    </div>;
     return (<>
         <div className={`visualizer-component-container module-using-canvas-container ${module.moduleId.replace(".", "-")}-container`}>
             <div className="module-using-canvas-background">
@@ -267,6 +342,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
             </div>
             <div ref={divMainRef} className="module-using-canvas-canvas-container visualizer-component-visualization-area" onMouseDown={handleCanvasMouseDown} onWheel={handleCanvasWheel}>
                 <canvas ref={canvasRef} style={{ opacity: foregroundOpacity ?? 1 }} />
+                <canvas ref={referenceCanvasRef} className="canvas-reference-overlay" style={{ opacity: moduleState.referenceOpacity ?? .35, display: overlayMode || !moduleState.referenceOverlay || moduleState.referenceOverlay === "none" ? "none" : undefined }} />
                 <div className="selrange" style={{ left: selLeft, width: selWidth }} hidden={!selRange}>
                     <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />
                     <div className="resize-handler resize-handler-e" onMouseDown={handleResizeEndMouseDown} />
@@ -303,13 +379,14 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
                 : null
             }
         </div>
-        <div className={`visualizer-component-configuration module-using-canvas-configuration ${module.moduleId.replace(".", "-")}-configuration-container`}>
-            {configurationContent}
-        </div>
-        <div className={`visualizer-component-monitor module-using-canvas-monitor ${module.moduleId.replace(".", "-")}-monitor-container`}>
-            {monitorContent}
-            <div className="hover-tips">Press L to {cursorLocked ? "unlock" : "lock"} the cursor</div>
-        </div>
+        {inspectorConfigRoot ? (activeLayer && configurationContent ? createPortal(configurationContent, inspectorConfigRoot) : null) :
+            <div className={`visualizer-component-configuration module-using-canvas-configuration ${module.moduleId.replace(".", "-")}-configuration-container`}>{configurationContent}</div>}
+        {inspectorAppearance && activeLayer && !overlayMode ? createPortal(referenceControls, inspectorAppearance) : null}
+        {inspectorData ? (activeLayer && monitorContent ? createPortal(monitorContent, inspectorData) : null) :
+            <div className={`visualizer-component-monitor module-using-canvas-monitor ${module.moduleId.replace(".", "-")}-monitor-container`}>
+                {monitorContent}
+                <div className="hover-tips">Press L to {cursorLocked ? "unlock" : "lock"} the cursor</div>
+            </div>}
     </>);
 };
 

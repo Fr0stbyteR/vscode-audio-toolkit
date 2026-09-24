@@ -14,6 +14,14 @@
         pointer-events: none;
         opacity: .82;
     }
+
+    &.is-overlay {
+        background: transparent;
+        pointer-events: none;
+
+        .semantic-description-area { pointer-events: none; }
+        .semantic-result { pointer-events: auto; }
+    }
 }
 
 .semantic-card {
@@ -23,110 +31,48 @@
     box-sizing: border-box;
 }
 
-.semantic-summary, .semantic-result > div:first-child, .semantic-score, .semantic-error {
+.semantic-error {
     display: flex;
     align-items: center;
 }
 
-.semantic-summary {
-    gap: 9px;
-    min-height: 32px;
-    padding: 7px 10px;
-    margin-bottom: 9px;
-    border-left: 2px solid var(--vscode-focusBorder);
-    background: var(--vscode-editorWidget-background);
-    span { color: var(--vscode-descriptionForeground); font-size: 10px; text-transform: uppercase; }
-    strong { font-size: 14px; color: var(--vscode-foreground); }
-    small { margin-left: auto; color: var(--vscode-descriptionForeground); }
+.semantic-groups {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    align-items: start;
+    gap: 8px;
 }
 
-.semantic-results {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
-    gap: 6px;
+.semantic-family-group {
+    min-width: 0;
+    padding: 7px;
+    border: 1px solid var(--vscode-panel-border);
+    background: var(--vscode-sideBar-background);
+
+    h4 { margin: 0 0 7px; color: var(--vscode-descriptionForeground); font-size: 11px; font-weight: 600; }
+}
+
+.semantic-family-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
 }
 
 .semantic-result {
-    display: block;
-    width: 100%;
-    padding: 7px 8px;
-    border: 1px solid var(--vscode-widget-border, #30363d);
-    border-radius: 4px;
-    color: inherit;
-    text-align: left;
-    font: inherit;
-    cursor: pointer;
-    background: var(--vscode-sideBar-background);
-
-    &:hover { border-color: var(--vscode-focusBorder); background: var(--vscode-list-hoverBackground); }
-
-    > div:first-child { justify-content: space-between; gap: 8px; }
-    strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-    > div:first-child span { color: var(--vscode-descriptionForeground); font-size: 9px; }
+    max-width: 100%;
+    border-radius: 3px;
+    font-size: 11px;
+    line-height: 1.25;
 }
 
-.semantic-score {
-    position: relative;
-    height: 3px;
-    margin-top: 7px;
-    border-radius: 2px;
-    background: var(--vscode-progressBar-background, #0e639c);
-    opacity: .34;
-    i { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--vscode-focusBorder); }
-    span { position: absolute; right: 0; bottom: 4px; color: var(--vscode-descriptionForeground); font: 9px var(--vscode-editor-font-family); }
-}
-
-.semantic-disclaimer {
+.semantic-family-raw {
     margin-top: 8px;
-    color: var(--vscode-descriptionForeground);
-    font-size: 10px;
-    .codicon { margin-right: 4px; }
+    padding-top: 6px;
+    border-top: 1px solid var(--vscode-panel-border);
+    > span { display: block; margin-bottom: 5px; color: var(--vscode-descriptionForeground); font-size: 10px; }
 }
-
-.semantic-raw {
-    max-height: 230px;
-    overflow: auto;
-    border: 1px solid var(--vscode-widget-border, #30363d);
-    border-radius: 4px;
-    background: var(--vscode-sideBar-background);
-}
-
-.semantic-raw-note {
-    position: sticky;
-    z-index: 1;
-    top: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--vscode-widget-border, #30363d);
-    background: var(--vscode-editorWidget-background);
-    span { color: var(--vscode-descriptionForeground); font-size: 10px; line-height: 1.35; }
-}
-
-.semantic-raw-row {
-    display: grid;
-    width: 100%;
-    grid-template-columns: 26px minmax(160px, 1fr) 58px 58px;
-    align-items: center;
-    min-height: 27px;
-    padding: 0 8px;
-    border-bottom: 1px solid color-mix(in srgb, var(--vscode-widget-border, #30363d) 55%, transparent);
-    border-top: 0;
-    border-right: 0;
-    border-left: 0;
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-    background: transparent;
-    font: 10px var(--vscode-editor-font-family);
-    &:last-child { border-bottom: 0; }
-    strong { text-align: right; color: var(--vscode-focusBorder); font-variant-numeric: tabular-nums; }
-    &:hover { background: var(--vscode-list-hoverBackground); }
-}
-
-.semantic-rank, .semantic-family { color: var(--vscode-descriptionForeground); }
-.semantic-prompt { overflow: hidden; padding-right: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.semantic-raw-badge { font-size: 10px; }
+.semantic-updating { color: var(--vscode-descriptionForeground); font-size: 10px; }
 
 .semantic-empty { display: flex; align-items: center; gap: 9px; min-height: 62px; color: var(--vscode-descriptionForeground); }
 .semantic-error { align-items: flex-start; gap: 9px; padding: 10px; color: var(--vscode-errorForeground); background: var(--vscode-inputValidation-errorBackground); border: 1px solid var(--vscode-inputValidation-errorBorder); }

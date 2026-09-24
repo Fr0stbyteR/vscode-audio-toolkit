@@ -3,13 +3,14 @@ import "./SpectrogramComponent.scss";
 import { FunctionComponent, useCallback, useContext, useEffect, useState } from "react";
 import { AudioEditorContext } from "../../components/contexts";
 import { setCanvasToFullSize } from "../../utils";
-import { VISUALIZER_RULER_WIDTH, VisualizationOptions } from "../../core/AudioToolkitModule";
+import { getVisualizerRulerWidth, VisualizationOptions } from "../../core/AudioToolkitModule";
 import Spectrogram from "./Spectrogram";
 import VectorImageProcessor from "../../core/VectorImageProcessor";
 import MatrixImageProcessor, { MatrixCursorInfo } from "../../core/MatrixImageProcessor";
 import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
 import ModuleConfigurationContent from "../../components/ModuleConfigurationContent";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
+import ConfigurationSections from "../../components/ConfigurationSections";
 
 const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>> = (props) => {
     const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
@@ -54,7 +55,7 @@ const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>>
         const ctx = canvas?.getContext("2d");
         if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        VectorImageProcessor.paintHorizontalRuler(ctx, module.audioEditor.numberOfChannels, { width, height, verticalZoom: verticalZoom / (audioEditor.sampleRate / 2 / 2), verticalOffset: verticalOffset + 1, labelMode: "linear", labelUnit: "Hz", labelsWidth: VISUALIZER_RULER_WIDTH }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
+        VectorImageProcessor.paintHorizontalRuler(ctx, module.audioEditor.numberOfChannels, { width, height, verticalZoom: verticalZoom / (audioEditor.sampleRate / 2 / 2), verticalOffset: verticalOffset + 1, labelMode: "linear", labelUnit: "Hz", labelsWidth: getVisualizerRulerWidth(canvas) }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
     }, [audioEditor, module, verticalZoom, verticalOffset, gridColor, gridRulerColor, textColor, monospaceFont]);
     const onCursor = useCallback((x: number, y: number, width: number, height: number) => {
         if (x < 0 || x > width || y < 0 || y > height) {
@@ -74,11 +75,10 @@ const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>>
     const calculationStateKeys = Object.keys(calculationState);
     const configurationContent = (
         <div className={`default-layout ${module.moduleId.replace(".", "-")}-configuration`}>
-            <div className="configuration-kind"><strong>{props.configurationMode === "analysis" ? "Analysis" : "Appearance"}</strong><span>{props.configurationMode === "analysis" ? "Changes apply when you recalculate." : "Changes apply instantly."}</span></div>
-            {props.configurationMode === "analysis" ? <>
+            <ConfigurationSections mode={props.configurationMode} analysis={<>
                 <ModuleConfigurationContent {...{ moduleId: module.moduleId, moduleState: calculationState, setModuleState: setCalculationState, keys: calculationStateKeys, optionsMetadata, wrap: false }} />
                 <div><VSCodeButton tabIndex={-1} title="Recalculate spectrogram" appearance="primary" onClick={() => setModuleState({ ...moduleState, ...calculationState })}>Recalculate</VSCodeButton></div>
-            </> : <ModuleConfigurationContent {...{ moduleId: module.moduleId, moduleState, setModuleState, keys: Object.keys(moduleState).filter(k => calculationStateKeys.indexOf(k) === -1), optionsMetadata, wrap: false }} />}
+            </>} appearance={<ModuleConfigurationContent {...{ moduleId: module.moduleId, moduleState, setModuleState, keys: Object.keys(moduleState).filter(k => calculationStateKeys.indexOf(k) === -1 && !["overlayOpacity", "referenceOverlay", "referenceOpacity"].includes(k)), optionsMetadata, wrap: false }} />} />
         </div>
     );
     const monitorContent = (
