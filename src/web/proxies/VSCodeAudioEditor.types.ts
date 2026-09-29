@@ -11,7 +11,7 @@ export interface AudioEditorConfiguration {
     matrixRenderer: "auto" | "webgl" | "canvas2d";
 }
 
-export type AudioToolkitModulesState = { moduleId: string, moduleName: string; visible: boolean | number; state: AudioToolkitModuleState }[];
+export type AudioToolkitModulesState = { moduleId: string, moduleName: string; visible: boolean | number; lastVisibleHeight?: number; state: AudioToolkitModuleState }[];
 
 export interface AudioToolkitModuleState {
     name: string;

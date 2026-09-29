@@ -59,27 +59,41 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
     const backgroundCanvasRef = useRef<HTMLCanvasElement>(null);
     const canvasVerticalRulerRef = useRef<HTMLCanvasElement>(null);
     const canvasHorizontalRulerRef = useRef<HTMLCanvasElement>(null);
+    const horizontalRulerRef = useRef<HTMLDivElement>(null);
     const divMainRef = useRef<HTMLDivElement>(null);
     const [cursorLocked, setCursorLocked] = useState(false);
+    const [cursorHovered, setCursorHovered] = useState(false);
     const [layoutRevision, setLayoutRevision] = useState(0);
     const handleWindowKeyDown = useCallback((e: KeyboardEvent) => {
-        if (monitoring && e.key === "l") setCursorLocked(l => !l);
-    }, [monitoring]);
-    const handleDocumentMouseMove = useCallback((e: MouseEvent) => {
+        if (!monitoring || !activeLayer || e.key.toLowerCase() !== "l" || e.altKey || e.ctrlKey || e.metaKey || e.repeat) return;
+        const target = e.target as HTMLElement | null;
+        if (target?.isContentEditable || target?.closest("input, textarea, select, vscode-text-field, vscode-dropdown")) return;
+        setCursorLocked(locked => !locked);
+    }, [activeLayer, monitoring]);
+    const handleCanvasMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        setCursorHovered(true);
         if (!canvasRef.current || !onCursor || !monitoring || cursorLocked) return;
         const rect = canvasRef.current.getBoundingClientRect();
         const x = e.clientX - rect.x;
         const y = e.clientY - rect.y;
         onCursor(x, y, ~~rect.width, ~~rect.height);
     }, [onCursor, monitoring, cursorLocked]);
+    const handleCanvasMouseLeave = useCallback(() => {
+        setCursorHovered(false);
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (rect && onCursor && !cursorLocked) onCursor(-1, -1, ~~rect.width, ~~rect.height);
+    }, [onCursor, cursorLocked]);
     useEffect(() => {
         window.addEventListener("keydown", handleWindowKeyDown);
-        document.addEventListener("mousemove", handleDocumentMouseMove);
-        return () => {
-            window.removeEventListener("keydown", handleWindowKeyDown);
-            document.removeEventListener("mousemove", handleDocumentMouseMove);
-        };
-    }, [handleDocumentMouseMove, handleWindowKeyDown]);
+        return () => window.removeEventListener("keydown", handleWindowKeyDown);
+    }, [handleWindowKeyDown]);
+    useEffect(() => {
+        const scrollContainer = divMainRef.current?.closest(".editor-main");
+        if (!scrollContainer) return;
+        const hideCursor = () => setCursorHovered(false);
+        scrollContainer.addEventListener("scroll", hideCursor, { passive: true });
+        return () => scrollContainer.removeEventListener("scroll", hideCursor);
+    }, []);
     useEffect(() => {
         const element = divMainRef.current;
         if (!element || typeof ResizeObserver === "undefined") return;
@@ -204,14 +218,9 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
     }, [audioEditor, onCanvasMouseDown, viewRange]);
-    const handleCanvasWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    const handleCanvasWheel = useCallback((e: WheelEvent) => {
         if (!e.deltaX && !e.deltaY) return;
-        let divMainFlexContainer = e.currentTarget.parentElement;
-        while (divMainFlexContainer && !divMainFlexContainer.classList.contains("editor-main-flex")) {
-            divMainFlexContainer = divMainFlexContainer.parentElement;
-        }
-        if (divMainFlexContainer && divMainFlexContainer.scrollHeight > divMainFlexContainer.clientHeight) return;
-
+        e.preventDefault();
         e.stopPropagation();
         if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
             audioEditor.scrollH(e.deltaX > 0 ? 0.01 : -0.01);
@@ -220,10 +229,16 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         const [viewStart, viewEnd] = viewRange;
         const viewLength = viewEnd - viewStart;
         const origin = { x: e.clientX, y: e.clientY };
-        const rect = e.currentTarget.getBoundingClientRect();
+        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
         const ref = viewStart + (origin.x - rect.left) / rect.width * viewLength;
         audioEditor.zoomH(ref, e.deltaY < 0 ? 1 : -1);
     }, [audioEditor, viewRange]);
+    useEffect(() => {
+        const element = divMainRef.current;
+        if (!element) return;
+        element.addEventListener("wheel", handleCanvasWheel, { passive: false });
+        return () => element.removeEventListener("wheel", handleCanvasWheel);
+    }, [handleCanvasWheel]);
     const handleHorizontalRulerMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         (document.activeElement as HTMLElement)?.blur();
         e.stopPropagation();
@@ -245,11 +260,18 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
     }, [setVerticalOffset, verticalOffset]);
-    const handleHorizontalRulerWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    const handleHorizontalRulerWheel = useCallback((e: WheelEvent) => {
         if (!e.deltaY) return;
+        e.preventDefault();
         e.stopPropagation();
         setVerticalZoom(zoom => zoom * 1.5 ** (e.deltaY < 0 ? 1 : -1));
     }, [setVerticalZoom]);
+    useEffect(() => {
+        const element = horizontalRulerRef.current;
+        if (!element) return;
+        element.addEventListener("wheel", handleHorizontalRulerWheel, { passive: false });
+        return () => element.removeEventListener("wheel", handleHorizontalRulerWheel);
+    }, [handleHorizontalRulerWheel]);
     const handleHorizontalRulerDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         e.preventDefault();
         e.stopPropagation();
@@ -341,10 +363,10 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
             <div className="module-using-canvas-vertical-ruler-container">
                 <canvas ref={canvasVerticalRulerRef} />
             </div>
-            <div className="module-using-canvas-horizontal-ruler-container" onMouseDown={handleHorizontalRulerMouseDown} onWheel={handleHorizontalRulerWheel} onDoubleClick={handleHorizontalRulerDoubleClick}>
+            <div ref={horizontalRulerRef} className="module-using-canvas-horizontal-ruler-container" onMouseDown={handleHorizontalRulerMouseDown} onDoubleClick={handleHorizontalRulerDoubleClick}>
                 <canvas ref={canvasHorizontalRulerRef} />
             </div>
-            <div ref={divMainRef} className="module-using-canvas-canvas-container visualizer-component-visualization-area" onMouseDown={handleCanvasMouseDown} onWheel={handleCanvasWheel}>
+            <div ref={divMainRef} className="module-using-canvas-canvas-container visualizer-component-visualization-area" onMouseDown={handleCanvasMouseDown} onMouseEnter={() => setCursorHovered(true)} onMouseMove={handleCanvasMouseMove} onMouseLeave={handleCanvasMouseLeave}>
                 <canvas ref={canvasRef} style={{ opacity: foregroundOpacity ?? 1 }} />
                 <canvas ref={referenceCanvasRef} className="canvas-reference-overlay" style={{ opacity: moduleState.referenceOpacity ?? .35, display: overlayMode || !moduleState.referenceOverlay || moduleState.referenceOverlay === "none" ? "none" : undefined }} />
                 <div className="selrange" style={{ left: selLeft, width: selWidth }} hidden={!selRange}>
@@ -360,7 +382,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
                 */}
             </div>
             {
-                monitoring && (!overlayMode || activeLayer)
+                monitoring && cursorHovered && (!overlayMode || activeLayer)
                 ? <div className="cursor-container">
                     {canvasRef.current && typeof cursorX === "number" && 0 <= cursorX && cursorX <= canvasRef.current.width ? <div className="cursor-x" style={{ left: cursorXLeft }} /> : null}
                     {canvasRef.current && typeof cursorY === "number" && 0 <= cursorY && cursorY <= canvasRef.current.height ? <div className="cursor-y" style={{ top: cursorYTop }} /> : null}
@@ -386,7 +408,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         {inspectorConfigRoot ? (activeLayer && configurationContent ? createPortal(configurationContent, inspectorConfigRoot) : null) :
             <div className={`visualizer-component-configuration module-using-canvas-configuration ${module.moduleId.replace(".", "-")}-configuration-container`}>{configurationContent}</div>}
         {inspectorAppearance && activeLayer && !overlayMode ? createPortal(referenceControls, inspectorAppearance) : null}
-        {inspectorData ? (activeLayer && monitorContent ? createPortal(monitorContent, inspectorData) : null) :
+        {inspectorData ? (activeLayer ? createPortal(<>{monitorContent}{monitoring ? <div className="data-cursor-tip">{t(cursorLocked ? "Press L to unlock the cursor" : "Press L to lock the cursor")}</div> : null}</>, inspectorData) : null) :
             <div className={`visualizer-component-monitor module-using-canvas-monitor ${module.moduleId.replace(".", "-")}-monitor-container`}>
                 {monitorContent}
                 <div className="hover-tips">{t(cursorLocked ? "Press L to unlock the cursor" : "Press L to lock the cursor")}</div>

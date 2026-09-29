@@ -1,22 +1,29 @@
 .audio-editor-container .editor-main-controls {
     display: flex;
     flex-direction: row;
+    flex-wrap: wrap;
     flex: 0 0 auto;
     height: auto;
     align-items: center;
+    gap: 6px 10px;
+    min-width: 0;
     padding: 10px 4px;
 
     & > span {
         align-self: center;
 
         &.time-input {
-            position: absolute;
+            position: static;
+            order: 0;
+            flex: 0 0 auto;
         }
     }
 
     & > span.editor-main-player-controls-container {
-        flex: 1 1 auto;
-        margin-left: 80px;
+        flex: 1 1 120px;
+        order: 1;
+        min-width: 120px;
+        margin-left: 0;
         position: relative;
         white-space: nowrap;
         display: flex;
@@ -91,7 +98,11 @@
     }
 
     & > span.editor-add-component {
-        flex: 0 0 328px;
+        flex: 1 1 200px;
+        order: 2;
+        min-width: 140px;
+        max-width: 328px;
+        margin-left: auto;
         position: relative;
         display: flex;
 

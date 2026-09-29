@@ -251,9 +251,9 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     }
     async initModules(initialtates: AudioToolkitModulesState) {
         for (let i = 0; i < initialtates.length; i++) {
-            const { moduleId: id, moduleName: name, state, visible } = initialtates[i];
+            const { moduleId: id, moduleName: name, state, visible, lastVisibleHeight } = initialtates[i];
             try {
-                await this.addModule(id, state, name, visible);
+                await this.addModule(id, state, name, visible, lastVisibleHeight);
             } catch (error) {
                 console.error(error);
             }
@@ -275,11 +275,11 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
                 if (moduleIndexFound >= 0) {
                     this.moveModule(moduleIndexFound, i);
                 } else {
-                    await this.addModule(moduleId, state, moduleName, visible);
+                    await this.addModule(moduleId, state, moduleName, visible, modulesState[i].lastVisibleHeight);
                     this.moveModule(this._modulesInstance.length - 1, i);
                 }
             }
-            this._modulesState[i] = { ...this.modulesState[i], visible, moduleName };
+            this._modulesState[i] = { ...this.modulesState[i], visible, lastVisibleHeight: modulesState[i].lastVisibleHeight, moduleName };
             this._modulesInstance[i].setState(state);
         }
         while (this._modulesState.length > modulesState.length) this.removeModule(this._modulesState.length - 1);
@@ -292,9 +292,12 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         this.emit("modulesState", this._modulesState);
     }
     setModuleVisible(index: number, visible: boolean | number) {
-        const prevState = { ...this._modulesState };
+        const previous = this._modulesState[index];
+        if (!previous) return;
+        const lastVisibleHeight = typeof visible === "number" ? visible : typeof previous.visible === "number" ? previous.visible : previous.lastVisibleHeight;
+        const nextVisible = visible === true ? lastVisibleHeight ?? true : visible;
         this._modulesState = [...this._modulesState];
-        this._modulesState[index] = { ...this._modulesState[index], visible };
+        this._modulesState[index] = { ...previous, visible: nextVisible, lastVisibleHeight };
         this.emit("modulesState", this._modulesState);
     }
     getSharableData() {
@@ -305,13 +308,13 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         });
         return sharableData;
     }
-    async addModule(moduleId: string, initialState?: any, moduleName?: string, visible?: boolean | number) {
+    async addModule(moduleId: string, initialState?: any, moduleName?: string, visible?: boolean | number, lastVisibleHeight?: number) {
         const Constructor = AudioEditor.MODULES_MAP[moduleId];
         if (!Constructor) throw new Error(`Module ${moduleId} not found.`);
         const sharableData = this.getSharableData();
         const instance = await Constructor.fromAudioData(this, initialState, sharableData);
         this._modulesInstance = [...this._modulesInstance, instance];
-        this._modulesState = [...this._modulesState, { moduleId, moduleName: moduleName ?? Constructor.MODULE_NAME, visible: visible ?? true, state: instance.getState() }];
+        this._modulesState = [...this._modulesState, { moduleId, moduleName: moduleName ?? Constructor.MODULE_NAME, visible: visible ?? true, lastVisibleHeight, state: instance.getState() }];
         const handleStateChange = (newState: any) => this.setModuleState(this._modulesInstance.indexOf(instance), newState);
         instance.onStateChange = handleStateChange;
         this.emit("modulesState", this._modulesState);

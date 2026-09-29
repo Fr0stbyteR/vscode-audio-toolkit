@@ -34,6 +34,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
     const canvasVerticalRulerRef = useRef<HTMLCanvasElement>(null);
     const [rerenderId, setRerenderId] = useState(performance.now());
     const [draggedLayerIndex, setDraggedLayerIndex] = useState<number | null>(null);
+    const [dragOverLayerIndex, setDragOverLayerIndex] = useState<number | null>(null);
     const handlePlayheadHandlerMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!divVerticalRulerRef.current) return;
         e.stopPropagation();
@@ -181,7 +182,8 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
             e.preventDefault();
             if (e.movementY) {
                 const y = e.clientY;
-                const height = rect.height + (y - origin.y);
+                const minimumHeight = visualizersState[visualizerIndex]?.moduleId === "score.musicxml" ? 220 : 100;
+                const height = Math.max(minimumHeight, Math.round(rect.height + (y - origin.y)));
                 container.style.flex = `0 0 ${height}px`;
                 audioEditor.setModuleVisible(visualizerIndex, height);
             }
@@ -195,7 +197,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
         };
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
-    }, [audioEditor]);
+    }, [audioEditor, visualizersState]);
     const handleClickCollapseVisualizer = useCallback((visualizerIndex: number) => {
         const visible = visualizersState[visualizerIndex].visible;
         audioEditor.setModuleVisible(visualizerIndex, !visible);
@@ -339,6 +341,8 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
     const scoreIsTopLayer = topVisibleLayerIndex > 0 && visualizersState[topVisibleLayerIndex].moduleId === "score.musicxml";
     const sidebarHost = document.getElementById("standalone-layers-host");
     const inlinePanels = !sidebarHost;
+    const layersInDisplayOrder = visualizersState.map((layer, i) => ({ layer, i })).slice(1);
+    if (overlayMode) layersInDisplayOrder.reverse();
     const layersPanel = <div className={`editor-layers-panel${layersOpen ? "" : " collapsed"}`}>
         <div className="editor-layers-header"><strong>{t("Layers")}</strong><span>{visualizersState.length - 1}</span><VSCodeButton appearance="icon" aria-label={t(layersOpen ? "Collapse layers" : "Expand layers")} title={t(layersOpen ? "Collapse layers" : "Expand layers")} onClick={() => setLayersOpen(value => !value)}><span className={`codicon codicon-chevron-${layersOpen ? "down" : "right"}`} /></VSCodeButton></div>
         {layersOpen ? <><div className="editor-layer-layout" role="group" aria-label={t("Layer layout")}>
@@ -346,12 +350,12 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
             <VSCodeButton appearance="secondary" className={overlayMode ? "active" : ""} onClick={() => setOverlayMode(true)}>{t("Overlay")}</VSCodeButton>
         </div>
         <div className="editor-layers-list">
-            {visualizersState.map((layer, i) => ({ layer, i })).slice(1).reverse().map(({ layer, i }) => {
+            {layersInDisplayOrder.map(({ layer, i }) => {
                 const displayName = layer.state.name ? `${layer.state.name} - ${t(layer.moduleName)}` : t(layer.moduleName);
-                return <div key={`${layer.moduleId}:${i}`} className={`editor-layer${activeLayerIndex === i ? " active" : ""}`} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (draggedLayerIndex !== null && draggedLayerIndex !== i) { audioEditor.moveModule(draggedLayerIndex, i); setActiveLayerIndex(i); } setDraggedLayerIndex(null); }} onClick={() => setActiveLayerIndex(i)}>
+                return <div key={`${layer.moduleId}:${i}`} className={`editor-layer${activeLayerIndex === i ? " active" : ""}${draggedLayerIndex === i ? " dragging-layer" : ""}${dragOverLayerIndex === i && draggedLayerIndex !== i ? " drop-target" : ""}`} onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (dragOverLayerIndex !== i) setDragOverLayerIndex(i); }} onDrop={e => { e.preventDefault(); if (draggedLayerIndex !== null && draggedLayerIndex !== i) { audioEditor.moveModule(draggedLayerIndex, i); setActiveLayerIndex(i); } setDraggedLayerIndex(null); setDragOverLayerIndex(null); }} onClick={() => setActiveLayerIndex(i)}>
                     <div className="editor-layer-main">
                         <VSCodeButton appearance="icon" title={t(layer.visible ? "Hide layer" : "Show layer")} aria-label={t(layer.visible ? "Hide layer" : "Show layer")} onClick={e => { e.stopPropagation(); audioEditor.setModuleVisible(i, !layer.visible); }}><span className={`codicon codicon-eye${layer.visible ? "" : "-closed"}`} /></VSCodeButton>
-                        <span className="codicon codicon-gripper" draggable onDragStart={e => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(i)); setDraggedLayerIndex(i); }} onDragEnd={() => setDraggedLayerIndex(null)} title={t("Drag to reorder layer")} />
+                        <span className="codicon codicon-move editor-layer-drag-handle" draggable onDragStart={e => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(i)); setDraggedLayerIndex(i); }} onDragEnd={() => { setDraggedLayerIndex(null); setDragOverLayerIndex(null); }} title={t("Drag to reorder layer")} />
                         <span className="editor-layer-name" title={displayName}>{displayName}</span>
                         <VSCodeButton appearance="icon" title={t("Delete layer")} aria-label={t("Delete layer")} onClick={e => { e.stopPropagation(); handleClickRemoveVisualizer(i); }}><span className="codicon codicon-trash" /></VSCodeButton>
                     </div>
@@ -361,7 +365,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                 </div>;
             })}
         </div>
-        <div className="editor-layers-hint">{t("Drag the grip to reorder · top layers draw in front")}</div></> : null}
+        <div className="editor-layers-hint">{t(overlayMode ? "Drag to reorder · top layers draw in front" : "Drag to reorder · list follows canvas order")}</div></> : null}
     </div>;
     return (
         <div className="editor-main">
@@ -388,7 +392,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                     const { Component } = module;
                     const displayName = name ? `${name} - ${t(moduleName)}` : t(moduleName);
                     return (<Fragment key={`${module.moduleId}:${i}`}>
-                        <div className={`editor-main-visualizer-container${visible ? "" : " collapse"}${activeLayerIndex === i ? " active-layer" : ""}${axisLayerIndex === i ? " axis-layer" : ""}${module.moduleId === "score.musicxml" ? " score-visualizer" : ""}`} style={{ flex: typeof visible === "number" ? `0 0 ${visible}px` : visible ? "1 1 auto" : "0 0 auto", ...(overlayMode ? { zIndex: i, opacity: Math.max(0, Math.min(1, state.overlayOpacity ?? 1)) } : {}) }} onMouseDown={() => setActiveLayerIndex(i)}>
+                        <div className={`editor-main-visualizer-container${visible ? "" : " collapse"}${activeLayerIndex === i ? " active-layer" : ""}${axisLayerIndex === i ? " axis-layer" : ""}${module.moduleId === "score.musicxml" ? " score-visualizer" : ""}`} style={{ flex: typeof visible === "number" ? `0 0 ${visible}px` : visible ? inlinePanels ? "1 1 auto" : `0 0 ${module.moduleId === "score.musicxml" ? 360 : module.moduleId.includes("marker") ? 100 : 200}px` : "0 0 auto", ...(overlayMode ? { zIndex: i, opacity: Math.max(0, Math.min(1, state.overlayOpacity ?? 1)) } : {}) }} onMouseDown={() => setActiveLayerIndex(i)}>
                             <div className="editor-main-visualizer-label">
                                 <VSCodeButton appearance="icon" title={t(visible ? "Collapse" : "Expand")} tabIndex={-1} onClick={() => handleClickCollapseVisualizer(i)}>
                                     <span className={`codicon codicon-chevron-${visible ? "down" : "right"}`}></span>

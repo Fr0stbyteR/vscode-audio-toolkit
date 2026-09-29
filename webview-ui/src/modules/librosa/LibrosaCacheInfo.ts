@@ -13,6 +13,12 @@ export function formatCacheInfo(info: AudioAnalysisCacheInfo | undefined, locale
     }
 }
 
+export function formatSampleRange(fromIndex: number, toIndex: number): string {
+    // Resampled feature frames can map to fractional positions in the source
+    // audio; the data inspector reports the nearest actual sample indices.
+    return `${Math.round(fromIndex)}–${Math.round(toIndex)}`;
+}
+
 export function formatAnalysisError(error: unknown) {
     if (error instanceof Error && error.message) return error.message;
     if (typeof error === "string" && error) return error;

@@ -85,14 +85,9 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
             observer.disconnect();
         };
     }, []);
-    const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    const handleWheel = useCallback((e: WheelEvent) => {
         if (!e.deltaX && !e.deltaY) return;
-        let divMainFlexContainer = e.currentTarget.parentElement;
-        while (divMainFlexContainer && !divMainFlexContainer.classList.contains("editor-main-flex")) {
-            divMainFlexContainer = divMainFlexContainer.parentElement;
-        }
-        if (divMainFlexContainer && divMainFlexContainer.scrollHeight > divMainFlexContainer.clientHeight) return;
-
+        e.preventDefault();
         e.stopPropagation();
         if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
             audioEditor.scrollH(e.deltaX > 0 ? 0.01 : -0.01);
@@ -101,10 +96,16 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
         const [viewStart, viewEnd] = viewRange;
         const viewLength = viewEnd - viewStart;
         const origin = { x: e.clientX, y: e.clientY };
-        const rect = e.currentTarget.getBoundingClientRect();
+        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
         const ref = viewStart + (origin.x - rect.left) / rect.width * viewLength;
         audioEditor.zoomH(ref, e.deltaY < 0 ? 1 : -1);
     }, [audioEditor, viewRange]);
+    useEffect(() => {
+        const element = divMainRef.current;
+        if (!element) return;
+        element.addEventListener("wheel", handleWheel, { passive: false });
+        return () => element.removeEventListener("wheel", handleWheel);
+    }, [handleWheel]);
     const handleResizeStartMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!divMainRef.current || !selRange) return;
         e.stopPropagation();
@@ -433,7 +434,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
             <div className="module-using-marker-vertical-ruler-container">
                 <canvas ref={canvasVerticalRulerRef} />
             </div>
-            <div ref={divMainRef} className="markers-container visualizer-component-visualization-area" onWheel={handleWheel}>
+            <div ref={divMainRef} className="markers-container visualizer-component-visualization-area">
                 <div className="markers">
                     <div className="marker-selection-overlay selrange" style={{ left: selLeft, width: selWidth }} hidden={!selRange}>
                         <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />

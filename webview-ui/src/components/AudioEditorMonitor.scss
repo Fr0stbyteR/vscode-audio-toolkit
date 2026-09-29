@@ -1,6 +1,7 @@
 .audio-editor-container div.editor-monitor {
     display: flex;
     flex-direction: row;
+    flex-wrap: wrap;
     position: relative;
     flex: 0 0 auto;
     
@@ -10,7 +11,7 @@
         position: relative;
         margin: 18px 6px;
         overflow: hidden;
-        min-width: 50px;
+        min-width: 120px;
         height: 60px;
 
         & > canvas {
@@ -29,14 +30,15 @@
     }
 
     & > div.editor-monitor-ranges {
-        flex: 0 0 340px;
+        flex: 1 1 340px;
         display: inline-block;
         position: relative;
-        // width: 320px;
-        // margin: 6px;
+        min-width: 0;
+        overflow-x: auto;
         user-select: none;
 
         & > vscode-data-grid {
+            min-width: 320px;
             text-align: right;
 
             & span.time-input {

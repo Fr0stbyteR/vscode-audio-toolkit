@@ -27,6 +27,7 @@ const zh: Record<string, string> = {
     "Expand layers": "展开图层", "Layer layout": "图层布局", "Columns": "分列", "Overlay": "叠加",
     "Hide layer": "隐藏图层", "Show layer": "显示图层", "Drag to reorder layer": "拖动调整图层顺序", "Delete layer": "删除图层",
     "Opacity": "不透明度", "opacity": "不透明度", "Drag the grip to reorder · top layers draw in front": "拖动手柄调整顺序 · 顶层显示在前",
+    "Drag to reorder · top layers draw in front": "拖动调整顺序 · 上层显示在前", "Drag to reorder · list follows canvas order": "拖动调整顺序 · 与画布上下顺序一致",
     "Collapse": "折叠", "Expand": "展开", "Move": "移动", "Delete": "删除", "Start": "起点", "End": "终点", "Duration": "时长",
     "Selection": "选区", "View": "视图", "similarity": "相似度",
     "Cursor context": "光标上下文", "Results": "结果数量", "Provider": "模型", "Auto": "自动", "Mock (test)": "模拟（测试）",

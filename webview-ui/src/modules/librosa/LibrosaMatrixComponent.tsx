@@ -7,7 +7,7 @@ import { setCanvasToFullSize } from "../../utils";
 import LibrosaConfiguration from "./LibrosaConfiguration";
 import LibrosaMatrixModule from "./LibrosaMatrixModule";
 import MatrixWebGLRenderer from "../../core/MatrixWebGLRenderer";
-import { formatCacheInfo } from "./LibrosaCacheInfo";
+import { formatCacheInfo, formatSampleRange } from "./LibrosaCacheInfo";
 import { useLocale } from "../../i18n/LocaleContext";
 
 const LibrosaMatrixComponent: FunctionComponent<VisualizationOptions<LibrosaMatrixModule<any>>> = props => {
@@ -82,7 +82,7 @@ const LibrosaMatrixComponent: FunctionComponent<VisualizationOptions<LibrosaMatr
         setCursorX(info.x); setCursorY(info.y); setCursorInfo(info);
     }, [dataSlices, verticalOffset, verticalZoom, viewRange]);
     const configurationContent = <LibrosaConfiguration module={module} moduleState={moduleState} mode={props.configurationMode} />;
-    const monitorContent = <div className="default-layout"><div>{formatCacheInfo(cacheInfo, locale)}</div><div>{t(renderInfo)}</div>{cursorInfo ? <><div>{cursorInfo.fromIndex}–{cursorInfo.toIndex} {t("samples")}</div><div>{t("Bin")} {cursorInfo.fromBin}–{cursorInfo.toBin}</div><div>{cursorInfo.value.toFixed(3)} {module.unit}</div></> : null}</div>;
+    const monitorContent = <div className="default-layout"><div>{formatCacheInfo(cacheInfo, locale)}</div><div>{t(renderInfo)}</div>{cursorInfo ? <><div>{formatSampleRange(cursorInfo.fromIndex, cursorInfo.toIndex)} {t("samples")}</div><div>{t("Bin")} {cursorInfo.fromBin}–{cursorInfo.toBin}</div><div>{cursorInfo.value.toFixed(3)} {module.unit}</div></> : null}</div>;
     return <ModuleUsingCanvas {...props} {...{ calculating, defaultVerticalOffset, verticalOffset, setVerticalOffset, defaultVerticalZoom, verticalZoom, setVerticalZoom, cursorX, cursorY, onCursor, paint, paintVerticalRuler, paintHorizontalRuler, configurationContent, monitorContent }} foregroundOpacity={moduleState.opacity ?? 1} />;
 };
 

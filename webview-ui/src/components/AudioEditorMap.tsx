@@ -151,17 +151,25 @@ const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRang
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
     }, [audioEditor, viewRange]);
-    const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    const handleWheel = useCallback((e: WheelEvent) => {
         if (!e.deltaX && !e.deltaY) return;
+        e.preventDefault();
+        e.stopPropagation();
         if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
             audioEditor.scrollH(e.deltaX > 0 ? 0.01 : -0.01);
             return;
         }
         const origin = { x: e.clientX, y: e.clientY };
-        const rect = e.currentTarget.getBoundingClientRect();
+        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
         const ref = (origin.x - rect.left) / rect.width * audioEditor.length;
         audioEditor.zoomH(ref, e.deltaY < 0 ? 1 : -1);
     }, [audioEditor]);
+    useEffect(() => {
+        const element = canvasRef.current?.parentElement;
+        if (!element) return;
+        element.addEventListener("wheel", handleWheel, { passive: false });
+        return () => element.removeEventListener("wheel", handleWheel);
+    }, [handleWheel]);
     const handleClickSelectAll = useCallback(() => audioEditor.setViewRangeToAll(), [audioEditor]);
     const toggleConfiguration = (kind: "analysis" | "appearance") => {
         if (!configuring) { setConfigurationMode(kind); setConfiguring(true); return; }
@@ -180,7 +188,7 @@ const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRang
     const playheadLeft = getCssFromPosition(range, playhead);
     return (
         <div className={`editor-map${!standalone && configuring ? " configuring" : ""}${!standalone && monitoring ? " monitoring" : ""}`}>
-            <div className="editor-map-canvas-container" onWheel={handleWheel}>
+            <div className="editor-map-canvas-container">
                 <canvas ref={canvasRef} />
                 <div className="editor-map-playhead" style={{ left: playheadLeft }}></div>
                 <div className="editor-map-selrange" style={{ left: selLeft, width: selWidth }} />
