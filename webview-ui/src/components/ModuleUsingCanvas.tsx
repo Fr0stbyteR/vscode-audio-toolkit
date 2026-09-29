@@ -33,6 +33,7 @@ export interface ModuleUsingCanvasProps extends VisualizationOptions<AudioToolki
     repaintId?: any;
     configurationContent?: JSX.Element;
     monitorContent?: JSX.Element;
+    onCanvasMouseDown?: (event: React.MouseEvent<HTMLDivElement>, rect: DOMRect) => boolean;
 }
 
 const referenceSpectrograms = new WeakMap<AudioEditor, Promise<Spectrogram>>();
@@ -48,7 +49,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         showChannelEnableOverlay, backgroundOpacity, foregroundOpacity,
         configurationContent, monitorContent,
         viewRange, enabledChannels, selRange,
-        configuring, monitoring, overlayMode, activeLayer, rerenderId, repaintId
+        configuring, monitoring, overlayMode, activeLayer, rerenderId, repaintId, onCanvasMouseDown
     } = props;
     const audioEditor = useContext(AudioEditorContext)!;
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -174,6 +175,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         const viewLength = viewEnd - viewStart;
         const origin = { x: e.clientX, y: e.clientY };
         const rect = e.currentTarget.getBoundingClientRect();
+        if (onCanvasMouseDown?.(e, rect)) return;
         const playhead = viewStart + (e.clientX - rect.left) / rect.width * viewLength;
         audioEditor.setPlayhead(playhead);
         audioEditor.setSelRange(null);
@@ -201,7 +203,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         };
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
-    }, [audioEditor, viewRange]);
+    }, [audioEditor, onCanvasMouseDown, viewRange]);
     const handleCanvasWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
         if (!e.deltaX && !e.deltaY) return;
         let divMainFlexContainer = e.currentTarget.parentElement;

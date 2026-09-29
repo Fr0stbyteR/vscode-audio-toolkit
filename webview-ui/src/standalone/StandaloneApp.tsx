@@ -12,6 +12,7 @@ import getMarkerModules from "../modules/marker";
 import getSpectrogramModules from "../modules/spectrogram";
 import getWaveformModules from "../modules/waveform";
 import getSemanticDescriptionModules from "../modules/semantic-description";
+import getScoreModules from "../modules/score";
 import AnnotationProvider, { fingerprintAudio } from "./AnnotationProvider";
 import LocalReviewQueue from "./LocalReviewQueue";
 import { useLocale } from "../i18n/LocaleContext";
@@ -24,7 +25,7 @@ const MUSIC_TOKEN_KEY = "audioToolkit.web.musicToken";
 
 async function registerModules() {
     if (Object.keys(AudioEditor.MODULES_MAP).length) return;
-    const groups = await Promise.all([getWaveformModules(), getSpectrogramModules(), getMarkerModules(), getLibrosaModules(), getSemanticDescriptionModules()]);
+    const groups = await Promise.all([getWaveformModules(), getSpectrogramModules(), getMarkerModules(), getLibrosaModules(), getSemanticDescriptionModules(), getScoreModules()]);
     groups.flat().forEach(Module => AudioEditor.MODULES_MAP[Module.MODULE_ID] = Module);
 }
 
@@ -50,6 +51,7 @@ const StandaloneApp: FunctionComponent = () => {
     const [annotationAssetKey, setAnnotationAssetKey] = useState("");
     const [openingAudio, setOpeningAudio] = useState(false);
     const [error, setError] = useState("");
+    const audioFileInput = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (musicSettings.token) localStorage.setItem(MUSIC_TOKEN_KEY, musicSettings.token);
@@ -119,7 +121,7 @@ const StandaloneApp: FunctionComponent = () => {
                 nextContext,
                 {},
                 modulesState,
-                undefined,
+                assetKey,
                 undefined,
                 request => musicClient.analyze(file, request),
                 request => musicClient.describe(file, request),
@@ -154,13 +156,19 @@ const StandaloneApp: FunctionComponent = () => {
         <header className="app-header">
             <div className="brand"><span className="brand-mark">AT</span><div><strong>Audio Toolkit</strong><small>{t("Browser workspace")}</small></div></div>
             <div className="current-file">{entry ? <><span>{t("NOW INSPECTING")}</span><strong>{entry.name}</strong><small>{entry.path}</small></> : <span>{t("Choose an audio file from the library")}</span>}</div>
-            <div className="app-header-actions"><div className="locale-switch" role="group" aria-label="Language / 语言"><button type="button" className={locale === "zh" ? "active" : ""} aria-pressed={locale === "zh"} onClick={() => setLocale("zh")}>中</button><button type="button" className={locale === "en" ? "active" : ""} aria-pressed={locale === "en"} onClick={() => setLocale("en")}>EN</button></div><button className="backend-button" onClick={() => setSettingsOpen(value => !value)}>
-                <span className={`status-dot ${backendStatus}`} />
-                {t(backendStatus === "online" ? "Librosa ready" : backendStatus === "checking" ? "Checking service" : "Service offline")}
-                <span className={`status-dot ${musicBackendStatus}`} />
-                {t(musicBackendStatus === "online" ? "CLAP loaded" : musicBackendStatus === "idle" ? "Load CLAP" : musicBackendStatus === "checking" ? "Checking CLAP" : "CLAP offline")}
-                <span className="codicon codicon-settings-gear" />
-            </button></div>
+            <div className="app-header-actions">
+                <button className="backend-button" onClick={() => setSettingsOpen(value => !value)}>
+                    <span className={`status-dot ${backendStatus}`} />
+                    {t(backendStatus === "online" ? "Librosa ready" : backendStatus === "checking" ? "Checking service" : "Service offline")}
+                    <span className={`status-dot ${musicBackendStatus}`} />
+                    {t(musicBackendStatus === "online" ? "CLAP loaded" : musicBackendStatus === "idle" ? "Load CLAP" : musicBackendStatus === "checking" ? "Checking CLAP" : "CLAP offline")}
+                    <span className="codicon codicon-settings-gear" />
+                </button>
+                <div className="locale-switch" role="group" aria-label="Language / 语言">
+                    <button type="button" className={locale === "zh" ? "active" : ""} aria-pressed={locale === "zh"} onClick={() => setLocale("zh")}>中</button>
+                    <button type="button" className={locale === "en" ? "active" : ""} aria-pressed={locale === "en"} onClick={() => setLocale("en")}>EN</button>
+                </div>
+            </div>
         </header>
         {settingsOpen && <section className="backend-popover">
             <strong>{t("Music analysis service · librosa + CLAP")}</strong>
@@ -181,6 +189,12 @@ const StandaloneApp: FunctionComponent = () => {
                 <span className="eyebrow">{t("STANDALONE ANALYSIS WORKSPACE")}</span>
                 <h1>{t("Open a folder.")}<br />{t("Listen closer.")}</h1>
                 <p>{t("Files remain in the browser. Only audio you choose to analyze is sent to the configured backend.")}</p>
+                <input ref={audioFileInput} className="hidden-input" type="file" accept="audio/*,.aif,.aiff" onChange={event => {
+                    const file = event.currentTarget.files?.[0];
+                    if (file) void openEntry({ id: `single:${file.name}:${file.size}:${file.lastModified}`, name: file.name, path: file.name, getFile: async () => file });
+                    event.currentTarget.value = "";
+                }} />
+                <button type="button" onClick={() => audioFileInput.current?.click()}>{t("Open one audio file")}</button>
                 <div className="privacy-flow"><span>{t("Local folder")}</span><b>→</b><span>{t("Selected file")}</span><b>→</b><span>{t("Analysis API")}</span></div>
             </div>}
         </main>

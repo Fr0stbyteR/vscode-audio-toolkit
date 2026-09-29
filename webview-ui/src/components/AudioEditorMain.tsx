@@ -330,7 +330,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
     const moduleCommonProps = { ...props, rerenderId };
     const hasCanvasAxis = (index: number) => {
         const id = visualizersState[index]?.moduleId ?? "";
-        return !!id && id !== "embedding.semantic-description" && !id.includes("marker");
+        return !!id && id !== "embedding.semantic-description" && id !== "score.musicxml" && !id.includes("marker");
     };
     let axisLayerIndex = activeLayerIndex;
     if (overlayMode && !hasCanvasAxis(activeLayerIndex)) {
@@ -367,7 +367,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
     return (
         <div className="editor-main">
             {sidebarHost ? createPortal(layersPanel, sidebarHost) : null}
-            <div className={`editor-main-flex${overlayMode ? " overlay-mode" : ""}${annotationSession?.annotations.length ? " annotation-track-visible" : ""}`}>
+            <div className={`editor-main-flex${overlayMode ? " overlay-mode" : ""}${overlayMode && visualizersState[activeLayerIndex]?.visible && visualizersState[activeLayerIndex]?.moduleId === "score.musicxml" ? " score-active-layer" : ""}${annotationSession?.annotations.length ? " annotation-track-visible" : ""}`}>
                 <div className={`editor-main-playhead-container${inlinePanels && configuring ? " configuring" : ""}${inlinePanels && monitoring ? " monitoring" : ""}`} hidden={playhead < viewStart || playhead > viewEnd}>
                     <div className="editor-main-playhead-handler" style={{ left: playheadLeft }} onMouseDown={handlePlayheadHandlerMouseDown} />
                     <div className="editor-main-playhead" style={{ left: playheadLeft }}></div>
@@ -390,7 +390,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                     const { Component } = module;
                     const displayName = name ? `${name} - ${t(moduleName)}` : t(moduleName);
                     return (<Fragment key={`${module.moduleId}:${i}`}>
-                        <div className={`editor-main-visualizer-container${visible ? "" : " collapse"}${activeLayerIndex === i ? " active-layer" : ""}${axisLayerIndex === i ? " axis-layer" : ""}`} style={{ flex: typeof visible === "number" ? `0 0 ${visible}px` : visible ? "1 1 auto" : "0 0 auto", ...(overlayMode ? { zIndex: i, opacity: Math.max(0, Math.min(1, state.overlayOpacity ?? 1)) } : {}) }} onMouseDown={() => setActiveLayerIndex(i)}>
+                        <div className={`editor-main-visualizer-container${visible ? "" : " collapse"}${activeLayerIndex === i ? " active-layer" : ""}${axisLayerIndex === i ? " axis-layer" : ""}${module.moduleId === "score.musicxml" ? " score-visualizer" : ""}`} style={{ flex: typeof visible === "number" ? `0 0 ${visible}px` : visible ? "1 1 auto" : "0 0 auto", ...(overlayMode ? { zIndex: i, opacity: Math.max(0, Math.min(1, state.overlayOpacity ?? 1)) } : {}) }} onMouseDown={() => setActiveLayerIndex(i)}>
                             <div className="editor-main-visualizer-label">
                                 <VSCodeButton appearance="icon" title={t(visible ? "Collapse" : "Expand")} tabIndex={-1} onClick={() => handleClickCollapseVisualizer(i)}>
                                     <span className={`codicon codicon-chevron-${visible ? "down" : "right"}`}></span>

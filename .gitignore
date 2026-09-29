@@ -12,5 +12,4 @@ __pycache__/
 .env
 !.env.example
 examples/
-webview-ui/src/modules/score
 local

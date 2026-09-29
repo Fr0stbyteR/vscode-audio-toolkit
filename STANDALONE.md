@@ -56,6 +56,29 @@ Open `http://127.0.0.1:5173/standalone.html` in Chrome or Edge. Use the `+`
 button in the library panel to authorize a directory. Other browsers fall back
 to a `webkitdirectory` file input when available.
 
+## Score and piano-roll layers
+
+Open an audio file, then add **MusicXML score** or **Piano roll** from the module
+menu. Select the layer and use **Import score** in its Analysis panel. The score
+layer accepts MusicXML (`.musicxml`, `.xml`, `.mxl`); the piano roll also accepts
+MIDI (`.mid`, `.midi`). Importing a MusicXML score lets you add a synchronized
+piano-roll companion. Instrument visibility is in the piano roll's Appearance
+panel.
+
+The score is engraved by Verovio as one horizontally scrollable system at a
+fixed scale. Its cursor follows audio playback, and the strip above it connects
+visible measures/notes with their positions on the shared audio timeline. The
+piano roll follows the same horizontal zoom and pan as the waveform. Timing is
+linear on import; **Auto-align to audio (DTW)** estimates a chroma-based timing
+map in a browser worker. To correct a passage, Alt-click a score/piano-roll
+note, move the audio playhead to the matching sound, then choose **Anchor
+selected note to playhead**. Alignment is scoped to the current audio asset;
+opening another recording keeps the score but requires new alignment.
+
+Imported score bytes and module settings are stored in this browser profile.
+Clearing site data removes the score, so re-import it when necessary. Score
+import and alignment run locally; neither requires the Python backend.
+
 ## CLAP descriptions
 
 The optional `CLAP description` module follows the current selection, or a

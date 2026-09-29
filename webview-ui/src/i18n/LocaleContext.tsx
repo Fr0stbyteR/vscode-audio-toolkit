@@ -106,7 +106,23 @@ const zh: Record<string, string> = {
     "Zero-crossing rate (librosa)": "过零率 (librosa)", "Spectral flatness (librosa)": "频谱平坦度 (librosa)",
     "Spectral rolloff (librosa)": "频谱滚降 (librosa)", "RMS (librosa)": "均方根能量 (librosa)",
     "Onsets (librosa)": "起音标记 (librosa)", "Beats (librosa)": "节拍标记 (librosa)",
-    "Non-silent regions (librosa)": "非静音区间 (librosa)", "Librosa Analysis": "Librosa 分析"
+    "Non-silent regions (librosa)": "非静音区间 (librosa)", "Librosa Analysis": "Librosa 分析",
+    "MusicXML score": "MusicXML 乐谱", "Piano roll": "钢琴卷帘", "Import score": "导入乐谱",
+    "Open one audio file": "打开单个音频",
+    "Auto-align to audio (DTW)": "自动对齐音频（DTW）", "Add synchronized piano roll": "添加同步钢琴卷帘",
+    "Alt-click a note to select it without moving the playhead": "按住 Alt 点击音符可只选中音符，不移动播放指针",
+    "Add synchronized score": "添加同步乐谱", "Anchor selected note to playhead": "将所选音符锚定到播放指针",
+    "Automatic alignment active": "已启用自动对齐", "Linear timing until aligned": "对齐前使用线性时间映射",
+    "manual anchors": "个人工锚点", "Clear manual anchors": "清除人工锚点", "Instruments": "乐器",
+    "Loading score": "正在加载乐谱", "Importing score": "正在导入乐谱", "Preparing audio chroma": "正在准备音频色度特征",
+    "Extracting chroma features": "正在提取色度特征", "Aligning score and audio": "正在对齐乐谱与音频",
+    "Import MusicXML to display a score": "导入 MusicXML 以显示乐谱", "Import MusicXML or MIDI to display notes": "导入 MusicXML 或 MIDI 以显示音符",
+    "Score alignment map": "乐谱对齐图", "Measure": "小节", "Score note": "音符", "Pitch": "音高", "Instrument": "乐器",
+    "Score time": "乐谱时间", "Audio time": "音频时间", "Anchors must follow the same order in score and audio.": "人工锚点在乐谱与音频中的顺序必须一致。",
+    "The score file is no longer in local storage. Import it again.": "本地存储中已找不到此乐谱，请重新导入。",
+    "Choose a MusicXML (.musicxml, .xml, .mxl) or MIDI (.mid, .midi) file.": "请选择 MusicXML（.musicxml、.xml、.mxl）或 MIDI（.mid、.midi）文件。",
+    "Verovio could not read this MusicXML file.": "Verovio 无法读取此 MusicXML 文件。",
+    "Both audio and score need note data for alignment.": "对齐需要音频和乐谱音符数据。", "The alignment path could not be found.": "无法找到对齐路径。"
 };
 
 const en: Record<string, string> = {

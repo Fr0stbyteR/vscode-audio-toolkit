@@ -1,0 +1,61 @@
+.editor-main-visualizer-component:has(.music-score-module) { min-width: 0; }
+.music-score-module {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    width: 100%;
+    min-height: 220px;
+    overflow: hidden;
+    background: var(--vscode-editor-background);
+}
+
+.score-alignment-strip {
+    flex: 0 0 42px;
+    width: calc(100% - var(--visualizer-right-spacing));
+    overflow: hidden;
+    border-bottom: 1px solid var(--vscode-panel-border);
+    background: var(--vscode-panel-background);
+}
+.score-alignment-strip svg { display: block; }
+.score-alignment-strip g.note line { stroke: color-mix(in srgb, var(--vscode-textLink-foreground) 28%, transparent); stroke-width: 1; }
+.score-alignment-strip g.measure line { stroke: var(--vscode-textLink-foreground); stroke-width: 1.7; }
+.score-alignment-strip .score-audio-cursor { stroke: var(--vscode-editorWarning-foreground); stroke-width: 1.5; stroke-dasharray: 3 2; }
+
+.score-scroll {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    width: calc(100% - var(--visualizer-right-spacing));
+    overflow-x: auto;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    background: var(--vscode-editor-background);
+}
+.score-svg { display: block; width: max-content; height: max-content; color: var(--vscode-editor-foreground); }
+.score-svg svg { display: block; width: auto; height: auto; max-width: none; }
+.score-svg svg.definition-scale { color: var(--vscode-editor-foreground); fill: currentColor; }
+.score-svg g.note, .score-svg g.measure { cursor: pointer; }
+.score-svg g.note:hover, .score-svg g.rest:hover { filter: drop-shadow(0 0 3px var(--vscode-textLink-foreground)); }
+.score-note-cursor, .score-selected-note { position: absolute; top: 0; height: 100%; width: 0; pointer-events: none; }
+.score-note-cursor { border-left: 2px solid var(--vscode-editorWarning-foreground); z-index: 2; }
+.score-selected-note { border-left: 2px solid var(--vscode-textLink-foreground); z-index: 1; }
+.score-empty, .piano-roll-empty {
+    display: grid; place-items: center;
+    color: var(--vscode-descriptionForeground);
+    font-size: 12px;
+    text-align: center;
+    pointer-events: none;
+}
+.score-empty { flex: 1; }
+.piano-roll-empty { position: absolute; inset: 0 var(--visualizer-right-spacing) 0 0; }
+
+.score-config { display: flex; flex-direction: column; gap: 8px; padding: 8px; }
+.score-config button { padding: 5px 8px; color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); border: 1px solid var(--vscode-widget-border); cursor: pointer; }
+.score-config button:hover:not(:disabled) { background: var(--vscode-button-secondaryHoverBackground); }
+.score-config button:disabled { opacity: .55; cursor: not-allowed; }
+.score-config small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vscode-descriptionForeground); }
+.score-config .error-text { margin: 0; overflow-wrap: anywhere; }
+.score-tracks { display: flex; flex-direction: column; gap: 5px; padding: 8px; }
+.score-tracks label { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.score-tracks input { flex: 0 0 auto; }

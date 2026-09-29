@@ -65,9 +65,9 @@ button { width: auto; border-radius: 4px; font: inherit; }
 .brand small, .current-file small { color: #75808c; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .current-file { padding: 0 22px; }
 .current-file > span, .eyebrow { color: #71808c; font: 700 9px/1.6 var(--vscode-editor-font-family); letter-spacing: .13em; }
-.backend-button { height: 32px; margin-right: 14px; display: flex; align-items: center; gap: 8px; padding: 0 11px; color: #b9c3cd; background: #191e24; border: 1px solid #303841; }
+.backend-button { height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 11px; color: #b9c3cd; background: #191e24; border: 1px solid #303841; }
 .app-header-actions { display: flex; align-items: center; gap: 10px; }
-.locale-switch { display: flex; padding: 2px; border: 1px solid #303841; border-radius: 5px; background: #191e24; }
+.locale-switch { display: flex; padding: 2px; margin-right: 14px; border: 1px solid #303841; border-radius: 5px; background: #191e24; }
 .locale-switch button { min-width: 29px; height: 24px; padding: 0 5px; border: 0; border-radius: 3px; background: transparent; color: #9da9b5; font-size: 11px; cursor: pointer; }
 .locale-switch button.active { color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
 .locale-switch button:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: 2px; }
@@ -102,6 +102,8 @@ button { width: auto; border-radius: 4px; font: inherit; }
 .empty-tree { display: flex; min-height: 280px; padding: 44px 22px; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; color: #8a96a1; }.empty-tree > span { color: #d2dae2; font-size: 14px; }.empty-tree small { max-width: 190px; line-height: 1.5; }
 .web-editor { position: relative; grid-column: 2; grid-row: 2; min-width: 0; height: 100%; overflow: hidden; align-items: stretch; justify-content: stretch; background: #1e1e1e; }
 .web-editor .audio-editor-container { --visualizer-right-spacing: 64px; width: 100%; height: 100%; }.web-editor .audio-editor-left-container { min-width: 0; width: auto; }
+.web-editor .audio-editor-container div.editor-main { flex: 1 1 auto; min-height: 0; }
+.web-editor .audio-editor-container div.editor-main > div.editor-main-flex { position: relative; min-height: 100%; height: auto; }
 .web-editor .audio-editor-right-container { display: flex; flex: 0 0 250px; flex-direction: column; min-width: 0; overflow: auto; border-left: 1px solid var(--vscode-panel-border); background: var(--vscode-sideBar-background); }
 .inspector-header { display: flex; flex-direction: column; gap: 4px; padding: 14px 13px; border-bottom: 1px solid var(--vscode-panel-border); }
 .inspector-header span { color: var(--vscode-descriptionForeground); font: 700 10px var(--vscode-editor-font-family); letter-spacing: .08em; }

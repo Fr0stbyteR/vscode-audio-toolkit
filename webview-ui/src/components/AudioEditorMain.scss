@@ -201,6 +201,15 @@
                 opacity: .9;
             }
         }
+
+        // The score owns a note-position cursor; the audio-wide cursor would
+        // otherwise draw a second, unrelated position over the notation.
+        &:not(.overlay-mode) > .editor-main-visualizer-container.score-visualizer {
+            z-index: 901;
+        }
+        &.overlay-mode.score-active-layer > .editor-main-playhead-container > .editor-main-playhead {
+            display: none;
+        }
         
         & div.editor-main-divider {
             width: 100%;
