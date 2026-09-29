@@ -1,6 +1,7 @@
 import { FunctionComponent, useCallback, useEffect, useRef, useState } from "react";
 import { LocalAudioEntry } from "./types";
 import { loadRootDirectory, saveRootDirectory } from "./PersistentStorage";
+import { useLocale } from "../i18n/LocaleContext";
 
 const AUDIO_EXTENSIONS = /\.(aac|aif|aiff|flac|m4a|mp3|ogg|opus|wav|webm)$/i;
 
@@ -75,8 +76,9 @@ const TreeNode: FunctionComponent<{ node: BrowserNode; activeId?: string; onOpen
 };
 
 const FileExplorer: FunctionComponent<Props> = ({ activeId, onOpen }) => {
+    const { t } = useLocale();
     const supportsDirectoryPicker = typeof (window as DirectoryPickerWindow).showDirectoryPicker === "function";
-    const [rootName, setRootName] = useState("No folder open");
+    const [rootName, setRootName] = useState("");
     const [nodes, setNodes] = useState<BrowserNode[]>([]);
     const [error, setError] = useState("");
     const [savedHandle, setSavedHandle] = useState<FileSystemDirectoryHandle>();
@@ -98,9 +100,9 @@ const FileExplorer: FunctionComponent<Props> = ({ activeId, onOpen }) => {
             setRootName(handle.name);
             const permission = await (handle as PermissionedDirectoryHandle).queryPermission({ mode: "read" });
             if (active && permission === "granted") await openHandle(handle);
-        }).catch(reason => active && setError(`无法恢复上次的文件夹：${String(reason)}`)).finally(() => active && setRestoring(false));
+        }).catch(reason => active && setError(`${t("Could not restore the previous folder:")} ${String(reason)}`)).finally(() => active && setRestoring(false));
         return () => { active = false; };
-    }, [openHandle, supportsDirectoryPicker]);
+    }, [openHandle, supportsDirectoryPicker, t]);
 
     const chooseFolder = async () => {
         setError("");
@@ -122,7 +124,7 @@ const FileExplorer: FunctionComponent<Props> = ({ activeId, onOpen }) => {
         setError("");
         try {
             const permission = await (savedHandle as PermissionedDirectoryHandle).requestPermission({ mode: "read" });
-            if (permission !== "granted") throw new Error("Folder permission was not granted.");
+            if (permission !== "granted") throw new Error(t("Folder permission was not granted."));
             await openHandle(savedHandle);
         } catch (reason) {
             if ((reason as DOMException).name !== "AbortError") setError(String(reason));
@@ -131,15 +133,15 @@ const FileExplorer: FunctionComponent<Props> = ({ activeId, onOpen }) => {
 
     return <aside className="file-explorer">
         <div className="panel-heading">
-            <div><span className="eyebrow">LOCAL LIBRARY</span><strong>{rootName}</strong></div>
-            <button className="icon-button" onClick={() => void chooseFolder()} title="Open a local folder">+</button>
+            <div><span className="eyebrow">{t("LOCAL LIBRARY")}</span><strong>{t(rootName || "No folder open")}</strong></div>
+            <button className="icon-button" onClick={() => void chooseFolder()} title={t("Open a local folder")}>+</button>
         </div>
         <input
             ref={fallbackRef}
             className="hidden-input"
             type="file"
             multiple
-            accept="audio/*"
+            accept="audio/*,.aif,.aiff"
             {...({ webkitdirectory: "" } as object)}
             onChange={event => {
                 const files = Array.from(event.currentTarget.files ?? []);
@@ -147,13 +149,13 @@ const FileExplorer: FunctionComponent<Props> = ({ activeId, onOpen }) => {
                 setNodes(filesToNodes(files));
             }}
         />
-        {!supportsDirectoryPicker && <p className="browser-note">当前浏览器使用目录上传兼容模式。Chrome / Edge 可提供按需读取。</p>}
+        {!supportsDirectoryPicker && <p className="browser-note">{t("This browser uses a directory-upload fallback. Chrome and Edge support on-demand access.")}</p>}
         {error && <p className="error-text">{error}</p>}
         {nodes.length ? <ul className="file-tree">{nodes.map(node => <TreeNode key={node.id} node={node} activeId={activeId} onOpen={onOpen} />)}</ul> : <div className="empty-tree">
-            <span>Drop into your sound library</span>
-            {restoring ? <small>Restoring the previous folder…</small> : savedHandle ? <button onClick={() => void reconnectFolder()}>Reconnect {savedHandle.name}</button> : <button onClick={() => void chooseFolder()}>Open local folder</button>}
-            {savedHandle ? <button className="secondary" onClick={() => void chooseFolder()}>Choose another folder</button> : null}
-            <small>Files remain local until you request an analysis.</small>
+            <span>{t("Drop into your sound library")}</span>
+            {restoring ? <small>{t("Restoring the previous folder…")}</small> : savedHandle ? <button onClick={() => void reconnectFolder()}>{t("Reconnect")} {savedHandle.name}</button> : <button onClick={() => void chooseFolder()}>{t("Open local folder")}</button>}
+            {savedHandle ? <button className="secondary" onClick={() => void chooseFolder()}>{t("Choose another folder")}</button> : null}
+            <small>{t("Files remain local until you request an analysis.")}</small>
         </div>}
     </aside>;
 };

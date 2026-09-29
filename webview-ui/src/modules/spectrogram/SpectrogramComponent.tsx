@@ -11,8 +11,10 @@ import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
 import ModuleConfigurationContent from "../../components/ModuleConfigurationContent";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import ConfigurationSections from "../../components/ConfigurationSections";
+import { useLocale } from "../../i18n/LocaleContext";
 
 const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>> = (props) => {
+    const { t } = useLocale();
     const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
     const audioEditor = useContext(AudioEditorContext)!;
     const defaultVerticalOffset = 0;
@@ -77,27 +79,27 @@ const SpectrogramComponent: FunctionComponent<VisualizationOptions<Spectrogram>>
         <div className={`default-layout ${module.moduleId.replace(".", "-")}-configuration`}>
             <ConfigurationSections mode={props.configurationMode} analysis={<>
                 <ModuleConfigurationContent {...{ moduleId: module.moduleId, moduleState: calculationState, setModuleState: setCalculationState, keys: calculationStateKeys, optionsMetadata, wrap: false }} />
-                <div><VSCodeButton tabIndex={-1} title="Recalculate spectrogram" appearance="primary" onClick={() => setModuleState({ ...moduleState, ...calculationState })}>Recalculate</VSCodeButton></div>
+                <div><VSCodeButton tabIndex={-1} title={t("Recalculate spectrogram")} appearance="primary" onClick={() => setModuleState({ ...moduleState, ...calculationState })}>{t("Recalculate")}</VSCodeButton></div>
             </>} appearance={<ModuleConfigurationContent {...{ moduleId: module.moduleId, moduleState, setModuleState, keys: Object.keys(moduleState).filter(k => calculationStateKeys.indexOf(k) === -1 && !["overlayOpacity", "referenceOverlay", "referenceOpacity"].includes(k)), optionsMetadata, wrap: false }} />} />
         </div>
     );
     const monitorContent = (
         <div className="default-layout">
-            <div>FFT size: {configuration.fftSize}</div>
-            <div>FFT overlaps: {configuration.fftOverlap}</div>
-            <div>FFT window: {configuration.fftWindowFunction}</div>
+            <div>{t("FFT size:")} {configuration.fftSize}</div>
+            <div>{t("FFT overlaps:")} {configuration.fftOverlap}</div>
+            <div>{t("FFT window:")} {configuration.fftWindowFunction}</div>
             <br />
             {
                 cursorInfo
                 ? <>
-                    <div>Channel: {cursorInfo.channel + 1}</div>
-                    <div>Sample index:</div>
-                    <div>{cursorInfo.fromIndex} to {cursorInfo.fromIndex + configuration.fftSize}</div>
-                    <div>FFT bin:</div>
-                    <div>{cursorInfo.fromBin} to {cursorInfo.toBin}</div>
-                    <div>Frequency:</div>
-                    <div>{((cursorInfo.fromBin / configuration.fftSize) * audioEditor.sampleRate).toFixed(3)} to {((cursorInfo.toBin / configuration.fftSize) * audioEditor.sampleRate).toFixed(3)} Hz</div>
-                    <div>Value:</div>
+                    <div>{t("Channel:")} {cursorInfo.channel + 1}</div>
+                    <div>{t("Sample index:")}</div>
+                    <div>{cursorInfo.fromIndex} {t("to")} {cursorInfo.fromIndex + configuration.fftSize}</div>
+                    <div>{t("FFT bin:")}</div>
+                    <div>{cursorInfo.fromBin} {t("to")} {cursorInfo.toBin}</div>
+                    <div>{t("Frequency:")}</div>
+                    <div>{((cursorInfo.fromBin / configuration.fftSize) * audioEditor.sampleRate).toFixed(3)} {t("to")} {((cursorInfo.toBin / configuration.fftSize) * audioEditor.sampleRate).toFixed(3)} Hz</div>
+                    <div>{t("Value:")}</div>
                     <div>{cursorInfo.value.toFixed(3)} dB</div>
                 </>
                 : null

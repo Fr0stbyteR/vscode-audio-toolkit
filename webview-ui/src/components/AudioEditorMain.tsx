@@ -8,6 +8,9 @@ import { createPortal } from "react-dom";
 import { VisualizationStyleOptions, AudioToolkitModulesState } from "../core/AudioToolkitModule";
 import { getCssFromPosition, getRuler, setCanvasToFullSize } from "../utils";
 import ModuleErrorBoundary from "./ModuleErrorBoundary";
+import AnnotationTimeline from "../annotations/AnnotationTimeline";
+import { AnnotationContext } from "../annotations/AnnotationContext";
+import { useLocale } from "../i18n/LocaleContext";
 
 interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRange" | "enabledChannels">, VisualizationStyleOptions {
     configuration: AudioEditorConfiguration;
@@ -25,8 +28,10 @@ interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRa
 }
 
 const AudioEditorMain: FunctionComponent<Props> = (props) => {
+    const { t } = useLocale();
     const { playhead, viewRange, selRange, windowSize, gridRulerColor, textColor, labelFont, configuration: { audioUnit, beatsPerMeasure, beatsPerMinute, division }, configuring, monitoring, visualizersState, overlayMode, setOverlayMode, layersOpen, setLayersOpen, activeLayerIndex, setActiveLayerIndex } = props;
     const audioEditor = useContext(AudioEditorContext)!;
+    const annotationSession = useContext(AnnotationContext);
     const divSelRangeRef = useRef<HTMLDivElement>(null);
     const divVerticalRulerRef = useRef<HTMLDivElement>(null);
     const canvasVerticalRulerRef = useRef<HTMLCanvasElement>(null);
@@ -336,33 +341,33 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
     const sidebarHost = document.getElementById("standalone-layers-host");
     const inlinePanels = !sidebarHost;
     const layersPanel = <div className={`editor-layers-panel${layersOpen ? "" : " collapsed"}`}>
-        <div className="editor-layers-header"><strong>Layers</strong><span>{visualizersState.length - 1}</span><VSCodeButton appearance="icon" aria-label={layersOpen ? "Collapse layers" : "Expand layers"} title={layersOpen ? "Collapse layers" : "Expand layers"} onClick={() => setLayersOpen(value => !value)}><span className={`codicon codicon-chevron-${layersOpen ? "down" : "right"}`} /></VSCodeButton></div>
-        {layersOpen ? <><div className="editor-layer-layout" role="group" aria-label="Layer layout">
-            <VSCodeButton appearance="secondary" className={!overlayMode ? "active" : ""} onClick={() => setOverlayMode(false)}>Columns</VSCodeButton>
-            <VSCodeButton appearance="secondary" className={overlayMode ? "active" : ""} onClick={() => setOverlayMode(true)}>Overlay</VSCodeButton>
+        <div className="editor-layers-header"><strong>{t("Layers")}</strong><span>{visualizersState.length - 1}</span><VSCodeButton appearance="icon" aria-label={t(layersOpen ? "Collapse layers" : "Expand layers")} title={t(layersOpen ? "Collapse layers" : "Expand layers")} onClick={() => setLayersOpen(value => !value)}><span className={`codicon codicon-chevron-${layersOpen ? "down" : "right"}`} /></VSCodeButton></div>
+        {layersOpen ? <><div className="editor-layer-layout" role="group" aria-label={t("Layer layout")}>
+            <VSCodeButton appearance="secondary" className={!overlayMode ? "active" : ""} onClick={() => setOverlayMode(false)}>{t("Columns")}</VSCodeButton>
+            <VSCodeButton appearance="secondary" className={overlayMode ? "active" : ""} onClick={() => setOverlayMode(true)}>{t("Overlay")}</VSCodeButton>
         </div>
         <div className="editor-layers-list">
             {visualizersState.map((layer, i) => ({ layer, i })).slice(1).reverse().map(({ layer, i }) => {
-                const displayName = layer.state.name ? `${layer.state.name} - ${layer.moduleName}` : layer.moduleName;
-                return <div key={`${layer.moduleId}:${i}`} className={`editor-layer${activeLayerIndex === i ? " active" : ""}`} draggable onDragStart={() => setDraggedLayerIndex(i)} onDragEnd={() => setDraggedLayerIndex(null)} onDragOver={e => e.preventDefault()} onDrop={() => { if (draggedLayerIndex !== null && draggedLayerIndex !== i) { audioEditor.moveModule(draggedLayerIndex, i); setActiveLayerIndex(i); } setDraggedLayerIndex(null); }} onClick={() => setActiveLayerIndex(i)}>
+                const displayName = layer.state.name ? `${layer.state.name} - ${t(layer.moduleName)}` : t(layer.moduleName);
+                return <div key={`${layer.moduleId}:${i}`} className={`editor-layer${activeLayerIndex === i ? " active" : ""}`} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (draggedLayerIndex !== null && draggedLayerIndex !== i) { audioEditor.moveModule(draggedLayerIndex, i); setActiveLayerIndex(i); } setDraggedLayerIndex(null); }} onClick={() => setActiveLayerIndex(i)}>
                     <div className="editor-layer-main">
-                        <VSCodeButton appearance="icon" title={layer.visible ? "Hide layer" : "Show layer"} aria-label={layer.visible ? "Hide layer" : "Show layer"} onClick={e => { e.stopPropagation(); audioEditor.setModuleVisible(i, !layer.visible); }}><span className={`codicon codicon-eye${layer.visible ? "" : "-closed"}`} /></VSCodeButton>
-                        <span className="codicon codicon-gripper" />
+                        <VSCodeButton appearance="icon" title={t(layer.visible ? "Hide layer" : "Show layer")} aria-label={t(layer.visible ? "Hide layer" : "Show layer")} onClick={e => { e.stopPropagation(); audioEditor.setModuleVisible(i, !layer.visible); }}><span className={`codicon codicon-eye${layer.visible ? "" : "-closed"}`} /></VSCodeButton>
+                        <span className="codicon codicon-gripper" draggable onDragStart={e => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(i)); setDraggedLayerIndex(i); }} onDragEnd={() => setDraggedLayerIndex(null)} title={t("Drag to reorder layer")} />
                         <span className="editor-layer-name" title={displayName}>{displayName}</span>
-                        <VSCodeButton appearance="icon" title="Delete layer" aria-label="Delete layer" onClick={e => { e.stopPropagation(); handleClickRemoveVisualizer(i); }}><span className="codicon codicon-trash" /></VSCodeButton>
+                        <VSCodeButton appearance="icon" title={t("Delete layer")} aria-label={t("Delete layer")} onClick={e => { e.stopPropagation(); handleClickRemoveVisualizer(i); }}><span className="codicon codicon-trash" /></VSCodeButton>
                     </div>
                     {overlayMode && layer.visible ? <label className="editor-layer-opacity" onClick={e => e.stopPropagation()}>
-                        <span>Opacity</span><input aria-label={`${displayName} opacity`} type="range" min="0" max="1" step="0.05" value={layer.state.overlayOpacity ?? 1} onChange={e => audioEditor.modulesInstance[i].setState({ ...layer.state, overlayOpacity: Number(e.target.value) })} /><output>{Math.round((layer.state.overlayOpacity ?? 1) * 100)}%</output>
+                        <span>{t("Opacity")}</span><input aria-label={`${displayName} ${t("opacity")}`} type="range" min="0" max="1" step="0.05" value={layer.state.overlayOpacity ?? 1} onChange={e => audioEditor.modulesInstance[i].setState({ ...layer.state, overlayOpacity: Number(e.target.value) })} /><output>{Math.round((layer.state.overlayOpacity ?? 1) * 100)}%</output>
                     </label> : null}
                 </div>;
             })}
         </div>
-        <div className="editor-layers-hint">Drag to reorder · top layers draw in front</div></> : null}
+        <div className="editor-layers-hint">{t("Drag the grip to reorder · top layers draw in front")}</div></> : null}
     </div>;
     return (
         <div className="editor-main">
             {sidebarHost ? createPortal(layersPanel, sidebarHost) : null}
-            <div className={`editor-main-flex${overlayMode ? " overlay-mode" : ""}`}>
+            <div className={`editor-main-flex${overlayMode ? " overlay-mode" : ""}${annotationSession?.annotations.length ? " annotation-track-visible" : ""}`}>
                 <div className={`editor-main-playhead-container${inlinePanels && configuring ? " configuring" : ""}${inlinePanels && monitoring ? " monitoring" : ""}`} hidden={playhead < viewStart || playhead > viewEnd}>
                     <div className="editor-main-playhead-handler" style={{ left: playheadLeft }} onMouseDown={handlePlayheadHandlerMouseDown} />
                     <div className="editor-main-playhead" style={{ left: playheadLeft }}></div>
@@ -375,6 +380,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                         <div className="resize-handler resize-handler-e" onMouseDown={handleResizeEndMouseDown} />
                     </div>
                 </div>
+                <AnnotationTimeline viewRange={viewRange} sampleRate={audioEditor.sampleRate} />
                 {layersOpen && !sidebarHost ? layersPanel : null}
                 <div className="editor-main-divider" />
                 {visualizersState.map(({ moduleName, visible, state }, i) => {
@@ -382,20 +388,20 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                     const { name } = state;
                     const module = audioEditor.modulesInstance[i];
                     const { Component } = module;
-                    const displayName = name ? `${name} - ${moduleName}` : moduleName;
+                    const displayName = name ? `${name} - ${t(moduleName)}` : t(moduleName);
                     return (<Fragment key={`${module.moduleId}:${i}`}>
                         <div className={`editor-main-visualizer-container${visible ? "" : " collapse"}${activeLayerIndex === i ? " active-layer" : ""}${axisLayerIndex === i ? " axis-layer" : ""}`} style={{ flex: typeof visible === "number" ? `0 0 ${visible}px` : visible ? "1 1 auto" : "0 0 auto", ...(overlayMode ? { zIndex: i, opacity: Math.max(0, Math.min(1, state.overlayOpacity ?? 1)) } : {}) }} onMouseDown={() => setActiveLayerIndex(i)}>
                             <div className="editor-main-visualizer-label">
-                                <VSCodeButton appearance="icon" title={visible ? "Collapse" : "Expand"} tabIndex={-1} onClick={() => handleClickCollapseVisualizer(i)}>
+                                <VSCodeButton appearance="icon" title={t(visible ? "Collapse" : "Expand")} tabIndex={-1} onClick={() => handleClickCollapseVisualizer(i)}>
                                     <span className={`codicon codicon-chevron-${visible ? "down" : "right"}`}></span>
                                 </VSCodeButton>
-                                <VSCodeButton className="editor-main-visualizer-container-mover" appearance="icon" title="Move" tabIndex={-1} onMouseDown={(e) => handleMouseDownMoveVisualizer(e, i)}>
+                                <VSCodeButton className="editor-main-visualizer-container-mover" appearance="icon" title={t("Move")} tabIndex={-1} onMouseDown={(e) => handleMouseDownMoveVisualizer(e, i)}>
                                     <span className="codicon codicon-move"></span>
                                 </VSCodeButton>
                                 <div className="editor-main-visualizer-label-container" title={displayName}>
                                     <span>{displayName}</span>
                                 </div>
-                                <VSCodeButton className="editor-main-visualizer-delete" appearance="icon" title="Delete" tabIndex={-1} onMouseDown={(e) => handleClickRemoveVisualizer(i)}>
+                                <VSCodeButton className="editor-main-visualizer-delete" appearance="icon" title={t("Delete")} tabIndex={-1} onMouseDown={(e) => handleClickRemoveVisualizer(i)}>
                                     <span className="codicon codicon-trash"></span>
                                 </VSCodeButton>
                             </div>

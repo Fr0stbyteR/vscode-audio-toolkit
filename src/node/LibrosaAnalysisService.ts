@@ -1,4 +1,3 @@
-import { spawn } from "child_process";
 import { createHash } from "crypto";
 import { promises as fs } from "fs";
 import * as path from "path";
@@ -8,18 +7,13 @@ import * as vscode from "vscode";
 import { AudioAnalysisService } from "../web/analysis/AudioAnalysisService";
 import { AudioAnalysisCacheInfo, AudioAnalysisRequest, AudioAnalysisResult } from "../web/proxies/VSCodeAudioEditor.types";
 
-interface PythonCommand {
-    executable: string;
-    args: string[];
-}
-
 interface CacheEnvelope {
-    schema: 1;
+    schema: 2;
     createdAt: string;
     result: AudioAnalysisResult;
 }
 
-const CACHE_SCHEMA = 1;
+const CACHE_SCHEMA = 2;
 const gzip = promisify(gzipCallback);
 const gunzip = promisify(gunzipCallback);
 
@@ -41,12 +35,15 @@ function withCacheInfo(result: AudioAnalysisResult, cache: AudioAnalysisCacheInf
 
 export default class LibrosaAnalysisService implements AudioAnalysisService {
     private readonly cacheDirectory: string;
+    private readonly previousCacheDirectory: string;
     private readonly inFlight = new Map<string, Promise<AudioAnalysisResult>>();
-    private engineFingerprint: Promise<string> | undefined;
+    private readonly assets = new Map<string, Promise<string>>();
+    private readonly approvedUploads = new Set<string>();
     private cacheEpoch = 0;
 
-    constructor(private readonly extensionUri: vscode.Uri, globalStorageUri: vscode.Uri) {
-        this.cacheDirectory = vscode.Uri.joinPath(globalStorageUri, "analysis-cache-v1").fsPath;
+    constructor(globalStorageUri: vscode.Uri) {
+        this.cacheDirectory = vscode.Uri.joinPath(globalStorageUri, "analysis-cache-v2").fsPath;
+        this.previousCacheDirectory = vscode.Uri.joinPath(globalStorageUri, "analysis-cache-v1").fsPath;
     }
 
     async analyze(uri: vscode.Uri, request: AudioAnalysisRequest): Promise<AudioAnalysisResult> {
@@ -56,7 +53,7 @@ export default class LibrosaAnalysisService implements AudioAnalysisService {
         const cacheEnabled = vscode.workspace.getConfiguration("audioToolkit").get<boolean>("analysisCache.enabled", true);
         const analysisRequest: AudioAnalysisRequest = { algorithm: request.algorithm, options: request.options };
         if (!cacheEnabled) {
-            return withCacheInfo(await this.runUsingPython(uri.fsPath, analysisRequest), { status: "disabled" });
+            return withCacheInfo(await this.runUsingBackend(uri.fsPath, { ...analysisRequest, cachePolicy: request.cachePolicy }), { status: "disabled" });
         }
 
         const key = await this.createCacheKey(uri.fsPath, analysisRequest);
@@ -81,43 +78,41 @@ export default class LibrosaAnalysisService implements AudioAnalysisService {
 
     async clearCache() {
         this.cacheEpoch++;
-        let entries: string[];
-        try {
-            entries = await fs.readdir(this.cacheDirectory);
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-                return { files: 0, bytes: 0 };
-            }
-            throw error;
-        }
         let files = 0;
         let bytes = 0;
-        await Promise.all(entries.filter(name => name.endsWith(".json.gz")).map(async name => {
-            const filePath = path.join(this.cacheDirectory, name);
-            try {
-                const stat = await fs.stat(filePath);
-                await fs.unlink(filePath);
-                files++;
-                bytes += stat.size;
-            } catch (error) {
-                if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-                    throw error;
-                }
+        for (const directory of [this.cacheDirectory, this.previousCacheDirectory]) {
+            let entries: string[];
+            try { entries = await fs.readdir(directory); }
+            catch (error) {
+                if ((error as NodeJS.ErrnoException).code === "ENOENT") { continue; }
+                throw error;
             }
-        }));
+            await Promise.all(entries.filter(name => name.endsWith(".json.gz")).map(async name => {
+                const filePath = path.join(directory, name);
+                try {
+                    const stat = await fs.stat(filePath);
+                    await fs.unlink(filePath);
+                    files++;
+                    bytes += stat.size;
+                } catch (error) {
+                    if ((error as NodeJS.ErrnoException).code !== "ENOENT") { throw error; }
+                }
+            }));
+        }
         return { files, bytes };
-    }
-
-    private get scriptPath() {
-        return vscode.Uri.joinPath(this.extensionUri, "python", "audio_toolkit_engine.py").fsPath;
     }
 
     private async createCacheKey(audioPath: string, request: AudioAnalysisRequest) {
         const stat = await fs.stat(audioPath);
-        this.engineFingerprint ??= fs.readFile(this.scriptPath).then(data => createHash("sha256").update(data).digest("hex"));
+        const backendUrl = this.backendUrl;
+        const response = await fetch(new URL("v1/health", backendUrl), { signal: AbortSignal.timeout(10000) });
+        if (!response.ok) { throw new Error(`Music backend health check returned HTTP ${response.status}.`); }
+        const health = await response.json() as { librosaEngineVersion?: string };
+        if (!health.librosaEngineVersion) { throw new Error("Music backend does not support librosa analysis. Update music-embedding-analysis."); }
         const identity = canonicalize({
             schema: CACHE_SCHEMA,
-            engine: await this.engineFingerprint,
+            backend: backendUrl,
+            engine: health.librosaEngineVersion,
             audio: {
                 path: process.platform === "win32" ? path.resolve(audioPath).toLowerCase() : path.resolve(audioPath),
                 size: stat.size,
@@ -147,7 +142,7 @@ export default class LibrosaAnalysisService implements AudioAnalysisService {
     }
 
     private async calculateAndCache(audioPath: string, request: AudioAnalysisRequest, filePath: string, refresh: boolean, epoch: number) {
-        const result = await this.runUsingPython(audioPath, request);
+        const result = await this.runUsingBackend(audioPath, { ...request, cachePolicy: refresh ? "refresh" : "use" });
         const createdAt = new Date().toISOString();
         let status: AudioAnalysisCacheInfo["status"] = refresh ? "refresh" : "miss";
         try {
@@ -198,84 +193,75 @@ export default class LibrosaAnalysisService implements AudioAnalysisService {
         }
     }
 
-    private async runUsingPython(audioPath: string, request: AudioAnalysisRequest) {
-        const configured = vscode.workspace.getConfiguration("audioToolkit").get<string>("pythonPath", "").trim();
-        const commands = configured ? [{ executable: configured, args: [] }] : await this.getPythonCommands();
-        let lastError: Error | undefined;
-        let dependencyError: Error | undefined;
-        for (const command of commands) {
-            try {
-                return await this.run(command, audioPath, request);
-            } catch (error) {
-                lastError = error as Error;
-                if (/Librosa backend is unavailable/i.test(lastError.message)) {
-                    dependencyError ??= lastError;
-                }
-                if (configured || !/ENOENT|not found|Librosa backend is unavailable/i.test(lastError.message)) {
-                    break;
-                }
-            }
-        }
-        throw dependencyError ?? lastError ?? new Error("No Python 3 interpreter was found. Configure audioToolkit.pythonPath or create a .venv in the workspace.");
+    private get backendUrl() {
+        const configured = vscode.workspace.getConfiguration("audioToolkit").get<string>("backendUrl", "http://127.0.0.1:49321/").trim();
+        return `${configured.replace(/\/$/, "")}/`;
     }
 
-    private async getPythonCommands(): Promise<PythonCommand[]> {
-        const commands: PythonCommand[] = [];
-        if (vscode.workspace.isTrusted) {
-            const relativeExecutables = process.platform === "win32"
-                ? [[".venv-librosa", "Scripts", "python.exe"], [".venv", "Scripts", "python.exe"]]
-                : [[".venv-librosa", "bin", "python"], [".venv", "bin", "python"]];
-            for (const folder of vscode.workspace.workspaceFolders ?? []) {
-                for (const segments of relativeExecutables) {
-                    const executable = vscode.Uri.joinPath(folder.uri, ...segments).fsPath;
-                    try {
-                        await fs.access(executable);
-                        commands.push({ executable, args: [] });
-                    } catch {
-                        // This workspace does not use this virtual-environment convention.
-                    }
-                }
-            }
-        }
-        commands.push(...(process.platform === "win32"
-            ? [{ executable: "py", args: ["-3"] }, { executable: "python3", args: [] }, { executable: "python", args: [] }]
-            : [{ executable: "python3", args: [] }, { executable: "python", args: [] }]));
-        const seen = new Set<string>();
-        return commands.filter(command => {
-            const key = `${process.platform === "win32" ? command.executable.toLowerCase() : command.executable}\0${command.args.join("\0")}`;
-            if (seen.has(key)) {
-                return false;
-            }
-            seen.add(key);
-            return true;
-        });
+    private get headers(): Headers {
+        const token = vscode.workspace.getConfiguration("audioToolkit").get<string>("backendToken", "").trim();
+        const headers = new Headers();
+        if (token) { headers.set("Authorization", `Bearer ${token}`); }
+        return headers;
     }
 
-    private run(command: PythonCommand, audioPath: string, request: AudioAnalysisRequest): Promise<AudioAnalysisResult> {
-        return new Promise((resolve, reject) => {
-            const child = spawn(command.executable, [...command.args, this.scriptPath], {
-                windowsHide: true,
-                stdio: ["pipe", "pipe", "pipe"]
+    private async upload(audioPath: string): Promise<string> {
+        const stat = await fs.stat(audioPath);
+        const key = `${this.backendUrl}:${audioPath}:${stat.size}:${stat.mtimeMs}`;
+        const existing = this.assets.get(key);
+        if (existing) { return existing; }
+        const uploading = (async () => {
+            if (!this.approvedUploads.has(key)) {
+                const choice = await vscode.window.showWarningMessage(
+                    `Upload the complete audio file "${path.basename(audioPath)}" to ${this.backendUrl} for librosa analysis?`,
+                    { modal: true, detail: "The configured music analysis service will store a content-addressed copy. Cancel keeps the file local." },
+                    "Upload and analyze"
+                );
+                if (choice !== "Upload and analyze") { throw new Error("Audio upload was cancelled. No analysis was sent to the backend."); }
+                this.approvedUploads.add(key);
+            }
+            const buffer = await fs.readFile(audioPath);
+            const bytes = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+            const headers = this.headers;
+            headers.set("X-File-Name", encodeURIComponent(path.basename(audioPath)));
+            const response = await fetch(new URL("v1/interactive-assets", this.backendUrl), {
+                method: "POST",
+                headers,
+                body: bytes
             });
-            const stdout: Buffer[] = [];
-            const stderr: Buffer[] = [];
-            child.stdout.on("data", chunk => stdout.push(Buffer.from(chunk)));
-            child.stderr.on("data", chunk => stderr.push(Buffer.from(chunk)));
-            child.once("error", reject);
-            child.once("close", code => {
-                const output = Buffer.concat(stdout).toString("utf8").trim();
-                const errorOutput = Buffer.concat(stderr).toString("utf8").trim();
-                if (code !== 0) {
-                    reject(new Error(errorOutput || output || `Python analysis exited with code ${code}.`));
-                    return;
-                }
-                try {
-                    resolve(JSON.parse(output) as AudioAnalysisResult);
-                } catch (error) {
-                    reject(new Error(`Invalid response from librosa backend: ${(error as Error).message}`));
-                }
+            if (!response.ok) { throw new Error(await this.readHttpError(response)); }
+            const asset = await response.json() as { id: string };
+            return asset.id;
+        })();
+        this.assets.set(key, uploading);
+        void uploading.catch(() => this.assets.delete(key));
+        return uploading;
+    }
+
+    private async runUsingBackend(audioPath: string, request: AudioAnalysisRequest): Promise<AudioAnalysisResult> {
+        let assetId = await this.upload(audioPath);
+        const send = (id: string) => {
+            const headers = this.headers;
+            headers.set("Content-Type", "application/json");
+            return fetch(new URL(`v1/interactive-assets/${encodeURIComponent(id)}:librosa`, this.backendUrl), {
+                method: "POST", headers, body: JSON.stringify(request)
             });
-            child.stdin.end(JSON.stringify({ path: audioPath, ...request }));
-        });
+        };
+        let response = await send(assetId);
+        if (response.status === 404) {
+            this.assets.clear();
+            assetId = await this.upload(audioPath);
+            response = await send(assetId);
+        }
+        if (!response.ok) { throw new Error(await this.readHttpError(response)); }
+        return response.json() as Promise<AudioAnalysisResult>;
+    }
+
+    private async readHttpError(response: Response) {
+        try {
+            const payload = await response.json() as { detail?: string };
+            if (typeof payload.detail === "string") { return payload.detail; }
+        } catch { /* Fall back to the HTTP status. */ }
+        return `Music backend returned HTTP ${response.status}.`;
     }
 }

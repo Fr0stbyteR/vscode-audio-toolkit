@@ -7,6 +7,7 @@ import { getCssFromPosition, setCanvasToFullSize } from "../utils";
 import { VisualizationStyleOptions } from "../core/AudioToolkitModule";
 import Waveform from "../modules/waveform/Waveform";
 import VectorImageProcessor from "../core/VectorImageProcessor";
+import { useLocale } from "../i18n/LocaleContext";
 
 interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRange">, Partial<VisualizationStyleOptions> {
     windowSize: number[];
@@ -23,6 +24,7 @@ interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRa
     standalone?: boolean;
 }
 const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRange, phosphorColor, playheadColor, windowSize, configuring, monitoring, setConfiguring, configurationMode, setConfigurationMode, setMonitoring, overlayMode, setOverlayMode, layersOpen, setLayersOpen, standalone }) => {
+    const { locale, setLocale, t } = useLocale();
     const audioEditor = useContext(AudioEditorContext)!;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const divViewRangeRef = useRef<HTMLDivElement>(null);
@@ -189,35 +191,36 @@ const AudioEditorMap: FunctionComponent<Props> = ({ playhead, viewRange, selRang
             </div>
             <div className="editor-map-controls">
                 <span className="editor-map-select-all">
-                    <VSCodeButton tabIndex={-1} aria-label="View All" title="View All" appearance="icon" onClick={handleClickSelectAll}>
+                    <VSCodeButton tabIndex={-1} aria-label={t("View All")} title={t("View All")} appearance="icon" onClick={handleClickSelectAll}>
                         <span className="codicon codicon-symbol-array"></span>
                     </VSCodeButton>
                 </span>
                 {!standalone ? <span className="editor-map-toggle-configuration">
-                    <VSCodeButton tabIndex={-1} aria-label="Analysis settings" className={configuring && configurationMode !== "appearance" ? "active" : ""} title="Analysis settings (requires recalculation)" appearance="icon" onClick={() => toggleConfiguration("analysis")}>
+                    <VSCodeButton tabIndex={-1} aria-label={t("Analysis settings")} className={configuring && configurationMode !== "appearance" ? "active" : ""} title={t("Analysis settings (requires recalculation)")} appearance="icon" onClick={() => toggleConfiguration("analysis")}>
                         <span className="codicon codicon-beaker"></span>
                     </VSCodeButton>
                 </span> : null}
                 {!standalone ? <span className="editor-map-toggle-configuration">
-                    <VSCodeButton tabIndex={-1} aria-label="Appearance settings" className={configuring && configurationMode !== "analysis" ? "active" : ""} title="Appearance settings (instant)" appearance="icon" onClick={() => toggleConfiguration("appearance")}>
+                    <VSCodeButton tabIndex={-1} aria-label={t("Appearance settings")} className={configuring && configurationMode !== "analysis" ? "active" : ""} title={t("Appearance settings (instant)")} appearance="icon" onClick={() => toggleConfiguration("appearance")}>
                         <span className="codicon codicon-paintcan"></span>
                     </VSCodeButton>
                 </span> : null}
                 {!standalone ? <span className="editor-map-toggle-monitoring">
-                    <VSCodeButton tabIndex={-1} aria-label="Toggle Data Monitoring" className={monitoring ? "active" : ""} title="Toggle Data Monitoring" appearance="icon" onClick={() => setMonitoring(v => !v)}>
+                    <VSCodeButton tabIndex={-1} aria-label={t("Toggle Data Monitoring")} className={monitoring ? "active" : ""} title={t("Toggle Data Monitoring")} appearance="icon" onClick={() => setMonitoring(v => !v)}>
                         <span className="codicon codicon-info"></span>
                     </VSCodeButton>
                 </span> : null}
                 {!standalone ? <span>
-                    <VSCodeButton tabIndex={-1} aria-label="Overlay modules" className={overlayMode ? "active" : ""} title="Overlay modules" appearance="icon" onClick={() => setOverlayMode(v => !v)}>
+                    <VSCodeButton tabIndex={-1} aria-label={t("Overlay modules")} className={overlayMode ? "active" : ""} title={t("Overlay modules")} appearance="icon" onClick={() => setOverlayMode(v => !v)}>
                         <span className="codicon codicon-layers"></span>
                     </VSCodeButton>
                 </span> : null}
                 {!standalone ? <span>
-                    <VSCodeButton tabIndex={-1} aria-label="Layers" className={layersOpen ? "active" : ""} title="Layers" appearance="icon" onClick={() => setLayersOpen(v => !v)}>
+                    <VSCodeButton tabIndex={-1} aria-label={t("Layers")} className={layersOpen ? "active" : ""} title={t("Layers")} appearance="icon" onClick={() => setLayersOpen(v => !v)}>
                         <span className="codicon codicon-list-tree"></span>
                     </VSCodeButton>
                 </span> : null}
+                {!standalone ? <span className="editor-map-locale"><VSCodeButton tabIndex={-1} appearance="icon" aria-label={locale === "zh" ? "Switch to English" : "切换到中文"} title={locale === "zh" ? "Switch to English" : "切换到中文"} onClick={() => setLocale(locale === "zh" ? "en" : "zh")}>{locale === "zh" ? "EN" : "中"}</VSCodeButton></span> : null}
             </div>
         </div>
     );

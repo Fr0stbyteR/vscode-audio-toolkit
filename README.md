@@ -10,21 +10,17 @@ A powerful tool for visualizing and analyzing audio files.
 
 + Saving the editor's state.
 
-+ Desktop analysis modules powered by librosa: beat/onset/non-silent markers, RMS, onset strength, zero-crossing rate, spectral centroid/bandwidth/rolloff/flatness, YIN pitch, mel spectrogram, chroma, and MFCC.
++ Librosa analysis modules: beat/onset/non-silent markers, RMS, onset strength, zero-crossing rate, spectral centroid/bandwidth/rolloff/flatness, YIN pitch, mel spectrogram, chroma, and MFCC.
 
 + Existing Vector and Matrix views are reused for continuous 1D/2D analysis results. Matrix views prefer an experimental WebGL 2 renderer and fall back to Canvas 2D.
 
-## Desktop analysis setup
+## Analysis backend
 
-The waveform and spectrogram continue to work without Python. The librosa modules require Python 3 with the packages in `requirements-librosa.txt`:
+Python code now lives in the sibling `music-embedding-analysis` project. Start that service before using librosa or CLAP; this repository contains only the clients. Waveform and spectrogram still work without the service. The standalone browser uses `webview-ui/.env` or the header settings. For the VS Code desktop extension, set `audioToolkit.backendUrl` and `audioToolkit.backendToken` to the same service URL and token.
 
-```sh
-python -m pip install -r requirements-librosa.txt
-```
+Desktop librosa analysis uploads the selected full audio file only after a confirmation dialog identifying the destination URL. The music backend stores a content-addressed copy. VS Code for the Web still has no extension-host analysis bridge; use the standalone browser app for web analysis.
 
-The desktop extension first checks trusted workspace folders for `.venv-librosa` and `.venv`, then tries system Python launchers. If Python is elsewhere, set `audioToolkit.pythonPath` to its full executable path. Librosa modules are desktop-only; VS Code for the Web displays a clear unavailable-backend error.
-
-Analysis results are compressed and cached automatically in VS Code extension storage. The cache key includes the audio file path, size, modification time, algorithm options, and analysis-engine fingerprint, so changing the source, settings, or engine triggers a new analysis. Use **Reanalyze** in a module to bypass an existing entry, or run **Audio Toolkit: Clear Analysis Cache** from the Command Palette. Cache status is shown in each librosa module.
+Analysis results are compressed and cached in VS Code extension storage and by the backend. The local cache key includes the audio file path, size, modification time, backend URL, algorithm options, and backend engine fingerprint. Use **Reanalyze** in a module to bypass both caches, or **Audio Toolkit: Clear Analysis Cache** to clear the local cache. Cache status is shown in each librosa module.
 
 Use `audioToolkit.analysisCache.enabled` to disable caching and `audioToolkit.analysisCache.maxSizeMB` to control its approximate LRU size limit (512 MB by default). Marker edits remain in the project's JSON state; cached data is local and does not add files beside the audio source.
 
@@ -32,11 +28,14 @@ Set `audioToolkit.matrixRenderer` to `auto`, `webgl`, or `canvas2d` to compare m
 
 ## Development
 
-Use the **Run Desktop Extension** launch configuration when testing librosa modules. **Run Web Extension** deliberately uses the browser entry point and supports waveform/spectrogram editing, but native Python analysis is unavailable there.
+Use the **Run Desktop Extension** launch configuration when testing desktop librosa modules. **Run Web Extension** supports waveform/spectrogram editing, but backend analysis is available through the standalone browser app instead.
+
+The standalone web app now includes a local-first annotation review panel. It supports manual interval labels, saving CLAP matches as suggestions, human confirmation/rejection, a timeline track, and browser persistence with JSON import/export. See [Interactive music annotation workflow](docs/annotation-workflow.md) for the current limitations and the multi-model accuracy plan.
 
 ## Requirements
 
-None.
+Waveform and spectrogram need no Python installation. Librosa and CLAP modules
+require a running `music-embedding-analysis` service.
 
 ## Extension Settings
 

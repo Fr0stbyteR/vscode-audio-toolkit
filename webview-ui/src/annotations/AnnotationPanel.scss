@@ -1,0 +1,45 @@
+.annotation-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    min-width: 0;
+    color: var(--vscode-foreground);
+    font-size: 11px;
+
+    .annotation-toolbar { display: flex; align-items: center; gap: 2px; }
+    .annotation-toolbar strong { flex: 1; font-size: 12px; }
+    .annotation-toolbar strong span { color: var(--vscode-descriptionForeground); font-weight: 400; }
+    .annotation-file-input { display: none; }
+    .annotation-range, .annotation-evidence { color: var(--vscode-descriptionForeground); line-height: 1.35; }
+    .annotation-evidence { overflow-wrap: anywhere; }
+    .annotation-message { margin: 0; padding: 6px; background: var(--vscode-input-background); overflow-wrap: anywhere; }
+    .annotation-message.error { color: var(--vscode-errorForeground); }
+    .annotation-empty { margin: 2px 0 0; color: var(--vscode-descriptionForeground); line-height: 1.4; }
+    .annotation-edit { display: flex; flex-direction: column; gap: 8px; padding: 9px; border: 1px solid var(--vscode-panel-border); background: var(--vscode-editor-background); }
+    .annotation-edit label, .annotation-filter { display: flex; flex-direction: column; gap: 4px; color: var(--vscode-descriptionForeground); }
+    .annotation-edit input, .annotation-edit select, .annotation-edit textarea, .annotation-filter select {
+        width: 100%; min-width: 0; padding: 5px 7px; color: var(--vscode-input-foreground);
+        background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+        border-radius: 2px; font: inherit;
+    }
+    .annotation-edit textarea { resize: vertical; }
+    .annotation-edit vscode-button { align-self: flex-start; }
+    .annotation-time-fields, .annotation-actions { display: flex; align-items: center; gap: 5px; min-width: 0; }
+    .annotation-time-fields > label { flex: 1; min-width: 0; }
+    .annotation-selected-heading { display: flex; align-items: center; justify-content: space-between; color: var(--vscode-descriptionForeground); }
+    .annotation-state { display: inline-block; flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: var(--vscode-descriptionForeground); }
+    .annotation-state.suggested { background: var(--vscode-editorWarning-foreground); }
+    .annotation-state.confirmed { background: var(--vscode-testing-iconPassed, #73ae82); }
+    .annotation-state.rejected { background: var(--vscode-errorForeground); }
+    .annotation-state.ambiguous { background: var(--vscode-textLink-foreground); }
+    .annotation-selected-heading .annotation-state { width: auto; height: auto; padding: 3px 6px; border-radius: 2px; color: var(--vscode-editor-background); font-size: 10px; }
+    .annotation-list { display: flex; flex-direction: column; max-height: 280px; min-height: 0; overflow: auto; border: 1px solid var(--vscode-panel-border); }
+    .annotation-row { display: flex; flex-direction: column; gap: 3px; width: 100%; min-width: 0; padding: 7px 8px; border: 0; border-bottom: 1px solid var(--vscode-panel-border); border-left: 2px solid transparent; border-radius: 0; color: var(--vscode-foreground); background: var(--vscode-sideBar-background); text-align: left; cursor: pointer; }
+    .annotation-row:last-child { border-bottom: 0; }
+    .annotation-row:hover { background: var(--vscode-list-hoverBackground); }
+    .annotation-row.selected { border-left-color: var(--vscode-focusBorder); background: var(--vscode-list-activeSelectionBackground); }
+    .annotation-row-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+    .annotation-row-top strong { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+    .annotation-row-top time { flex: 0 0 auto; color: var(--vscode-descriptionForeground); font: 10px var(--vscode-editor-font-family); }
+    .annotation-row-bottom { padding-left: 13px; color: var(--vscode-descriptionForeground); font-size: 10px; }
+}

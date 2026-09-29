@@ -1,12 +1,12 @@
 # Standalone Web workspace
 
-This branch includes a browser frontend and an HTTP adapter for the existing
-librosa analysis engine. It does not require a VS Code extension host.
+This branch includes a browser frontend. Librosa and CLAP run in the sibling
+`music-embedding-analysis` backend. It does not require a VS Code extension host.
 
 ## Run locally
 
-On Windows, with the frontend dependencies and both Python environments installed,
-double-click `start-standalone.cmd`, or run the three services together from
+On Windows, with frontend dependencies and the music backend environment installed,
+double-click `start-standalone.cmd`, or run both services together from
 this repository:
 
 ```powershell
@@ -15,26 +15,30 @@ this repository:
 
 The script finds `music-embedding-analysis` beside this repository by default;
 use `-MusicBackendPath` if it lives elsewhere. It creates missing `.env` files
-from their `.env.example` templates, waits for the frontend and librosa API,
-opens the browser, and reports when CLAP finishes loading. Press `Q` or Ctrl+C
+from their `.env.example` templates, waits for the frontend, opens the browser,
+and reports when the unified backend is ready. Press `Q` or Ctrl+C
 in the launcher to stop the services. Logs go to `.standalone-logs/`. Run with
 `-Check` to validate paths, dependencies, and ports without starting anything,
 or `-NoBrowser` to keep the browser closed.
 
 Initial setup is still needed once: install `webview-ui` dependencies with
-`npm ci --prefix webview-ui`, install `standalone-server/requirements.txt` in
-`.venv-standalone` (or reuse `.venv-librosa`), and install the music backend in
-its own `.venv` as described in that repository's README. The launcher reports
-which environment is missing.
+`npm ci --prefix webview-ui` and install the music backend in its own `.venv` as
+described in that repository's README. The launcher reports missing dependencies.
+
+If you used the former split setup, the old `standalone-server/.env`,
+`.standalone-data/`, and `.venv-librosa/` are no longer read. They are left in
+place to avoid deleting credentials, cached results, or uploaded audio without
+your review. The browser's **Music analysis service** setting is now the only
+URL/token used for both librosa and CLAP; the former librosa URL setting is
+ignored. No legacy Python source or runtime data is included in the VS Code
+extension package.
 
 ### Manual startup
 
-Create a Python environment and install the server dependencies:
+Start the backend from `music-embedding-analysis`:
 
 ```powershell
-python -m venv .venv-standalone
-.\.venv-standalone\Scripts\python -m pip install -r standalone-server\requirements.txt
-.\.venv-standalone\Scripts\python -m uvicorn app:app --app-dir standalone-server --reload
+.\start-clap.ps1
 ```
 
 In another terminal, start the frontend:
@@ -44,7 +48,7 @@ cd webview-ui
 npm run start:standalone
 ```
 
-Vite reads service URLs and default tokens from `webview-ui/.env`; use
+Vite reads the unified service URL and default token from `webview-ui/.env`; use
 `webview-ui/.env.example` as the template. Settings changed in the UI override
 those defaults and persist in the browser profile.
 
@@ -55,7 +59,7 @@ to a `webkitdirectory` file input when available.
 ## CLAP descriptions
 
 The optional `CLAP description` module follows the current selection, or a
-configurable context window around the cursor. It uses the separate
+configurable context window around the cursor. It uses the unified
 `music-embedding-analysis` service (default `http://127.0.0.1:49321`) and ranks
 a curated bilingual description catalogue. The displayed scores are embedding
 similarities, not calibrated probabilities.
@@ -74,18 +78,18 @@ identical requests in the browser.
 - Uploaded assets are content-addressed with SHA-256, so repeated analyses do
   not upload the same `File` again during a session and the server deduplicates
   identical bytes across sessions.
-- Analysis cache keys include asset hash, algorithm, options, and engine version.
+- Librosa and embedding analysis use the same authenticated upload and backend.
+- Librosa cache keys include asset hash, algorithm, options, and engine version.
 - Configure the API URL and optional bearer token from the frontend header.
 - API URLs and bearer tokens persist in the current browser profile. Treat that
   profile as trusted; clearing site data removes them.
 - Chromium directory handles are stored in IndexedDB. If read permission is
   retained, the previous library opens automatically; otherwise the UI offers
   a one-click reconnect without asking the user to locate the folder again.
-- Set `AUDIO_TOOLKIT_CORS_ORIGINS` and `AUDIO_TOOLKIT_API_TOKEN` before exposing
-  the backend outside localhost. TLS should be terminated by the deployment
-  proxy.
+- Set `MAB_CORS_ORIGIN_REGEX` and `MAB_SESSION_TOKEN` before exposing the backend
+  outside localhost. TLS should be terminated by the deployment proxy.
 
 The File System Access API requires a secure context in production (HTTPS) and
-is currently best supported by Chromium browsers. The backend intentionally
-does not accept local filesystem paths because those paths are meaningless and
-unsafe when the service is remote.
+is currently best supported by Chromium browsers. The interactive upload
+endpoint accepts audio bytes, not the browser's local filesystem path, because
+that path is meaningless on a remote server.

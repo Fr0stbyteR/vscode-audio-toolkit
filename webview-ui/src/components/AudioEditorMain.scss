@@ -59,9 +59,11 @@
                     background: var(--vscode-list-hoverBackground);
                 }
 
-                & > .codicon-gripper {
+                .editor-layer-main > .codicon-gripper {
                     cursor: grab;
                     opacity: .55;
+                    padding: 6px 3px;
+                    user-select: none;
                 }
 
                 .editor-layer-name {
@@ -83,6 +85,7 @@
         }
 
         &.overlay-mode {
+            &.annotation-track-visible > .editor-main-visualizer-container { top: 77px; }
             & > .editor-main-divider {
                 display: none;
             }

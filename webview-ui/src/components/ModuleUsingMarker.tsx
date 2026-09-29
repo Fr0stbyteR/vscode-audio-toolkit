@@ -6,6 +6,7 @@ import { AudioEditorContext } from "./contexts";
 import { VSCodeButton, VSCodeProgressRing, VSCodeTextField } from "@vscode/webview-ui-toolkit/react";
 import { getCssFromPosition } from "../utils";
 import ConfigurationSections from "./ConfigurationSections";
+import { useLocale } from "../i18n/LocaleContext";
 
 export interface AudioMarker {
     position: number | [number, number];
@@ -44,6 +45,7 @@ function formatMarkerTime(samples: number, sampleRate: number) {
 }
 
 const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => {
+    const { t } = useLocale();
     const {
         markerClassName, markerData,
         module, calculating,
@@ -419,7 +421,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
     pointMarkers.forEach((marker, index) => {
         const next = pointMarkers[index + 1];
         const availablePixels = ((next?.start ?? viewEnd) - marker.start) / Math.max(1, viewEnd - viewStart) * visualizationWidth;
-        const estimatedLabelWidth = Math.min(220, Math.max(48, (marker.name || `Marker ${marker.index + 1}`).length * 7 + 18));
+        const estimatedLabelWidth = Math.min(220, Math.max(48, (marker.name || `${t("Marker")} ${marker.index + 1}`).length * 7 + 18));
         marker.labelCollides = availablePixels < estimatedLabelWidth + 18;
     });
     const firstVisibleMarker = allMarkers.flat()[0]?.index;
@@ -436,7 +438,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
                     <div className="marker-selection-overlay selrange" style={{ left: selLeft, width: selWidth }} hidden={!selRange}>
                         <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />
                         <div className="resize-handler resize-handler-e" onMouseDown={handleResizeEndMouseDown} />
-                        <VSCodeButton className="marker-add-button marker-selection-add" tabIndex={-1} aria-label="Add range marker" title="Add range marker from selection" appearance="icon" onClick={handleClickAddMarker} onMouseDown={handleAddMarkerMouseDown}>
+                        <VSCodeButton className="marker-add-button marker-selection-add" tabIndex={-1} aria-label={t("Add range marker")} title={t("Add range marker from selection")} appearance="icon" onClick={handleClickAddMarker} onMouseDown={handleAddMarkerMouseDown}>
                             <span className="codicon codicon-add"></span>
                         </VSCodeButton>
                     </div>
@@ -445,7 +447,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
                             playhead < viewStart || playhead > viewEnd
                             ? null
                             : !selRange && (!overlayMode || activeLayer) ? <div className="playhead" style={{ left: playheadLeft }}>
-                                <VSCodeButton className="marker-add-button marker-point-add" tabIndex={-1} aria-label="Add Marker" title="Add marker at playhead" appearance="icon" onClick={handleClickAddMarker} onMouseDown={handleAddMarkerMouseDown}>
+                                <VSCodeButton className="marker-add-button marker-point-add" tabIndex={-1} aria-label={t("Add Marker")} title={t("Add marker at playhead")} appearance="icon" onClick={handleClickAddMarker} onMouseDown={handleAddMarkerMouseDown}>
                                     <span className="codicon codicon-add"></span>
                                 </VSCodeButton>
                             </div> : null
@@ -458,8 +460,8 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
                                 <div key={i} className="markers-row">
                                     {
                                         row.map(({ index, name, time, color, start, end, left, width, selected, labelCollides, handleMarkerMoveMouseDown, handleMarkerResizeStartMouseDown, handleMarkerResizeEndMouseDown, handleMarkerDoubleClick, handleMarkerKeyDown }) => (
-                                            <div key={index} role="button" tabIndex={selected || (!selectedMarkers.length && index === firstVisibleMarker) ? 0 : -1} aria-label={`${name || `Marker ${index + 1}`}, ${time}`} aria-pressed={selected} title={`${name ? `${name} · ` : ""}${time}`} className={`marker${start === end ? " point" : " range"}${selected ? " selected" : ""}${labelCollides ? " label-collides" : ""}`} style={{ left, ...(start === end ? {} : { width }), "--marker-color": color } as React.CSSProperties} onMouseDown={handleMarkerMoveMouseDown} onDoubleClick={handleMarkerDoubleClick} onKeyDown={handleMarkerKeyDown}>
-                                                <span className="marker-label"><strong>{name || `Marker ${index + 1}`}</strong><small>{time}</small></span>
+                                            <div key={index} role="button" tabIndex={selected || (!selectedMarkers.length && index === firstVisibleMarker) ? 0 : -1} aria-label={`${name || `${t("Marker")} ${index + 1}`}, ${time}`} aria-pressed={selected} title={`${name ? `${name} · ` : ""}${time}`} className={`marker${start === end ? " point" : " range"}${selected ? " selected" : ""}${labelCollides ? " label-collides" : ""}`} style={{ left, ...(start === end ? {} : { width }), "--marker-color": color } as React.CSSProperties} onMouseDown={handleMarkerMoveMouseDown} onDoubleClick={handleMarkerDoubleClick} onKeyDown={handleMarkerKeyDown}>
+                                                <span className="marker-label"><strong>{name || `${t("Marker")} ${index + 1}`}</strong><small>{time}</small></span>
                                                 {
                                                     start === end
                                                     ? undefined
@@ -483,7 +485,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
                     <div>
                         {calculatingError ? null : <VSCodeProgressRing />}
                         <div>
-                            {calculatingError ?? (Array.isArray(calculating) ? `${Math.max(0, Math.min(100, Math.round(calculating[0])))}% · Completed: ${calculating[1]}` : "Starting…")}
+                            {calculatingError ?? (Array.isArray(calculating) ? `${Math.max(0, Math.min(100, Math.round(calculating[0])))}% · ${t("Completed:")} ${calculating[1]}` : t("Starting…"))}
                         </div>
                     </div>
                 </div>
@@ -510,6 +512,7 @@ interface MarkerConfigurationProps {
 }
 
 const MarkerConfiguration: FunctionComponent<MarkerConfigurationProps> = (props) => {
+    const { t } = useLocale();
     const { module, selectedMarkers, setSelectedMarkers, color, setColor, markerClassName, markerName, setMarkerName } = props;
     const [id1, id2, id3] = [useId(), useId(), useId()];
     
@@ -533,25 +536,25 @@ const MarkerConfiguration: FunctionComponent<MarkerConfigurationProps> = (props)
 
     return (<>
         <div className="marker-selection-summary">
-            <span>{selectedMarkers.length ? `${selectedMarkers.length} selected` : "No marker selected"}</span>
-            <span>Ctrl/Cmd-click for multi-select</span>
+            <span>{selectedMarkers.length ? `${selectedMarkers.length} ${t("selected")}` : t("No marker selected")}</span>
+            <span>{t("Ctrl/Cmd-click for multi-select")}</span>
         </div>
         <div>
-            <label htmlFor={id1}>Marker track</label>
-            <VSCodeTextField id={id1} placeholder="Marker Class" onInput={handleInputMarkerClass} value={markerClassName} />
+            <label htmlFor={id1}>{t("Marker track")}</label>
+            <VSCodeTextField id={id1} placeholder={t("Marker Class")} onInput={handleInputMarkerClass} value={markerClassName} />
         </div>
         <div>
-            <label htmlFor={id2}>{selectedMarkers.length ? "Selected marker color" : "New marker color"}</label>
+            <label htmlFor={id2}>{t(selectedMarkers.length ? "Selected marker color" : "New marker color")}</label>
             <input id={id2} type="color" name="marker-color" value={color} onChange={handleChangeMarkerColor} />
         </div>
         <div>
-            <label htmlFor={id3}>{selectedMarkers.length ? "Selected marker label" : "New marker label"}</label>
-            <VSCodeTextField id={id3} placeholder="Marker Name" onInput={handleInputMarkerName} value={markerName} />
+            <label htmlFor={id3}>{t(selectedMarkers.length ? "Selected marker label" : "New marker label")}</label>
+            <VSCodeTextField id={id3} placeholder={t("Marker Name")} onInput={handleInputMarkerName} value={markerName} />
         </div>
         {
             selectedMarkers.length
             ? <div>
-                <VSCodeButton className="marker-button-delete" tabIndex={-1} aria-label="Delete Marker" title="Delete Marker" appearance="secondary" onClick={handleClickDeleteMarker}>Delete</VSCodeButton>
+                <VSCodeButton className="marker-button-delete" tabIndex={-1} aria-label={t("Delete Marker")} title={t("Delete Marker")} appearance="secondary" onClick={handleClickDeleteMarker}>{t("Delete")}</VSCodeButton>
             </div>
             : null
         }

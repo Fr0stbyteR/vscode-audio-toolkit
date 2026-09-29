@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Starts the standalone web app, librosa API, and music embedding API together.
+Starts the standalone web app and the unified music analysis API together.
 .EXAMPLE
 .\start-standalone.ps1
 .EXAMPLE
@@ -103,10 +103,8 @@ if (-not (Test-Path -LiteralPath $musicRoot -PathType Container)) {
     throw "Music backend not found at $musicRoot. Pass -MusicBackendPath with its location."
 }
 $webEnvPath = Get-ConfigPath $webRoot
-$analysisEnvPath = Get-ConfigPath (Join-Path $repoRoot "standalone-server")
 $musicEnvPath = Get-ConfigPath $musicRoot
 $webEnv = Read-DotEnv $webEnvPath
-$analysisEnv = Read-DotEnv $analysisEnvPath
 $musicEnv = Read-DotEnv $musicEnvPath
 
 $musicPort = 49321
@@ -116,7 +114,6 @@ if ($musicEnv.ContainsKey("MAB_PORT") -and -not [int]::TryParse($musicEnv["MAB_P
 if ($musicPort -lt 1 -or $musicPort -gt 65535) { throw "MAB_PORT must be between 1 and 65535." }
 
 $frontUrl = "http://127.0.0.1:5173/standalone.html"
-$analysisUrl = "http://127.0.0.1:8000/api/v1/health"
 $musicUrl = "http://127.0.0.1:$musicPort/v1/health"
 $node = Get-Command node -ErrorAction SilentlyContinue
 $viteScript = Join-Path $webRoot "node_modules\vite\bin\vite.js"
@@ -124,17 +121,9 @@ if (-not $node -or -not (Test-Path -LiteralPath $viteScript)) {
     throw "Frontend dependencies are missing. Install Node.js, then run: npm ci --prefix webview-ui"
 }
 
-$analysisPython = @(
-    (Join-Path $repoRoot ".venv-standalone\Scripts\python.exe"),
-    (Join-Path $repoRoot ".venv-librosa\Scripts\python.exe")
-) | Where-Object { Test-Path -LiteralPath $_ } | Where-Object { Test-PythonModules $_ @("fastapi", "uvicorn", "multipart", "librosa") } | Select-Object -First 1
-if (-not $analysisPython) {
-    throw "Librosa API environment is missing. See STANDALONE.md: create .venv-standalone and install standalone-server\requirements.txt."
-}
-
 $musicPython = Join-Path $musicRoot ".venv\Scripts\python.exe"
-if (-not (Test-Path -LiteralPath $musicPython) -or -not (Test-PythonModules $musicPython @("music_annotation_backend", "uvicorn"))) {
-    throw "CLAP backend environment is missing at $musicRoot\.venv. See its README.md for the initial installation."
+if (-not (Test-Path -LiteralPath $musicPython) -or -not (Test-PythonModules $musicPython @("music_annotation_backend", "uvicorn", "librosa"))) {
+    throw "Music backend environment is missing at $musicRoot\.venv. See its README.md for the initial installation."
 }
 
 if ($webEnv.ContainsKey("VITE_MUSIC_ANALYSIS_API") -and $webEnv["VITE_MUSIC_ANALYSIS_API"].TrimEnd('/') -ne "http://127.0.0.1:$musicPort") {
@@ -143,20 +132,10 @@ if ($webEnv.ContainsKey("VITE_MUSIC_ANALYSIS_API") -and $webEnv["VITE_MUSIC_ANAL
 if ($musicEnv.ContainsKey("MAB_SESSION_TOKEN") -and $webEnv.ContainsKey("VITE_MUSIC_ANALYSIS_TOKEN") -and $musicEnv["MAB_SESSION_TOKEN"] -ne $webEnv["VITE_MUSIC_ANALYSIS_TOKEN"]) {
     Write-Warning "The CLAP tokens in the two .env files differ. Update the frontend setting if needed."
 }
-if ($analysisEnv.ContainsKey("AUDIO_TOOLKIT_API_TOKEN") -and $analysisEnv["AUDIO_TOOLKIT_API_TOKEN"] -and $analysisEnv["AUDIO_TOOLKIT_API_TOKEN"] -ne $webEnv["VITE_AUDIO_TOOLKIT_TOKEN"]) {
-    Write-Warning "The librosa API token differs from webview-ui/.env. Update the frontend setting if needed."
-}
-
-foreach ($port in @(5173, 8000, $musicPort)) {
+foreach ($port in @(5173, $musicPort)) {
     if (Test-LocalPort $port) { throw "Port $port is already in use. Stop the existing service or change its configuration." }
 }
-if ($Check) { Write-Host "Ready to start all three services."; return }
-
-# The librosa API reads environment variables at import time, so load its .env
-# before launching children. The music service reads its own .env from musicRoot.
-foreach ($name in $analysisEnv.Keys) {
-    [System.Environment]::SetEnvironmentVariable($name, $analysisEnv[$name], "Process")
-}
+if ($Check) { Write-Host "Ready to start the frontend and unified backend."; return }
 
 $logRoot = Join-Path $repoRoot ".standalone-logs"
 New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
@@ -164,8 +143,7 @@ $runId = Get-Date -Format "yyyyMMdd-HHmmss-fff"
 $services = @()
 try {
     $definitions = @(
-        @{ Name = "Librosa API"; File = $analysisPython; Arguments = @("-m", "uvicorn", "app:app", "--app-dir", "standalone-server", "--host", "127.0.0.1", "--port", "8000"); Directory = $repoRoot },
-        @{ Name = "CLAP API"; File = $musicPython; Arguments = @("-m", "music_annotation_backend.main"); Directory = $musicRoot },
+        @{ Name = "Music analysis API"; File = $musicPython; Arguments = @("-m", "music_annotation_backend.main"); Directory = $musicRoot },
         @{ Name = "Web frontend"; File = $node.Source; Arguments = @("node_modules/vite/bin/vite.js", "--config", "vite.standalone.config.ts", "--host", "127.0.0.1", "--strictPort"); Directory = $webRoot }
     )
     foreach ($definition in $definitions) {
@@ -176,19 +154,18 @@ try {
         $services += @{ Name = $definition.Name; Process = $process; Output = $output; Errors = $errors }
         Write-Host "Starting $($definition.Name) (PID $($process.Id))"
     }
-    if (-not (Wait-ForHttp "Librosa API" $analysisUrl $services[0].Process 45)) { throw "Librosa API did not become ready. See the log files below." }
-    if (-not (Wait-ForHttp "Web frontend" $frontUrl $services[2].Process 45)) { throw "Web frontend did not become ready. See the log files below." }
+    if (-not (Wait-ForHttp "Web frontend" $frontUrl $services[1].Process 45)) { throw "Web frontend did not become ready. See the log files below." }
     if (-not $NoBrowser) { Start-Process $frontUrl | Out-Null }
     Write-Host "Browser app: $frontUrl"
-    Write-Host "CLAP model may take a while to load. Waiting for $musicUrl ..."
-    $musicReady = Wait-ForHttp "CLAP API" $musicUrl $services[1].Process 180
-    if (-not $musicReady) { Write-Warning "CLAP is still loading. Watch its log; this window will continue monitoring it." }
-    Write-Host "Press Q to stop all three services (or Ctrl+C)."
+    Write-Host "The CLAP model may take a while to load. Waiting for $musicUrl ..."
+    $musicReady = Wait-ForHttp "Music analysis API" $musicUrl $services[0].Process 180
+    if (-not $musicReady) { Write-Warning "The music backend is still loading. Watch its log; this window will continue monitoring it." }
+    Write-Host "Press Q to stop both services (or Ctrl+C)."
     while ($true) {
         foreach ($service in $services) {
             if ($service.Process.HasExited) { throw "$($service.Name) exited (code $($service.Process.ExitCode)). See the log files below." }
         }
-        if (-not $musicReady -and (Test-Http $musicUrl)) { $musicReady = $true; Write-Host "CLAP API ready: $musicUrl" }
+        if (-not $musicReady -and (Test-Http $musicUrl)) { $musicReady = $true; Write-Host "Music analysis API ready: $musicUrl" }
         if (Test-StopKey) { break }
         Start-Sleep -Seconds 1
     }

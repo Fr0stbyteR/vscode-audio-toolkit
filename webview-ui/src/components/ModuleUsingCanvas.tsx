@@ -1,4 +1,5 @@
 import "./ModuleUsingCanvas.scss";
+import { useLocale } from "../i18n/LocaleContext";
 import { FunctionComponent, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AudioEditorContext } from "./contexts";
 import { AudioToolkitModule, VisualizationOptions } from "../core/AudioToolkitModule";
@@ -37,6 +38,7 @@ export interface ModuleUsingCanvasProps extends VisualizationOptions<AudioToolki
 const referenceSpectrograms = new WeakMap<AudioEditor, Promise<Spectrogram>>();
 
 const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => {
+    const { t } = useLocale();
     const {
         module, moduleState, calculating,
         paint, paintBackground, paintVerticalRuler, paintHorizontalRuler,
@@ -322,12 +324,12 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
     const inspectorAppearance = document.getElementById("inspector-appearance");
     const inspectorData = document.getElementById("inspector-data");
     const referenceControls = <div className="canvas-reference-controls">
-        <label>Reference layer<select value={moduleState.referenceOverlay ?? "none"} onChange={event => module.setState({ ...moduleState, referenceOverlay: event.target.value as "none" | "waveform" | "spectrogram" })}>
-            <option value="none">None</option>
-            {module.moduleId !== "waveform" ? <option value="waveform">Waveform</option> : null}
-            {module.moduleId !== "spectrogram" ? <option value="spectrogram">Spectrogram</option> : null}
+        <label>{t("Reference layer")}<select value={moduleState.referenceOverlay ?? "none"} onChange={event => module.setState({ ...moduleState, referenceOverlay: event.target.value as "none" | "waveform" | "spectrogram" })}>
+            <option value="none">{t("None")}</option>
+            {module.moduleId !== "waveform" ? <option value="waveform">{t("Waveform")}</option> : null}
+            {module.moduleId !== "spectrogram" ? <option value="spectrogram">{t("Spectrogram")}</option> : null}
         </select></label>
-        {moduleState.referenceOverlay && moduleState.referenceOverlay !== "none" ? <label>Reference opacity <output>{Math.round((moduleState.referenceOpacity ?? .35) * 100)}%</output><input type="range" min="0" max="1" step="0.05" value={moduleState.referenceOpacity ?? .35} onChange={event => module.setState({ ...moduleState, referenceOpacity: Number(event.target.value) })} /></label> : null}
+        {moduleState.referenceOverlay && moduleState.referenceOverlay !== "none" ? <label>{t("Reference opacity")} <output>{Math.round((moduleState.referenceOpacity ?? .35) * 100)}%</output><input type="range" min="0" max="1" step="0.05" value={moduleState.referenceOpacity ?? .35} onChange={event => module.setState({ ...moduleState, referenceOpacity: Number(event.target.value) })} /></label> : null}
     </div>;
     return (<>
         <div className={`visualizer-component-container module-using-canvas-container ${module.moduleId.replace(".", "-")}-container`}>
@@ -372,7 +374,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
                     <div>
                         {calculatingError ? null : <VSCodeProgressRing />}
                         <div>
-                            {calculatingError ?? (Array.isArray(calculating) ? `${Math.max(0, Math.min(100, Math.round(calculating[0])))}% · Completed: ${calculating[1]}` : "Starting…")}
+                            {calculatingError ?? (Array.isArray(calculating) ? `${Math.max(0, Math.min(100, Math.round(calculating[0])))}% · ${t("Completed:")} ${calculating[1]}` : t("Starting…"))}
                         </div>
                     </div>
                 </div>
@@ -385,7 +387,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         {inspectorData ? (activeLayer && monitorContent ? createPortal(monitorContent, inspectorData) : null) :
             <div className={`visualizer-component-monitor module-using-canvas-monitor ${module.moduleId.replace(".", "-")}-monitor-container`}>
                 {monitorContent}
-                <div className="hover-tips">Press L to {cursorLocked ? "unlock" : "lock"} the cursor</div>
+                <div className="hover-tips">{t(cursorLocked ? "Press L to unlock the cursor" : "Press L to lock the cursor")}</div>
             </div>}
     </>);
 };

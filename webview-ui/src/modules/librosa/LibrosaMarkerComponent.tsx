@@ -8,8 +8,10 @@ import { setCanvasToFullSize } from "../../utils";
 import LibrosaMarkerModule from "./LibrosaMarkerModule";
 import { formatCacheInfo } from "./LibrosaCacheInfo";
 import ConfigurationSections from "../../components/ConfigurationSections";
+import { useLocale } from "../../i18n/LocaleContext";
 
 const LibrosaMarkerComponent: FunctionComponent<VisualizationOptions<LibrosaMarkerModule>> = props => {
+    const { locale, t } = useLocale();
     const { module, moduleState, viewRange, gridColor, configuration } = props;
     const [draft, setDraft] = useState(module.getAnalysisState(moduleState));
     const [calculating, setCalculating] = useState<boolean | [number, string]>(module.isCalculating);
@@ -32,10 +34,10 @@ const LibrosaMarkerComponent: FunctionComponent<VisualizationOptions<LibrosaMark
     const configurationContent = <div className="default-layout"><ConfigurationSections mode={props.configurationMode} analysis={<>
         <ModuleConfigurationContent moduleId={module.moduleId} moduleState={draft} setModuleState={setDraft} optionsMetadata={module.getOptionsMetadata()} wrap={false} />
         <div className="analysis-actions">
-            <VSCodeButton appearance="primary" title="Run librosa again and replace the cached result" onClick={() => module.setState({ ...moduleState, ...draft }, true)}>Reanalyze</VSCodeButton>
-            <span>{moduleState.data?.length ?? 0} markers</span>
+            <VSCodeButton appearance="primary" title={t("Run librosa again and replace the cached result")} onClick={() => module.setState({ ...moduleState, ...draft }, true)}>{t("Reanalyze")}</VSCodeButton>
+            <span>{moduleState.data?.length ?? 0} {t("markers")}</span>
         </div>
-        <div className="analysis-cache-status">{moduleState.data && !cacheInfo ? "Saved with project" : formatCacheInfo(cacheInfo)}</div>
+        <div className="analysis-cache-status">{moduleState.data && !cacheInfo ? t("Saved with project") : formatCacheInfo(cacheInfo, locale)}</div>
     </>} appearance={<>
         <ModuleConfigurationContent moduleId={module.moduleId} moduleState={moduleState} keys={displayKeys} setModuleState={state => module.setState(state)} optionsMetadata={module.getOptionsMetadata()} wrap={false} />
     </>} /></div>;

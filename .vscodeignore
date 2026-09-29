@@ -18,4 +18,13 @@ esbuild.js
 examples/**
 webview-ui/**
 .venv-librosa/**
+.venv-standalone/**
+.standalone-data/**
+.standalone-logs/**
+**/.env
+.env
+python/**
+standalone-server/**
+local/**
+dist/standalone-web/**
 python/test_*.py

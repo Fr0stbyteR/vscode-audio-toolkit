@@ -6,6 +6,7 @@ import VectorImageProcessor, { VectorCursorInfo } from "../../core/VectorImagePr
 import { setCanvasToFullSize } from "../../utils";
 import ClapRelevanceCurve, { ClapRelevanceCurveState } from "./ClapRelevanceCurve";
 import "./ClapRelevanceCurveComponent.scss";
+import { useLocale } from "../../i18n/LocaleContext";
 
 function getTransform(module: ClapRelevanceCurve) {
     const values = module.dataSlices?.[0]?.vectors[0];
@@ -26,6 +27,7 @@ function getTransform(module: ClapRelevanceCurve) {
 }
 
 const ClapRelevanceCurveComponent: FunctionComponent<VisualizationOptions<ClapRelevanceCurve>> = props => {
+    const { t } = useLocale();
     const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
     const initial = useMemo(() => getTransform(module), [module]);
     const [defaultVerticalZoom, setDefaultVerticalZoom] = useState(initial.zoom);
@@ -79,16 +81,16 @@ const ClapRelevanceCurveComponent: FunctionComponent<VisualizationOptions<ClapRe
         module.setState({ ...draft, keyword, name: keyword, prompts: prompts.length ? prompts : [keyword] }, forceRefresh);
     };
     const configurationContent = <ConfigurationSections mode={props.configurationMode}
-        appearance={<div className="clap-curve-settings"><label>Curve color<input type="color" value={moduleState.color} onChange={event => module.setState({ ...moduleState, color: event.target.value })} /></label></div>}
+        appearance={<div className="clap-curve-settings"><label>{t("Curve color")}<input type="color" value={moduleState.color} onChange={event => module.setState({ ...moduleState, color: event.target.value })} /></label></div>}
         analysis={<div className="clap-curve-settings">
-            <label>Keyword<input value={draft.keyword} onChange={event => setDraft({ ...draft, keyword: event.target.value })} /></label>
-            <label>Prompts <span>One prompt per line; multiple prompts are aggregated.</span><textarea rows={4} value={draft.prompts.join("\n")} onChange={event => setDraft({ ...draft, prompts: event.target.value.split("\n") })} /></label>
-            <div className="clap-curve-setting-row"><label>Window (s)<input type="number" min="1" max="30" step="0.5" value={draft.windowSeconds} onChange={event => setDraft({ ...draft, windowSeconds: +event.target.value })} /></label><label>Hop (s)<input type="number" min="0.1" max="10" step="0.1" value={draft.hopSeconds} onChange={event => setDraft({ ...draft, hopSeconds: +event.target.value })} /></label></div>
-            <label>Prompt aggregation<select value={draft.aggregation} onChange={event => setDraft({ ...draft, aggregation: event.target.value as "mean" | "max" })}><option value="mean">Mean</option><option value="max">Maximum</option></select></label>
-            <label>Provider<select value={draft.providerId} onChange={event => setDraft({ ...draft, providerId: event.target.value })}><option value="">Auto</option><option value="laion_clap_music_htsat_base">LAION-CLAP</option><option value="muq_mulan_large">MuQ-MuLan</option><option value="mock">Mock (test)</option></select></label>
-            <button onClick={() => apply(true)}>Analyze curve</button>
+            <label>{t("Keyword")}<input value={draft.keyword} onChange={event => setDraft({ ...draft, keyword: event.target.value })} /></label>
+            <label>{t("Prompts")} <span>{t("One prompt per line; multiple prompts are aggregated.")}</span><textarea rows={4} value={draft.prompts.join("\n")} onChange={event => setDraft({ ...draft, prompts: event.target.value.split("\n") })} /></label>
+            <div className="clap-curve-setting-row"><label>{t("Window (s)")}<input type="number" min="1" max="30" step="0.5" value={draft.windowSeconds} onChange={event => setDraft({ ...draft, windowSeconds: +event.target.value })} /></label><label>{t("Hop (s)")}<input type="number" min="0.1" max="10" step="0.1" value={draft.hopSeconds} onChange={event => setDraft({ ...draft, hopSeconds: +event.target.value })} /></label></div>
+            <label>{t("Prompt aggregation")}<select value={draft.aggregation} onChange={event => setDraft({ ...draft, aggregation: event.target.value as "mean" | "max" })}><option value="mean">{t("Mean")}</option><option value="max">{t("Maximum")}</option></select></label>
+            <label>{t("Provider")}<select value={draft.providerId} onChange={event => setDraft({ ...draft, providerId: event.target.value })}><option value="">{t("Auto")}</option><option value="laion_clap_music_htsat_base">LAION-CLAP</option><option value="muq_mulan_large">MuQ-MuLan</option><option value="mock">{t("Mock (test)")}</option></select></label>
+            <button onClick={() => apply(true)}>{t("Analyze curve")}</button>
         </div>} />;
-    const monitorContent = <div className="default-layout clap-curve-monitor"><div><span>Keyword</span><strong>{moduleState.keyword}</strong></div><div><span>Provider</span><strong>{result?.providerName || "—"}</strong></div><div><span>Samples</span><strong>{result?.points.length ?? "—"}</strong></div><div><span>Cache</span><strong>{result ? (result.cached ? "Hit" : "Miss") : "—"}</strong></div>{cursorInfo ? <div><span>Similarity</span><strong>{typeof cursorInfo.value === "number" ? cursorInfo.value.toFixed(4) : "—"}</strong></div> : null}</div>;
+    const monitorContent = <div className="default-layout clap-curve-monitor"><div><span>{t("Keyword")}</span><strong>{moduleState.keyword}</strong></div><div><span>{t("Provider")}</span><strong>{result?.providerName || "—"}</strong></div><div><span>{t("Samples")}</span><strong>{result?.points.length ?? "—"}</strong></div><div><span>{t("Cache")}</span><strong>{result ? t(result.cached ? "Hit" : "Miss") : "—"}</strong></div>{cursorInfo ? <div><span>{t("Similarity")}</span><strong>{typeof cursorInfo.value === "number" ? cursorInfo.value.toFixed(4) : "—"}</strong></div> : null}</div>;
     return <ModuleUsingCanvas {...props} {...{ calculating, defaultVerticalOffset, verticalOffset, setVerticalOffset, defaultVerticalZoom, verticalZoom, setVerticalZoom, cursorX, cursorY, onCursor, paint, paintVerticalRuler, paintHorizontalRuler, configurationContent, monitorContent }} />;
 };
 

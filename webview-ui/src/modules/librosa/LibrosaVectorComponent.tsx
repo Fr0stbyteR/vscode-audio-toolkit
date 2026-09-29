@@ -6,6 +6,7 @@ import { setCanvasToFullSize } from "../../utils";
 import LibrosaConfiguration from "./LibrosaConfiguration";
 import LibrosaVectorModule from "./LibrosaVectorModule";
 import { formatCacheInfo } from "./LibrosaCacheInfo";
+import { useLocale } from "../../i18n/LocaleContext";
 
 function getTransform(module: LibrosaVectorModule<any>) {
     let min = Infinity;
@@ -26,6 +27,7 @@ function getTransform(module: LibrosaVectorModule<any>) {
 }
 
 const LibrosaVectorComponent: FunctionComponent<VisualizationOptions<LibrosaVectorModule<any>>> = props => {
+    const { locale, t } = useLocale();
     const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
     const initial = useMemo(() => getTransform(module), [module]);
     const [defaultVerticalZoom, setDefaultVerticalZoom] = useState(initial.zoom);
@@ -74,7 +76,7 @@ const LibrosaVectorComponent: FunctionComponent<VisualizationOptions<LibrosaVect
         setCursorX(info.x); setCursorY(info.y); setCursorInfo(info);
     }, [dataSlices, verticalOffset, verticalZoom, viewRange]);
     const configurationContent = <LibrosaConfiguration module={module} moduleState={moduleState} mode={props.configurationMode} />;
-    const monitorContent = <div className="default-layout"><div>{formatCacheInfo(cacheInfo)}</div>{cursorInfo ? <><div>{cursorInfo.fromIndex}–{cursorInfo.toIndex} samples</div><div>{typeof cursorInfo.value === "number" ? cursorInfo.value.toFixed(3) : cursorInfo.value.map(value => value.toFixed(3)).join(" – ")} {module.unit}</div></> : null}</div>;
+    const monitorContent = <div className="default-layout"><div>{formatCacheInfo(cacheInfo, locale)}</div>{cursorInfo ? <><div>{cursorInfo.fromIndex}–{cursorInfo.toIndex} {t("samples")}</div><div>{typeof cursorInfo.value === "number" ? cursorInfo.value.toFixed(3) : cursorInfo.value.map(value => value.toFixed(3)).join(" – ")} {module.unit}</div></> : null}</div>;
     return <ModuleUsingCanvas {...props} {...{ calculating, defaultVerticalOffset, verticalOffset, setVerticalOffset, defaultVerticalZoom, verticalZoom, setVerticalZoom, cursorX, cursorY, onCursor, paint, paintVerticalRuler, paintHorizontalRuler, configurationContent, monitorContent }} />;
 };
 

@@ -1,14 +1,15 @@
 import { AudioAnalysisCacheInfo } from "../../../../src/web/proxies/VSCodeAudioEditor.types";
+import { Locale, translate } from "../../i18n/LocaleContext";
 
-export function formatCacheInfo(info: AudioAnalysisCacheInfo | undefined) {
-    if (!info) return "Analysis not cached yet";
-    const timestamp = info.createdAt ? new Date(info.createdAt).toLocaleString() : "";
+export function formatCacheInfo(info: AudioAnalysisCacheInfo | undefined, locale: Locale = "en") {
+    if (!info) return translate(locale, "Analysis not cached yet");
+    const timestamp = info.createdAt ? new Date(info.createdAt).toLocaleString(locale === "zh" ? "zh-CN" : "en-US") : "";
     switch (info.status) {
-        case "hit": return `Loaded from analysis cache${timestamp ? ` · ${timestamp}` : ""}`;
-        case "miss": return "Analyzed now · saved to cache";
-        case "refresh": return "Reanalyzed · cache updated";
-        case "disabled": return "Analysis cache disabled";
-        case "unavailable": return "Analyzed now · cache unavailable";
+        case "hit": return `${translate(locale, "Loaded from analysis cache")}${timestamp ? ` · ${timestamp}` : ""}`;
+        case "miss": return translate(locale, "Analyzed now · saved to cache");
+        case "refresh": return translate(locale, "Reanalyzed · cache updated");
+        case "disabled": return translate(locale, "Analysis cache disabled");
+        case "unavailable": return translate(locale, "Analyzed now · cache unavailable");
     }
 }
 

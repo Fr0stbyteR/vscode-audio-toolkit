@@ -4,7 +4,7 @@ import { activate as activateShared, deactivate } from "../web/extension";
 import LibrosaAnalysisService from "./LibrosaAnalysisService";
 
 export function activate(context: vscode.ExtensionContext) {
-    const analysisService = new LibrosaAnalysisService(context.extensionUri, context.globalStorageUri);
+    const analysisService = new LibrosaAnalysisService(context.globalStorageUri);
     MainEditorProvider.setAnalysisService(analysisService);
     context.subscriptions.push(vscode.commands.registerCommand("audioToolkit.clearAnalysisCache", async () => {
         try {

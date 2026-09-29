@@ -98,12 +98,19 @@
           "default": 16,
           "description": "Measure division information used when audioUnit == measure"
         },
-        "audioToolkit.pythonPath": {
-          "title": "Python Executable",
+        "audioToolkit.backendUrl": {
+          "title": "Music Analysis Backend URL",
+          "type": "string",
+          "default": "http://127.0.0.1:49321/",
+          "scope": "machine",
+          "description": "URL of music-embedding-analysis, which provides librosa and embedding analysis. The desktop editor asks before uploading each audio file."
+        },
+        "audioToolkit.backendToken": {
+          "title": "Music Analysis Backend Token",
           "type": "string",
           "default": "",
           "scope": "machine",
-          "description": "Python executable used by the desktop librosa analysis backend. Leave empty to auto-detect Python."
+          "description": "Bearer token for music-embedding-analysis. Settings storage is not a secret vault; leave blank if the service does not require a token."
         },
         "audioToolkit.analysisCache.enabled": {
           "title": "Analysis Cache: Enabled",

@@ -4,12 +4,14 @@ import { AudioEditorContext } from "./contexts";
 import AudioEditor, { AudioEditorConfiguration, AudioEditorState } from "../core/AudioEditor";
 import { VSCodeButton, VSCodeDropdown, VSCodeOption } from "@vscode/webview-ui-toolkit/react";
 import TimeInput from "./TimeInput";
+import { useLocale } from "../i18n/LocaleContext";
 
 interface Props extends Pick<AudioEditorState, "playing" | "playhead" | "loop"> {
     configuration: AudioEditorConfiguration;
 }
 
 const AudioEditorControls: FunctionComponent<Props> = ({ playhead, playing, loop, configuration }) => {
+    const { t } = useLocale();
     const audioEditor = useContext(AudioEditorContext)!;
     const handlePlayheadChanged = (playhead: number) => audioEditor.setPlayhead(playhead);
     const [playheadBeforePlay, setPlayheadBeforePlay] = useState(playhead);
@@ -46,25 +48,25 @@ const AudioEditorControls: FunctionComponent<Props> = ({ playhead, playing, loop
         <div className="editor-main-controls">
             <span className="editor-main-player-controls-container">
                 <span className="editor-main-player-controls">
-                    <VSCodeButton tabIndex={-1} title="Stop" disabled={playing === "stopped"} appearance="icon" onClick={handleClickStop}>
+                    <VSCodeButton tabIndex={-1} title={t("Stop")} disabled={playing === "stopped"} appearance="icon" onClick={handleClickStop}>
                         <span className="codicon codicon-debug-stop"></span>
                     </VSCodeButton>
-                    <VSCodeButton tabIndex={-1} title="Play" appearance="icon" onClick={handleClickPlay}>
+                    <VSCodeButton tabIndex={-1} title={t("Play")} appearance="icon" onClick={handleClickPlay}>
                         <span className="codicon codicon-play"></span>
                     </VSCodeButton>
-                    <VSCodeButton tabIndex={-1} title="Pause" appearance="icon" disabled={playing === "stopped"} onClick={handleClickPause}>
+                    <VSCodeButton tabIndex={-1} title={t("Pause")} appearance="icon" disabled={playing === "stopped"} onClick={handleClickPause}>
                         {playing === "paused" ? <span className="codicon codicon-debug-continue-small"></span> : <span className="codicon codicon-debug-pause"></span>}
                     </VSCodeButton>
-                    <VSCodeButton tabIndex={-1} title="Loop" appearance="icon" className={loop ? "active" : ""} onClick={handleClickLoop}>
+                    <VSCodeButton tabIndex={-1} title={t("Loop")} appearance="icon" className={loop ? "active" : ""} onClick={handleClickLoop}>
                         <span className="codicon codicon-refresh"></span>
                     </VSCodeButton>
                 </span>
             </span>
             <span className="editor-add-component">
                 <VSCodeDropdown className="editor-add-component-dropdown" value="none" onInput={handleAddModuleInput}>
-                    <VSCodeOption value="none">Add a Module</VSCodeOption>
+                    <VSCodeOption value="none">{t("Add a Module")}</VSCodeOption>
                     {
-                        Object.keys(AudioEditor.MODULES_MAP).map(moduleId => <VSCodeOption key={moduleId} value={moduleId}>{AudioEditor.MODULES_MAP[moduleId].MODULE_NAME}</VSCodeOption>)
+                        Object.keys(AudioEditor.MODULES_MAP).map(moduleId => <VSCodeOption key={moduleId} value={moduleId}>{t(AudioEditor.MODULES_MAP[moduleId].MODULE_NAME)}</VSCodeOption>)
                     }
                 </VSCodeDropdown>
             </span>

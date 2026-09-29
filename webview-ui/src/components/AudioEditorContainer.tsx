@@ -6,12 +6,15 @@ import AudioEditorControls from "./AudioEditorControls";
 import AudioEditorMonitor from "./AudioEditorMonitor";
 import { AudioEditorContext } from "./contexts";
 import { AudioToolkitModulesState } from "../core/AudioToolkitModule";
+import AnnotationPanel from "../annotations/AnnotationPanel";
+import { useLocale } from "../i18n/LocaleContext";
 
 interface Props {
     standalone?: boolean;
 }
 
 const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
+    const { t } = useLocale();
     const audioEditor = useContext(AudioEditorContext)!;
     const [playhead, setPlayhead] = useState(audioEditor.state.playhead);
     const [viewRange, setViewRange] = useState(audioEditor.state.viewRange);
@@ -113,10 +116,11 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
             </div>
             <div className="audio-editor-right-container">
                 {hasInspector ? <>
-                    <header className="inspector-header"><span>INSPECTOR</span><strong>{modulesState[activeLayerIndex]?.moduleName ?? "Select a layer"}</strong></header>
-                    <section className="inspector-section"><h3><span className="codicon codicon-info" /> Data</h3><div id="inspector-data" /></section>
-                    <section className="inspector-section"><h3><span className="codicon codicon-beaker" /> Analysis</h3><div id="inspector-analysis" /></section>
-                    <section className="inspector-section"><h3><span className="codicon codicon-paintcan" /> Appearance</h3><div id="inspector-appearance" /></section>
+                    <header className="inspector-header"><span>{t("INSPECTOR")}</span><strong>{t(modulesState[activeLayerIndex]?.moduleName ?? "Select a layer")}</strong></header>
+                    <section className="inspector-section"><h3><span className="codicon codicon-info" /> {t("Data")}</h3><div id="inspector-data" /></section>
+                    <section className="inspector-section inspector-annotations"><AnnotationPanel /></section>
+                    <section className="inspector-section"><h3><span className="codicon codicon-beaker" /> {t("Analysis")}</h3><div id="inspector-analysis" /></section>
+                    <section className="inspector-section"><h3><span className="codicon codicon-paintcan" /> {t("Appearance")}</h3><div id="inspector-appearance" /></section>
                     <div id="inspector-config-root" hidden />
                 </> : null}
             </div>

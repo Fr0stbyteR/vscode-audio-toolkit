@@ -1,10 +1,12 @@
 import { SemanticCurveRequest, SemanticCurveResult, SemanticDescriptionRequest, SemanticDescriptionResult } from "../core/AudioEditor";
-import { BackendSettings } from "./BackendClient";
+import { AudioAnalysisRequest, AudioAnalysisResult } from "../../../src/web/proxies/VSCodeAudioEditor.types";
+
+export interface BackendSettings { baseUrl: string; token: string; }
 
 interface InteractiveAsset { id: string; }
 
 export default class MusicAnalysisClient {
-    private readonly assets = new Map<string, Promise<InteractiveAsset>>();
+    private readonly assets = new WeakMap<File, Promise<InteractiveAsset>>();
     private readonly descriptions = new Map<string, Promise<SemanticDescriptionResult>>();
     private readonly curves = new Map<string, Promise<SemanticCurveResult>>();
 
@@ -26,11 +28,8 @@ export default class MusicAnalysisClient {
         return response.json() as Promise<{ providers: Array<{ loaded: boolean; supportsTextEmbeddings: boolean }> }>;
     }
 
-    private fileKey(file: File) { return `${file.name}:${file.size}:${file.lastModified}`; }
-
     upload(file: File) {
-        const key = this.fileKey(file);
-        const existing = this.assets.get(key);
+        const existing = this.assets.get(file);
         if (existing) return existing;
         const promise = (async () => {
             const response = await fetch(this.url("v1/interactive-assets"), {
@@ -44,8 +43,8 @@ export default class MusicAnalysisClient {
             if (!response.ok) throw new Error(await this.readError(response));
             return response.json() as Promise<InteractiveAsset>;
         })();
-        this.assets.set(key, promise);
-        promise.catch(() => this.assets.delete(key));
+        this.assets.set(file, promise);
+        promise.catch(() => this.assets.delete(file));
         return promise;
     }
 
@@ -64,7 +63,7 @@ export default class MusicAnalysisClient {
             // The service keeps the interactive asset registry in memory. A backend
             // restart should recover transparently instead of leaving the module stale.
             if (response.status === 404) {
-                this.assets.delete(this.fileKey(file));
+                this.assets.delete(file);
                 asset = await this.upload(file);
                 response = await send(asset.id);
             }
@@ -74,6 +73,23 @@ export default class MusicAnalysisClient {
         this.descriptions.set(key, promise);
         promise.catch(() => this.descriptions.delete(key));
         return promise;
+    }
+
+    async analyze(file: File, request: AudioAnalysisRequest): Promise<AudioAnalysisResult> {
+        let asset = await this.upload(file);
+        const send = (assetId: string) => fetch(this.url(`v1/interactive-assets/${encodeURIComponent(assetId)}:librosa`), {
+            method: "POST",
+            headers: this.headers({ "Content-Type": "application/json" }),
+            body: JSON.stringify(request)
+        });
+        let response = await send(asset.id);
+        if (response.status === 404) {
+            this.assets.delete(file);
+            asset = await this.upload(file);
+            response = await send(asset.id);
+        }
+        if (!response.ok) throw new Error(await this.readError(response));
+        return response.json() as Promise<AudioAnalysisResult>;
     }
 
     async relevanceCurve(file: File, request: SemanticCurveRequest): Promise<SemanticCurveResult> {
@@ -91,7 +107,7 @@ export default class MusicAnalysisClient {
             });
             let response = await send(asset.id);
             if (response.status === 404) {
-                this.assets.delete(this.fileKey(file));
+                this.assets.delete(file);
                 asset = await this.upload(file);
                 response = await send(asset.id);
             }

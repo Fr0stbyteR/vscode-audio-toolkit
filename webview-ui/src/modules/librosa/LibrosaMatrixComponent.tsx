@@ -8,8 +8,10 @@ import LibrosaConfiguration from "./LibrosaConfiguration";
 import LibrosaMatrixModule from "./LibrosaMatrixModule";
 import MatrixWebGLRenderer from "../../core/MatrixWebGLRenderer";
 import { formatCacheInfo } from "./LibrosaCacheInfo";
+import { useLocale } from "../../i18n/LocaleContext";
 
 const LibrosaMatrixComponent: FunctionComponent<VisualizationOptions<LibrosaMatrixModule<any>>> = props => {
+    const { locale, t } = useLocale();
     const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
     const defaultVerticalZoom = 1;
     const defaultVerticalOffset = 0;
@@ -42,13 +44,13 @@ const LibrosaMatrixComponent: FunctionComponent<VisualizationOptions<LibrosaMatr
             try {
                 const stats = MatrixWebGLRenderer.forCanvas(canvas)?.paint(ctx, dataSlices[0], width, height, viewRange, verticalZoom, verticalOffset, displayRange, colorMap);
                 if (stats) {
-                    setRenderInfo(`WebGL 2 · upload ${stats.uploadMs.toFixed(2)} ms · draw ${stats.drawMs.toFixed(2)} ms`);
+                    setRenderInfo(`WebGL 2 · ${t("upload")} ${stats.uploadMs.toFixed(2)} ms · ${t("draw")} ${stats.drawMs.toFixed(2)} ms`);
                     return;
                 }
             } catch (error) {
                 console.error("Matrix WebGL rendering failed; falling back to Canvas 2D.", error);
             }
-            setRenderInfo("WebGL unavailable or failed · Canvas 2D fallback");
+            setRenderInfo(t("WebGL unavailable or failed · Canvas 2D fallback"));
         }
         try {
             const started = performance.now();
@@ -57,9 +59,9 @@ const LibrosaMatrixComponent: FunctionComponent<VisualizationOptions<LibrosaMatr
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             console.error("Matrix Canvas 2D rendering failed.", error);
-            setRenderInfo(`Render failed: ${message}`);
+            setRenderInfo(`${t("Render failed:")} ${message}`);
         }
-    }, [colorMap, configuration.matrixRenderer, dataSlices, displayRange, verticalOffset, verticalZoom, viewRange]);
+    }, [colorMap, configuration.matrixRenderer, dataSlices, displayRange, verticalOffset, verticalZoom, viewRange, t]);
     const paintVerticalRuler = useCallback((ref: React.RefObject<HTMLCanvasElement>) => {
         const canvas = ref.current; const ctx = canvas?.getContext("2d"); if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
@@ -80,7 +82,7 @@ const LibrosaMatrixComponent: FunctionComponent<VisualizationOptions<LibrosaMatr
         setCursorX(info.x); setCursorY(info.y); setCursorInfo(info);
     }, [dataSlices, verticalOffset, verticalZoom, viewRange]);
     const configurationContent = <LibrosaConfiguration module={module} moduleState={moduleState} mode={props.configurationMode} />;
-    const monitorContent = <div className="default-layout"><div>{formatCacheInfo(cacheInfo)}</div><div>{renderInfo}</div>{cursorInfo ? <><div>{cursorInfo.fromIndex}–{cursorInfo.toIndex} samples</div><div>Bin {cursorInfo.fromBin}–{cursorInfo.toBin}</div><div>{cursorInfo.value.toFixed(3)} {module.unit}</div></> : null}</div>;
+    const monitorContent = <div className="default-layout"><div>{formatCacheInfo(cacheInfo, locale)}</div><div>{t(renderInfo)}</div>{cursorInfo ? <><div>{cursorInfo.fromIndex}–{cursorInfo.toIndex} {t("samples")}</div><div>{t("Bin")} {cursorInfo.fromBin}–{cursorInfo.toBin}</div><div>{cursorInfo.value.toFixed(3)} {module.unit}</div></> : null}</div>;
     return <ModuleUsingCanvas {...props} {...{ calculating, defaultVerticalOffset, verticalOffset, setVerticalOffset, defaultVerticalZoom, verticalZoom, setVerticalZoom, cursorX, cursorY, onCursor, paint, paintVerticalRuler, paintHorizontalRuler, configurationContent, monitorContent }} foregroundOpacity={moduleState.opacity ?? 1} />;
 };
 

@@ -4,8 +4,7 @@ import AudioEditor from "../core/AudioEditor";
 import AudioEditorContainer from "../components/AudioEditorContainer";
 import { AudioEditorContext } from "../components/contexts";
 import { AudioToolkitModulesState } from "../core/AudioToolkitModule";
-import BackendClient, { BackendSettings } from "./BackendClient";
-import MusicAnalysisClient from "./MusicAnalysisClient";
+import MusicAnalysisClient, { BackendSettings } from "./MusicAnalysisClient";
 import FileExplorer from "./FileExplorer";
 import { LocalAudioEntry } from "./types";
 import getLibrosaModules from "../modules/librosa";
@@ -13,11 +12,12 @@ import getMarkerModules from "../modules/marker";
 import getSpectrogramModules from "../modules/spectrogram";
 import getWaveformModules from "../modules/waveform";
 import getSemanticDescriptionModules from "../modules/semantic-description";
+import AnnotationProvider, { fingerprintAudio } from "./AnnotationProvider";
+import LocalReviewQueue from "./LocalReviewQueue";
+import { useLocale } from "../i18n/LocaleContext";
 import "../vscode.css";
 import "./standalone.css";
 
-const SETTINGS_KEY = "audioToolkit.web.backend";
-const TOKEN_KEY = "audioToolkit.web.token";
 const MODULES_KEY = "audioToolkit.web.modules";
 const MUSIC_SETTINGS_KEY = "audioToolkit.web.musicBackend";
 const MUSIC_TOKEN_KEY = "audioToolkit.web.musicToken";
@@ -28,28 +28,18 @@ async function registerModules() {
     groups.flat().forEach(Module => AudioEditor.MODULES_MAP[Module.MODULE_ID] = Module);
 }
 
-const defaultSettings: BackendSettings = {
-    baseUrl: import.meta.env.VITE_AUDIO_TOOLKIT_API || "http://127.0.0.1:8000/",
-    token: import.meta.env.VITE_AUDIO_TOOLKIT_TOKEN || ""
-};
-
 const defaultMusicSettings: BackendSettings = {
     baseUrl: import.meta.env.VITE_MUSIC_ANALYSIS_API || "http://127.0.0.1:49321/",
     token: import.meta.env.VITE_MUSIC_ANALYSIS_TOKEN || ""
 };
 
 const StandaloneApp: FunctionComponent = () => {
-    const [settings, setSettings] = useState<BackendSettings>(() => {
-        try { return { ...defaultSettings, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}"), token: localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || "" }; }
-        catch { return defaultSettings; }
-    });
-    const [draftSettings, setDraftSettings] = useState(settings);
+    const { locale, setLocale, t } = useLocale();
     const [musicSettings, setMusicSettings] = useState<BackendSettings>(() => {
-        try { return { ...defaultMusicSettings, ...JSON.parse(localStorage.getItem(MUSIC_SETTINGS_KEY) || "{}"), token: localStorage.getItem(MUSIC_TOKEN_KEY) || sessionStorage.getItem(MUSIC_TOKEN_KEY) || "" }; }
+        try { return { ...defaultMusicSettings, ...JSON.parse(localStorage.getItem(MUSIC_SETTINGS_KEY) || "{}"), token: localStorage.getItem(MUSIC_TOKEN_KEY) ?? sessionStorage.getItem(MUSIC_TOKEN_KEY) ?? defaultMusicSettings.token }; }
         catch { return defaultMusicSettings; }
     });
     const [draftMusicSettings, setDraftMusicSettings] = useState(musicSettings);
-    const client = useMemo(() => new BackendClient(settings), [settings]);
     const musicClient = useMemo(() => new MusicAnalysisClient(musicSettings), [musicSettings]);
     const [backendStatus, setBackendStatus] = useState<"checking" | "online" | "offline">("checking");
     const [musicBackendStatus, setMusicBackendStatus] = useState<"checking" | "online" | "idle" | "offline">("checking");
@@ -57,29 +47,26 @@ const StandaloneApp: FunctionComponent = () => {
     const [editor, setEditor] = useState<AudioEditor | null>(null);
     const editorRef = useRef<AudioEditor | null>(null);
     const [entry, setEntry] = useState<LocalAudioEntry>();
-    const [loading, setLoading] = useState("");
+    const [annotationAssetKey, setAnnotationAssetKey] = useState("");
+    const [openingAudio, setOpeningAudio] = useState(false);
     const [error, setError] = useState("");
 
     useEffect(() => {
-        if (settings.token) localStorage.setItem(TOKEN_KEY, settings.token);
         if (musicSettings.token) localStorage.setItem(MUSIC_TOKEN_KEY, musicSettings.token);
-    }, [musicSettings.token, settings.token]);
+    }, [musicSettings.token]);
 
     useEffect(() => {
         let active = true;
         setBackendStatus("checking");
-        client.health().then(() => active && setBackendStatus("online")).catch(() => active && setBackendStatus("offline"));
-        return () => { active = false; };
-    }, [client]);
-
-    useEffect(() => {
-        let active = true;
         setMusicBackendStatus("checking");
         musicClient.health().then(capabilities => {
             if (!active) return;
+            setBackendStatus("online");
             const loaded = capabilities.providers.some(provider => provider.loaded && provider.supportsTextEmbeddings);
             setMusicBackendStatus(loaded ? "online" : "idle");
-        }).catch(() => active && setMusicBackendStatus("offline"));
+        }).catch(() => {
+            if (active) { setBackendStatus("offline"); setMusicBackendStatus("offline"); }
+        });
         return () => { active = false; };
     }, [musicClient]);
 
@@ -89,7 +76,7 @@ const StandaloneApp: FunctionComponent = () => {
         if (!editor) return;
         const handleKeyDown = (event: KeyboardEvent) => {
             const target = event.composedPath()[0] as HTMLElement | undefined;
-            if (target?.matches?.("input, textarea, select, vscode-text-field, vscode-dropdown, [contenteditable=true]")) return;
+            if (target?.matches?.("input, textarea, select, button, vscode-button, vscode-text-field, vscode-dropdown, [contenteditable=true]")) return;
             const key = event.key.toLowerCase();
             if (event.code === "Space") {
                 event.preventDefault();
@@ -116,87 +103,85 @@ const StandaloneApp: FunctionComponent = () => {
 
     const openEntry = useCallback(async (nextEntry: LocalAudioEntry) => {
         setError("");
-        setLoading("Reading local audio");
+        setOpeningAudio(true);
+        let nextContext: AudioContext | undefined;
         try {
             const file = await nextEntry.getFile();
             const data = await file.arrayBuffer();
+            const assetKey = await fingerprintAudio(data);
             await registerModules();
             const previous = editorRef.current;
-            const context = new AudioContext({ latencyHint: "interactive" });
+            nextContext = new AudioContext({ latencyHint: "interactive" });
             let modulesState: AudioToolkitModulesState | undefined;
             try { modulesState = JSON.parse(localStorage.getItem(MODULES_KEY) || "null") || undefined; } catch { /* ignore corrupt UI state */ }
             const nextEditor = await AudioEditor.fromData(
                 data,
-                context,
+                nextContext,
                 {},
                 modulesState,
                 undefined,
                 undefined,
-                request => client.analyze(file, request, setLoading),
+                request => musicClient.analyze(file, request),
                 request => musicClient.describe(file, request),
                 request => musicClient.relevanceCurve(file, request)
             );
             nextEditor.on("modulesState", state => localStorage.setItem(MODULES_KEY, JSON.stringify(state)));
             editorRef.current = nextEditor;
             setEntry(nextEntry);
+            setAnnotationAssetKey(assetKey);
             setEditor(nextEditor);
-            setLoading("");
+            setOpeningAudio(false);
             if (previous) void previous.context.close();
         } catch (reason) {
-            setLoading("");
+            if (nextContext) void nextContext.close();
+            setOpeningAudio(false);
             setError(reason instanceof Error ? reason.message : String(reason));
         }
-    }, [client, musicClient]);
+    }, [musicClient]);
+
 
 
     const saveSettings = () => {
-        const normalized = { ...draftSettings, baseUrl: draftSettings.baseUrl.trim() || defaultSettings.baseUrl };
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ baseUrl: normalized.baseUrl }));
-        localStorage.setItem(TOKEN_KEY, normalized.token);
-        sessionStorage.removeItem(TOKEN_KEY);
         const normalizedMusic = { ...draftMusicSettings, baseUrl: draftMusicSettings.baseUrl.trim() || defaultMusicSettings.baseUrl };
         localStorage.setItem(MUSIC_SETTINGS_KEY, JSON.stringify({ baseUrl: normalizedMusic.baseUrl }));
         localStorage.setItem(MUSIC_TOKEN_KEY, normalizedMusic.token);
         sessionStorage.removeItem(MUSIC_TOKEN_KEY);
-        setSettings(normalized);
         setMusicSettings(normalizedMusic);
         setSettingsOpen(false);
     };
 
     return <div className="standalone-shell">
         <header className="app-header">
-            <div className="brand"><span className="brand-mark">AT</span><div><strong>Audio Toolkit</strong><small>Browser workspace</small></div></div>
-            <div className="current-file">{entry ? <><span>NOW INSPECTING</span><strong>{entry.name}</strong><small>{entry.path}</small></> : <span>Choose an audio file from the library</span>}</div>
-            <button className="backend-button" onClick={() => setSettingsOpen(value => !value)}>
+            <div className="brand"><span className="brand-mark">AT</span><div><strong>Audio Toolkit</strong><small>{t("Browser workspace")}</small></div></div>
+            <div className="current-file">{entry ? <><span>{t("NOW INSPECTING")}</span><strong>{entry.name}</strong><small>{entry.path}</small></> : <span>{t("Choose an audio file from the library")}</span>}</div>
+            <div className="app-header-actions"><div className="locale-switch" role="group" aria-label="Language / 语言"><button type="button" className={locale === "zh" ? "active" : ""} aria-pressed={locale === "zh"} onClick={() => setLocale("zh")}>中</button><button type="button" className={locale === "en" ? "active" : ""} aria-pressed={locale === "en"} onClick={() => setLocale("en")}>EN</button></div><button className="backend-button" onClick={() => setSettingsOpen(value => !value)}>
                 <span className={`status-dot ${backendStatus}`} />
-                {backendStatus === "online" ? "Audio ready" : backendStatus === "checking" ? "Checking audio" : "Audio offline"}
+                {t(backendStatus === "online" ? "Librosa ready" : backendStatus === "checking" ? "Checking service" : "Service offline")}
                 <span className={`status-dot ${musicBackendStatus}`} />
-                {musicBackendStatus === "online" ? "CLAP loaded" : musicBackendStatus === "idle" ? "Load CLAP" : musicBackendStatus === "checking" ? "Checking CLAP" : "CLAP offline"}
+                {t(musicBackendStatus === "online" ? "CLAP loaded" : musicBackendStatus === "idle" ? "Load CLAP" : musicBackendStatus === "checking" ? "Checking CLAP" : "CLAP offline")}
                 <span className="codicon codicon-settings-gear" />
-            </button>
+            </button></div>
         </header>
         {settingsOpen && <section className="backend-popover">
-            <strong>Librosa service</strong>
-            <label>API base URL<input value={draftSettings.baseUrl} onChange={event => setDraftSettings(value => ({ ...value, baseUrl: event.target.value }))} placeholder="https://analysis.example.com/" /></label>
-            <label>Bearer token <span>(saved in this browser)</span><input type="password" value={draftSettings.token} onChange={event => setDraftSettings(value => ({ ...value, token: event.target.value }))} /></label>
-            <strong>Music embedding service</strong>
-            <label>API base URL<input value={draftMusicSettings.baseUrl} onChange={event => setDraftMusicSettings(value => ({ ...value, baseUrl: event.target.value }))} placeholder="http://127.0.0.1:49321/" /></label>
-            <label>Bearer token <span>(saved in this browser)</span><input type="password" value={draftMusicSettings.token} onChange={event => setDraftMusicSettings(value => ({ ...value, token: event.target.value }))} /></label>
-            <div><button className="secondary" onClick={() => setSettingsOpen(false)}>Cancel</button><button onClick={saveSettings}>Connect</button></div>
+            <strong>{t("Music analysis service · librosa + CLAP")}</strong>
+            <label>{t("API base URL")}<input value={draftMusicSettings.baseUrl} onChange={event => setDraftMusicSettings(value => ({ ...value, baseUrl: event.target.value }))} placeholder="http://127.0.0.1:49321/" /></label>
+            <label>{t("Bearer token")} <span>{t("(saved in this browser)")}</span><input type="password" value={draftMusicSettings.token} onChange={event => setDraftMusicSettings(value => ({ ...value, token: event.target.value }))} /></label>
+            <div><button className="secondary" onClick={() => setSettingsOpen(false)}>{t("Cancel")}</button><button onClick={saveSettings}>{t("Connect")}</button></div>
         </section>}
         <aside className="workspace-sidebar">
             <FileExplorer activeId={entry?.id} onOpen={openEntry} />
+            <LocalReviewQueue />
             <div id="standalone-layers-host" />
         </aside>
         <main className="web-editor">
-            {error && <div className="banner error-text"><strong>Could not open audio</strong><span>{error}</span></div>}
-            {loading && <div className="loading-overlay"><span className="spinner" /><strong>{loading}</strong></div>}
-            {editor ? <AudioEditorContext.Provider value={editor}><AudioEditorContainer standalone key={`${entry?.id}:${editor.length}:${editor.sampleRate}`} /></AudioEditorContext.Provider> : <div className="welcome">
+            {error && <div className="banner error-text"><strong>{t("Could not open audio")}</strong><span>{error}</span></div>}
+            {openingAudio && <div className="loading-overlay"><span className="spinner" /><strong>{t("Reading local audio")}</strong></div>}
+            {editor && entry && annotationAssetKey ? <AudioEditorContext.Provider value={editor}><AnnotationProvider key={annotationAssetKey} assetKey={annotationAssetKey} fileName={entry.name} filePath={entry.path} editor={editor}><AudioEditorContainer standalone key={`${entry.id}:${editor.length}:${editor.sampleRate}`} /></AnnotationProvider></AudioEditorContext.Provider> : <div className="welcome">
                 <div className="welcome-wave">∿</div>
-                <span className="eyebrow">STANDALONE ANALYSIS WORKSPACE</span>
-                <h1>Open a folder.<br />Listen closer.</h1>
-                <p>目录留在浏览器。只有你选择分析的音频会发送到已配置的后端。</p>
-                <div className="privacy-flow"><span>Local folder</span><b>→</b><span>Selected file</span><b>→</b><span>Analysis API</span></div>
+                <span className="eyebrow">{t("STANDALONE ANALYSIS WORKSPACE")}</span>
+                <h1>{t("Open a folder.")}<br />{t("Listen closer.")}</h1>
+                <p>{t("Files remain in the browser. Only audio you choose to analyze is sent to the configured backend.")}</p>
+                <div className="privacy-flow"><span>{t("Local folder")}</span><b>→</b><span>{t("Selected file")}</span><b>→</b><span>{t("Analysis API")}</span></div>
             </div>}
         </main>
     </div>;

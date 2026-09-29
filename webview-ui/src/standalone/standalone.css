@@ -66,6 +66,11 @@ button { width: auto; border-radius: 4px; font: inherit; }
 .current-file { padding: 0 22px; }
 .current-file > span, .eyebrow { color: #71808c; font: 700 9px/1.6 var(--vscode-editor-font-family); letter-spacing: .13em; }
 .backend-button { height: 32px; margin-right: 14px; display: flex; align-items: center; gap: 8px; padding: 0 11px; color: #b9c3cd; background: #191e24; border: 1px solid #303841; }
+.app-header-actions { display: flex; align-items: center; gap: 10px; }
+.locale-switch { display: flex; padding: 2px; border: 1px solid #303841; border-radius: 5px; background: #191e24; }
+.locale-switch button { min-width: 29px; height: 24px; padding: 0 5px; border: 0; border-radius: 3px; background: transparent; color: #9da9b5; font-size: 11px; cursor: pointer; }
+.locale-switch button.active { color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
+.locale-switch button:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: 2px; }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #66717c; }
 .status-dot.online { background: #58d68d; box-shadow: 0 0 8px #58d68d88; }.status-dot.offline { background: #ef6c72; }.status-dot.checking, .status-dot.idle { background: #f5c76c; }
 .backend-popover { position: fixed; z-index: 20; right: 14px; top: 52px; width: min(420px, calc(100vw - 28px)); padding: 16px; border: 1px solid #37414b; border-radius: 8px; background: #181d23; box-shadow: 0 18px 50px #0009; }
@@ -86,7 +91,7 @@ button { width: auto; border-radius: 4px; font: inherit; }
 #standalone-layers-host .editor-layer.active { border-left-color: var(--vscode-focusBorder); background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
 #standalone-layers-host .editor-layer-main { display: flex; align-items: center; min-width: 0; min-height: 28px; }
 #standalone-layers-host .editor-layer-name { flex: 1 1 auto; min-width: 0; overflow: hidden; padding: 0 4px; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-#standalone-layers-host .codicon-gripper { color: var(--vscode-descriptionForeground); cursor: grab; }
+#standalone-layers-host .codicon-gripper { padding: 6px 3px; color: var(--vscode-descriptionForeground); cursor: grab; user-select: none; }
 #standalone-layers-host .editor-layer-opacity { display: flex; align-items: center; gap: 6px; padding: 1px 6px 4px 31px; color: var(--vscode-descriptionForeground); font-size: 11px; }
 #standalone-layers-host .editor-layer-opacity input { flex: 1; min-width: 0; height: 14px; accent-color: var(--vscode-focusBorder); }
 #standalone-layers-host .editor-layer-opacity output { width: 30px; text-align: right; font: 10px var(--vscode-editor-font-family); }

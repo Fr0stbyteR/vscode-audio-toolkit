@@ -1,4 +1,5 @@
 import "./AudioEditorMonitor.scss";
+import { useLocale } from "../i18n/LocaleContext";
 import { FunctionComponent, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AudioEditorContext } from "./contexts";
 import { VSCodeDataGrid, VSCodeDataGridCell, VSCodeDataGridRow } from "@vscode/webview-ui-toolkit/react";
@@ -18,6 +19,7 @@ const MIN_DB = -70;
 const MAX_DB = 6;
 
 const AudioEditorMonitor: FunctionComponent<Props> = ({ playhead, selRange, viewRange, gridRulerColor, gridColor, textColor, monospaceFont, configuration, windowSize }) => {
+    const { t } = useLocale();
     const audioEditor = useContext(AudioEditorContext)!;
     const [values, setValues] = useState<number[]>([]);
     const [maxValues, setMaxValues] = useState<number[]>([]);
@@ -185,16 +187,16 @@ const AudioEditorMonitor: FunctionComponent<Props> = ({ playhead, selRange, view
                 <VSCodeDataGrid>
                     <VSCodeDataGridRow rowType={DataGridRowTypes.header}>
                         <VSCodeDataGridCell cell-type="columnheader" grid-column="1"></VSCodeDataGridCell>
-                        <VSCodeDataGridCell cell-type="columnheader" grid-column="2">Start</VSCodeDataGridCell>
-                        <VSCodeDataGridCell cell-type="columnheader" grid-column="3">End</VSCodeDataGridCell>
-                        <VSCodeDataGridCell cell-type="columnheader" grid-column="4">Duration</VSCodeDataGridCell>
+                        <VSCodeDataGridCell cell-type="columnheader" grid-column="2">{t("Start")}</VSCodeDataGridCell>
+                        <VSCodeDataGridCell cell-type="columnheader" grid-column="3">{t("End")}</VSCodeDataGridCell>
+                        <VSCodeDataGridCell cell-type="columnheader" grid-column="4">{t("Duration")}</VSCodeDataGridCell>
                     </VSCodeDataGridRow>
                     <VSCodeDataGridRow>
-                        <VSCodeDataGridCell grid-column="1">Selection</VSCodeDataGridCell>
+                        <VSCodeDataGridCell grid-column="1">{t("Selection")}</VSCodeDataGridCell>
                         {selRowSamples.map((s, i) => (<VSCodeDataGridCell key={`selection-${i}`} grid-column={`${i + 2}`}><TimeInput samples={s} sampleRate={sampleRate} {...configuration} onChange={selRowOnChanges[i]} /></VSCodeDataGridCell>))}
                     </VSCodeDataGridRow>
                     <VSCodeDataGridRow>
-                        <VSCodeDataGridCell grid-column="1">View</VSCodeDataGridCell>
+                        <VSCodeDataGridCell grid-column="1">{t("View")}</VSCodeDataGridCell>
                         {viewRowSamples.map((s, i) => (<VSCodeDataGridCell key={`view-${i}`} grid-column={`${i + 2}`}><TimeInput samples={s} sampleRate={sampleRate} {...configuration} onChange={viewRowOnChanges[i]} /></VSCodeDataGridCell>))}
                     </VSCodeDataGridRow>
                 </VSCodeDataGrid>

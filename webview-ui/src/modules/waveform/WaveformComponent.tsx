@@ -8,8 +8,10 @@ import Waveform from "./Waveform";
 import VectorImageProcessor, { VectorCursorInfo } from "../../core/VectorImageProcessor";
 import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
 import ConfigurationSections from "../../components/ConfigurationSections";
+import { useLocale } from "../../i18n/LocaleContext";
 
 const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (props) => {
+    const { t } = useLocale();
     const { module, viewRange, enabledChannels, phosphorColor, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
     const audioEditor = useContext(AudioEditorContext)!;
     const defaultVerticalOffset = 0;
@@ -73,7 +75,7 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (pr
             {
                 enabledChannels.map((enabled, i) => (
                     <div key={i}>
-                        <VSCodeButton aria-label={`Enable / Disable Channel ${i + 1}`} title={`Enable / Disable Channel ${i + 1}`} tabIndex={-1} className={enabled ? "active" : ""} appearance="icon" onClick={() => audioEditor.setEnabledChannel(i, !enabledChannels[i])}>
+                        <VSCodeButton aria-label={`${t("Enable / Disable Channel")} ${i + 1}`} title={`${t("Enable / Disable Channel")} ${i + 1}`} tabIndex={-1} className={enabled ? "active" : ""} appearance="icon" onClick={() => audioEditor.setEnabledChannel(i, !enabledChannels[i])}>
                             <span>{i + 1}</span>
                         </VSCodeButton>
                     </div>
@@ -83,11 +85,11 @@ const WaveformComponent: FunctionComponent<VisualizationOptions<Waveform>> = (pr
     } /></div>;
     const monitorContent = cursorInfo ? (
         <div className="default-layout">
-            <div>Sample index:</div>
-            <div>{cursorInfo.fromIndex} to {cursorInfo.toIndex}</div>
-            <div>Channel: {cursorInfo.channel + 1}</div>
-            <div style={{ color: phosphorColor }}>Value:</div>
-            <div style={{ color: phosphorColor }}>{typeof cursorInfo.value === "number" ? cursorInfo.value.toFixed(3) : cursorInfo.value.map(v => v.toFixed(3)).join(" to ")}</div>
+            <div>{t("Sample index:")}</div>
+            <div>{cursorInfo.fromIndex} {t("to")} {cursorInfo.toIndex}</div>
+            <div>{t("Channel:")} {cursorInfo.channel + 1}</div>
+            <div style={{ color: phosphorColor }}>{t("Value:")}</div>
+            <div style={{ color: phosphorColor }}>{typeof cursorInfo.value === "number" ? cursorInfo.value.toFixed(3) : cursorInfo.value.map(v => v.toFixed(3)).join(` ${t("to")} `)}</div>
         </div>
     ) : undefined;
     const moduleUsingCanvasProps = {

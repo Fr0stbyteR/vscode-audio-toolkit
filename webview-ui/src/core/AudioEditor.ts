@@ -7,6 +7,7 @@ import { AudioToolkitModule, AudioToolkitModuleState, FrequencyDomainChannelData
 import Spectrogram from "../modules/spectrogram/Spectrogram";
 import Waveform from "../modules/waveform/Waveform";
 import { AudioAnalysisRequest, AudioAnalysisResult } from "../../../src/web/proxies/VSCodeAudioEditor.types";
+import { decodeAiffPcm, isAiffFile } from "./decodeAiffPcm";
 
 export interface SemanticDescriptionRequest {
     startSeconds: number;
@@ -143,7 +144,14 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         if (!Object.keys(this.MODULES_MAP).length) {
             await this.loadModulesFromJson("./modules.json", import.meta.url);
         }
-        const audioBuffer = await context.decodeAudioData(data);
+        let audioBuffer: AudioBuffer;
+        if (isAiffFile(data)) {
+            const decoded = decodeAiffPcm(data);
+            audioBuffer = context.createBuffer(decoded.channelData.length, decoded.channelData[0].length, decoded.sampleRate);
+            decoded.channelData.forEach((channel, index) => audioBuffer.copyToChannel(channel, index));
+        } else {
+            audioBuffer = await context.decodeAudioData(data);
+        }
         const operableAudioBuffer: OperableAudioBuffer = Object.setPrototypeOf(audioBuffer, OperableAudioBuffer.prototype);
         const timeDomainData = operableAudioBuffer.toArray(true);
         const audioEditor = new AudioEditor(operableAudioBuffer, timeDomainData, context, { ...this.DEFAULT_CONFIGURATION, ...configuration }, uri, workspaceUri, analyze, describeSemantics, analyzeSemanticCurve);

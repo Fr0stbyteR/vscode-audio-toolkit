@@ -3,8 +3,10 @@ import { useEffect, useState } from "react";
 import ModuleConfigurationContent from "../../components/ModuleConfigurationContent";
 import ConfigurationSections from "../../components/ConfigurationSections";
 import LibrosaAnalysisModule, { LibrosaVisualizationState } from "./LibrosaAnalysisModule";
+import { useLocale } from "../../i18n/LocaleContext";
 
 export default function LibrosaConfiguration<State extends LibrosaVisualizationState>({ module, moduleState, mode }: { module: LibrosaAnalysisModule<State>; moduleState: State; mode: "analysis" | "appearance" | "both" }) {
+    const { t } = useLocale();
     const [draft, setDraft] = useState(module.getAnalysisState(moduleState));
     useEffect(() => setDraft(module.getAnalysisState(moduleState)), [module, moduleState]);
     const analysisKeys = Object.keys(draft);
@@ -14,7 +16,7 @@ export default function LibrosaConfiguration<State extends LibrosaVisualizationS
         <ConfigurationSections mode={mode} analysis={<>
             <ModuleConfigurationContent moduleId={module.moduleId} moduleState={draft} setModuleState={setDraft} optionsMetadata={metadata} wrap={false} />
             <div className="analysis-actions">
-                <VSCodeButton appearance="primary" title="Run librosa again and replace the cached result" onClick={() => module.setState({ ...moduleState, ...draft }, true)}>Reanalyze</VSCodeButton>
+                <VSCodeButton appearance="primary" title={t("Run librosa again and replace the cached result")} onClick={() => module.setState({ ...moduleState, ...draft }, true)}>{t("Reanalyze")}</VSCodeButton>
             </div>
         </>} appearance={<ModuleConfigurationContent moduleId={module.moduleId} moduleState={moduleState} keys={displayKeys} setModuleState={state => module.setState(state)} optionsMetadata={metadata} wrap={false} />} />
     </div>;

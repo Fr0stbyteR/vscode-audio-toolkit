@@ -20,7 +20,7 @@
         pointer-events: none;
 
         .semantic-description-area { pointer-events: none; }
-        .semantic-result { pointer-events: auto; }
+        .semantic-result, .semantic-save-suggestion { pointer-events: auto; }
     }
 }
 
@@ -64,6 +64,10 @@
     font-size: 11px;
     line-height: 1.25;
 }
+
+.semantic-result-entry { display: inline-flex; align-items: center; min-width: 0; gap: 1px; }
+.semantic-save-suggestion { flex: 0 0 auto; opacity: .75; }
+.semantic-result-entry:hover .semantic-save-suggestion, .semantic-save-suggestion:focus-within { opacity: 1; }
 
 .semantic-family-raw {
     margin-top: 8px;
