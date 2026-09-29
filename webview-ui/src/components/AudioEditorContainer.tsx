@@ -6,7 +6,6 @@ import AudioEditorControls from "./AudioEditorControls";
 import AudioEditorMonitor from "./AudioEditorMonitor";
 import { AudioEditorContext } from "./contexts";
 import { AudioToolkitModulesState } from "../core/AudioToolkitModule";
-import AnnotationPanel from "../annotations/AnnotationPanel";
 import { useLocale } from "../i18n/LocaleContext";
 
 interface Props {
@@ -118,7 +117,6 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
                 {hasInspector ? <>
                     <header className="inspector-header"><span>{t("INSPECTOR")}</span><strong>{t(modulesState[activeLayerIndex]?.moduleName ?? "Select a layer")}</strong></header>
                     <section className="inspector-section"><h3><span className="codicon codicon-info" /> {t("Data")}</h3><div id="inspector-data" /></section>
-                    <section className="inspector-section inspector-annotations"><AnnotationPanel /></section>
                     <section className="inspector-section"><h3><span className="codicon codicon-beaker" /> {t("Analysis")}</h3><div id="inspector-analysis" /></section>
                     <section className="inspector-section"><h3><span className="codicon codicon-paintcan" /> {t("Appearance")}</h3><div id="inspector-appearance" /></section>
                     <div id="inspector-config-root" hidden />

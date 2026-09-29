@@ -30,8 +30,6 @@ Set `audioToolkit.matrixRenderer` to `auto`, `webgl`, or `canvas2d` to compare m
 
 Use the **Run Desktop Extension** launch configuration when testing desktop librosa modules. **Run Web Extension** supports waveform/spectrogram editing, but backend analysis is available through the standalone browser app instead.
 
-The standalone web app now includes a local-first annotation review panel. It supports manual interval labels, saving CLAP matches as suggestions, human confirmation/rejection, a timeline track, and browser persistence with JSON import/export. See [Interactive music annotation workflow](docs/annotation-workflow.md) for the current limitations and the multi-model accuracy plan.
-
 ## Requirements
 
 Waveform and spectrogram need no Python installation. Librosa and CLAP modules

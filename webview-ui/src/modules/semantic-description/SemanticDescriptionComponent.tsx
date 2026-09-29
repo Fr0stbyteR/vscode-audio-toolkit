@@ -1,4 +1,4 @@
-import { FunctionComponent, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import ConfigurationSections from "../../components/ConfigurationSections";
@@ -6,7 +6,6 @@ import { SemanticDescriptionResult } from "../../core/AudioEditor";
 import { VisualizationOptions } from "../../core/AudioToolkitModule";
 import SemanticDescription, { SemanticDescriptionState } from "./SemanticDescription";
 import ClapRelevanceCurve from "./ClapRelevanceCurve";
-import { AnnotationContext } from "../../annotations/AnnotationContext";
 import "./SemanticDescriptionComponent.scss";
 import { useLocale } from "../../i18n/LocaleContext";
 
@@ -37,12 +36,10 @@ const SemanticDescriptionComponent: FunctionComponent<VisualizationOptions<Seman
     const { t } = useLocale();
     const { module, moduleState, playhead, selRange, configurationMode, overlayMode, activeLayer } = props;
     const [result, setResult] = useState<SemanticDescriptionResult>();
-    const [resultRange, setResultRange] = useState<{ start: number; end: number }>();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [manualRevision, setManualRevision] = useState(0);
     const requestRevision = useRef(0);
-    const annotationSession = useContext(AnnotationContext);
     const handledManualRevision = useRef(0);
     const sampleRate = module.audioEditor.sampleRate;
     const duration = module.audioEditor.duration;
@@ -78,7 +75,7 @@ const SemanticDescriptionComponent: FunctionComponent<VisualizationOptions<Seman
                     maximumResults: moduleState.maximumResults,
                     providerId: moduleState.providerId || undefined
                 });
-                if (revision === requestRevision.current) { setResult(next); setResultRange({ start: range.start, end: range.end }); }
+                if (revision === requestRevision.current) setResult(next);
             } catch (reason) {
                 if (revision === requestRevision.current) {
                     const message = reason instanceof Error ? reason.message : String(reason);
@@ -140,22 +137,22 @@ const SemanticDescriptionComponent: FunctionComponent<VisualizationOptions<Seman
                         <div className="semantic-groups">{groupByFamily([...result.descriptions, ...(result.rawMatches ?? [])]).map(({ family }) => <section className="semantic-family-group" key={family}>
                             <h4>{t(family)}</h4><div className="semantic-family-badges">{result.descriptions.filter(item => item.family === family).map(item => {
                             const relevance = (item.score - minScore) / Math.max(0.001, maxScore - minScore);
-                            return <div className="semantic-result-entry" key={item.labelId}><VSCodeButton appearance="secondary" className="semantic-result"
+                            return <VSCodeButton appearance="secondary" className="semantic-result" key={item.labelId}
                                 style={badgeStyle(item.family, relevance)}
                                 title={`${item.text} · ${t(item.family)} · ${t("similarity")} ${item.score.toFixed(3)} · ${t("Click to plot")}`}
                                 onClick={() => void plotRelevance(item.text, (result.rawMatches ?? []).filter(match => match.labelId === item.labelId).map(match => match.prompt))}>
                                 {item.text}
-                            </VSCodeButton>{annotationSession ? <VSCodeButton appearance="icon" className="semantic-save-suggestion" aria-label={`${t("Save as suggestion")}: ${item.text}`} title={`${t("Save for human review")}: ${item.text}`} disabled={!annotationSession.ready || !resultRange} onClick={() => annotationSession.addSuggestion({ startSeconds: resultRange!.start, endSeconds: resultRange!.end, family: item.family, label: item.text, labelId: item.labelId, providerId: result.providerId, score: item.score })}><span className="codicon codicon-add" /></VSCodeButton> : null}</div>;
+                            </VSCodeButton>;
                         })}</div>
                             {result.rawMatches?.some(item => item.family === family) ? <div className="semantic-family-raw">
                                 <span>{t("Raw prompt matches")}</span><div className="semantic-family-badges">{result.rawMatches.filter(item => item.family === family).map((item, index) => {
                                 const relevance = (item.cosineSimilarity - minRawScore) / Math.max(0.001, maxRawScore - minRawScore);
-                                return <div className="semantic-result-entry" key={`${item.labelId}:${item.prompt}:${index}`}><VSCodeButton appearance="secondary" className="semantic-result semantic-raw-badge"
+                                return <VSCodeButton appearance="secondary" className="semantic-result semantic-raw-badge" key={`${item.labelId}:${item.prompt}:${index}`}
                                     style={badgeStyle(item.family, relevance)}
                                     title={`${item.prompt} · ${t(item.family)} · ${t("similarity")} ${item.cosineSimilarity.toFixed(3)} · ${t("Click to plot")}`}
                                     onClick={() => void plotRelevance(item.prompt, [item.prompt])}>
                                     {item.prompt}
-                                </VSCodeButton>{annotationSession ? <VSCodeButton appearance="icon" className="semantic-save-suggestion" aria-label={`${t("Save as suggestion")}: ${item.prompt}`} title={t("Save this prompt match for human review")} disabled={!annotationSession.ready || !resultRange} onClick={() => annotationSession.addSuggestion({ startSeconds: resultRange!.start, endSeconds: resultRange!.end, family: item.family, label: item.prompt, labelId: item.labelId, providerId: result.providerId, score: item.score, prompt: item.prompt })}><span className="codicon codicon-add" /></VSCodeButton> : null}</div>;
+                                </VSCodeButton>;
                             })}</div></div> : null}
                         </section>)}</div>
                         {loading ? <span className="semantic-updating">{t("Updating…")}</span> : null}

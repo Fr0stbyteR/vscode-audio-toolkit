@@ -85,7 +85,6 @@
         }
 
         &.overlay-mode {
-            &.annotation-track-visible > .editor-main-visualizer-container { top: 77px; }
             & > .editor-main-divider {
                 display: none;
             }
@@ -207,7 +206,7 @@
         &:not(.overlay-mode) > .editor-main-visualizer-container.score-visualizer {
             z-index: 901;
         }
-        &.overlay-mode.score-active-layer > .editor-main-playhead-container > .editor-main-playhead {
+        &.overlay-mode.score-top-layer > .editor-main-playhead-container > .editor-main-playhead {
             display: none;
         }
         

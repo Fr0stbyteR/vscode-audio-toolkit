@@ -8,8 +8,6 @@ import { createPortal } from "react-dom";
 import { VisualizationStyleOptions, AudioToolkitModulesState } from "../core/AudioToolkitModule";
 import { getCssFromPosition, getRuler, setCanvasToFullSize } from "../utils";
 import ModuleErrorBoundary from "./ModuleErrorBoundary";
-import AnnotationTimeline from "../annotations/AnnotationTimeline";
-import { AnnotationContext } from "../annotations/AnnotationContext";
 import { useLocale } from "../i18n/LocaleContext";
 
 interface Props extends Pick<AudioEditorState, "playhead" | "selRange" | "viewRange" | "enabledChannels">, VisualizationStyleOptions {
@@ -31,7 +29,6 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
     const { t } = useLocale();
     const { playhead, viewRange, selRange, windowSize, gridRulerColor, textColor, labelFont, configuration: { audioUnit, beatsPerMeasure, beatsPerMinute, division }, configuring, monitoring, visualizersState, overlayMode, setOverlayMode, layersOpen, setLayersOpen, activeLayerIndex, setActiveLayerIndex } = props;
     const audioEditor = useContext(AudioEditorContext)!;
-    const annotationSession = useContext(AnnotationContext);
     const divSelRangeRef = useRef<HTMLDivElement>(null);
     const divVerticalRulerRef = useRef<HTMLDivElement>(null);
     const canvasVerticalRulerRef = useRef<HTMLCanvasElement>(null);
@@ -338,6 +335,8 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
             if (visualizersState[index].visible && hasCanvasAxis(index)) { axisLayerIndex = index; break; }
         }
     }
+    const topVisibleLayerIndex = overlayMode ? visualizersState.findLastIndex((layer, index) => index > 0 && !!layer.visible) : -1;
+    const scoreIsTopLayer = topVisibleLayerIndex > 0 && visualizersState[topVisibleLayerIndex].moduleId === "score.musicxml";
     const sidebarHost = document.getElementById("standalone-layers-host");
     const inlinePanels = !sidebarHost;
     const layersPanel = <div className={`editor-layers-panel${layersOpen ? "" : " collapsed"}`}>
@@ -367,7 +366,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
     return (
         <div className="editor-main">
             {sidebarHost ? createPortal(layersPanel, sidebarHost) : null}
-            <div className={`editor-main-flex${overlayMode ? " overlay-mode" : ""}${overlayMode && visualizersState[activeLayerIndex]?.visible && visualizersState[activeLayerIndex]?.moduleId === "score.musicxml" ? " score-active-layer" : ""}${annotationSession?.annotations.length ? " annotation-track-visible" : ""}`}>
+            <div className={`editor-main-flex${overlayMode ? " overlay-mode" : ""}${scoreIsTopLayer ? " score-top-layer" : ""}`}>
                 <div className={`editor-main-playhead-container${inlinePanels && configuring ? " configuring" : ""}${inlinePanels && monitoring ? " monitoring" : ""}`} hidden={playhead < viewStart || playhead > viewEnd}>
                     <div className="editor-main-playhead-handler" style={{ left: playheadLeft }} onMouseDown={handlePlayheadHandlerMouseDown} />
                     <div className="editor-main-playhead" style={{ left: playheadLeft }}></div>
@@ -380,7 +379,6 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                         <div className="resize-handler resize-handler-e" onMouseDown={handleResizeEndMouseDown} />
                     </div>
                 </div>
-                <AnnotationTimeline viewRange={viewRange} sampleRate={audioEditor.sampleRate} />
                 {layersOpen && !sidebarHost ? layersPanel : null}
                 <div className="editor-main-divider" />
                 {visualizersState.map(({ moduleName, visible, state }, i) => {

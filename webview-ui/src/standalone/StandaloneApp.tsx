@@ -13,8 +13,7 @@ import getSpectrogramModules from "../modules/spectrogram";
 import getWaveformModules from "../modules/waveform";
 import getSemanticDescriptionModules from "../modules/semantic-description";
 import getScoreModules from "../modules/score";
-import AnnotationProvider, { fingerprintAudio } from "./AnnotationProvider";
-import LocalReviewQueue from "./LocalReviewQueue";
+import { fingerprintAudio } from "./AudioFingerprint";
 import { useLocale } from "../i18n/LocaleContext";
 import "../vscode.css";
 import "./standalone.css";
@@ -48,7 +47,6 @@ const StandaloneApp: FunctionComponent = () => {
     const [editor, setEditor] = useState<AudioEditor | null>(null);
     const editorRef = useRef<AudioEditor | null>(null);
     const [entry, setEntry] = useState<LocalAudioEntry>();
-    const [annotationAssetKey, setAnnotationAssetKey] = useState("");
     const [openingAudio, setOpeningAudio] = useState(false);
     const [error, setError] = useState("");
     const audioFileInput = useRef<HTMLInputElement>(null);
@@ -130,7 +128,6 @@ const StandaloneApp: FunctionComponent = () => {
             nextEditor.on("modulesState", state => localStorage.setItem(MODULES_KEY, JSON.stringify(state)));
             editorRef.current = nextEditor;
             setEntry(nextEntry);
-            setAnnotationAssetKey(assetKey);
             setEditor(nextEditor);
             setOpeningAudio(false);
             if (previous) void previous.context.close();
@@ -178,13 +175,12 @@ const StandaloneApp: FunctionComponent = () => {
         </section>}
         <aside className="workspace-sidebar">
             <FileExplorer activeId={entry?.id} onOpen={openEntry} />
-            <LocalReviewQueue />
             <div id="standalone-layers-host" />
         </aside>
         <main className="web-editor">
             {error && <div className="banner error-text"><strong>{t("Could not open audio")}</strong><span>{error}</span></div>}
             {openingAudio && <div className="loading-overlay"><span className="spinner" /><strong>{t("Reading local audio")}</strong></div>}
-            {editor && entry && annotationAssetKey ? <AudioEditorContext.Provider value={editor}><AnnotationProvider key={annotationAssetKey} assetKey={annotationAssetKey} fileName={entry.name} filePath={entry.path} editor={editor}><AudioEditorContainer standalone key={`${entry.id}:${editor.length}:${editor.sampleRate}`} /></AnnotationProvider></AudioEditorContext.Provider> : <div className="welcome">
+            {editor && entry ? <AudioEditorContext.Provider value={editor}><AudioEditorContainer standalone key={`${entry.id}:${editor.length}:${editor.sampleRate}`} /></AudioEditorContext.Provider> : <div className="welcome">
                 <div className="welcome-wave">∿</div>
                 <span className="eyebrow">{t("STANDALONE ANALYSIS WORKSPACE")}</span>
                 <h1>{t("Open a folder.")}<br />{t("Listen closer.")}</h1>
