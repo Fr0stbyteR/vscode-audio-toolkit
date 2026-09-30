@@ -1,56 +1,49 @@
-# audio-toolkit README
+# Audio Toolkit Web
 
-A powerful tool for visualizing and analyzing audio files.
+Audio Toolkit is a standalone browser application for viewing, analysing and
+annotating local audio.
 
-## Features
+The frontend lives in `app/`. It includes waveform and spectrogram views,
+markers, librosa analysis modules, CLAP descriptions and relevance curves,
+MusicXML display, audio-to-score alignment, and a piano roll. Browser workspace
+state can be stored beside the opened audio directory in `.audio_toolkit/`.
 
-+ Supporting `wav` and `mp3` files.
+## Quick start
 
-+ Waveform, spectrogram, markers
+Install the frontend once:
 
-+ Saving the editor's state.
+```powershell
+npm ci --prefix app
+```
 
-+ Librosa analysis modules: beat/onset/non-silent markers, RMS, onset strength, zero-crossing rate, spectral centroid/bandwidth/rolloff/flatness, YIN pitch, mel spectrogram, chroma, and MFCC.
+Start the frontend together with the sibling `music-embedding-analysis`
+backend:
 
-+ Existing Vector and Matrix views are reused for continuous 1D/2D analysis results. Matrix views prefer an experimental WebGL 2 renderer and fall back to Canvas 2D.
+```powershell
+.\start-standalone.ps1
+```
 
-## Analysis backend
+Or run only the frontend:
 
-Python code now lives in the sibling `music-embedding-analysis` project. Start that service before using librosa or CLAP; this repository contains only the clients. Waveform and spectrogram still work without the service. The standalone browser uses `webview-ui/.env` or the header settings. For the VS Code desktop extension, set `audioToolkit.backendUrl` and `audioToolkit.backendToken` to the same service URL and token.
+```powershell
+npm run dev
+```
 
-Desktop librosa analysis uploads the selected full audio file only after a confirmation dialog identifying the destination URL. The music backend stores a content-addressed copy. VS Code for the Web still has no extension-host analysis bridge; use the standalone browser app for web analysis.
+Then open `http://127.0.0.1:5173/` in Chrome or Edge and authorize a local
+audio directory from the library panel.
 
-Analysis results are compressed and cached in VS Code extension storage and by the backend. The local cache key includes the audio file path, size, modification time, backend URL, algorithm options, and backend engine fingerprint. Use **Reanalyze** in a module to bypass both caches, or **Audio Toolkit: Clear Analysis Cache** to clear the local cache. Cache status is shown in each librosa module.
+Librosa and embedding modules require the sibling `music-embedding-analysis`
+service. Waveform, spectrogram, markers, MusicXML and piano-roll functionality
+run directly in the browser. Copy `app/.env.example` to `app/.env` to configure
+the default service URL and token.
 
-Use `audioToolkit.analysisCache.enabled` to disable caching and `audioToolkit.analysisCache.maxSizeMB` to control its approximate LRU size limit (512 MB by default). Marker edits remain in the project's JSON state; cached data is local and does not add files beside the audio source.
-
-Set `audioToolkit.matrixRenderer` to `auto`, `webgl`, or `canvas2d` to compare matrix rendering. The module monitor reports texture-upload and draw time for WebGL, or total paint time for Canvas 2D.
+See [STANDALONE.md](STANDALONE.md) for detailed setup, persistence, score
+alignment and remote deployment notes.
 
 ## Development
 
-Use the **Run Desktop Extension** launch configuration when testing desktop librosa modules. **Run Web Extension** supports waveform/spectrogram editing, but backend analysis is available through the standalone browser app instead.
-
-## Requirements
-
-Waveform and spectrogram need no Python installation. Librosa and CLAP modules
-require a running `music-embedding-analysis` service.
-
-## Extension Settings
-
-* `audioToolkit.audioUnit`: Unit to display.
-
-## Known Issues
-
-## Release Notes
-
-### 0.0.1
-
-Initial release of Audio Toolkit.
-
----
-
-## For more information
-
-* [shren](https://github.com/fr0stbyter)
-
-**Enjoy!**
+```powershell
+npm run lint
+npm test
+npm run build
+```

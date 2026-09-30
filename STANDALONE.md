@@ -1,7 +1,7 @@
 # Standalone Web workspace
 
-This branch includes a browser frontend. Librosa and CLAP run in the sibling
-`music-embedding-analysis` backend. It does not require a VS Code extension host.
+Librosa and CLAP run in the sibling `music-embedding-analysis` backend. The
+frontend runs directly in a browser.
 
 ## Run locally
 
@@ -21,8 +21,8 @@ in the launcher to stop the services. Logs go to `.standalone-logs/`. Run with
 `-Check` to validate paths, dependencies, and ports without starting anything,
 or `-NoBrowser` to keep the browser closed.
 
-Initial setup is still needed once: install `webview-ui` dependencies with
-`npm ci --prefix webview-ui` and install the music backend in its own `.venv` as
+Initial setup is still needed once: install frontend dependencies with
+`npm ci --prefix app` and install the music backend in its own `.venv` as
 described in that repository's README. The launcher reports missing dependencies.
 
 If you used the former split setup, the old `standalone-server/.env`,
@@ -30,8 +30,7 @@ If you used the former split setup, the old `standalone-server/.env`,
 place to avoid deleting credentials, cached results, or uploaded audio without
 your review. The browser's **Music analysis service** setting is now the only
 URL/token used for both librosa and CLAP; the former librosa URL setting is
-ignored. No legacy Python source or runtime data is included in the VS Code
-extension package.
+ignored. No Python backend source is included in this repository.
 
 ### Manual startup
 
@@ -44,15 +43,15 @@ Start the backend from `music-embedding-analysis`:
 In another terminal, start the frontend:
 
 ```powershell
-cd webview-ui
-npm run start:standalone
+cd app
+npm run dev
 ```
 
-Vite reads the unified service URL and default token from `webview-ui/.env`; use
-`webview-ui/.env.example` as the template. Settings changed in the UI override
+Vite reads the unified service URL and default token from `app/.env`; use
+`app/.env.example` as the template. Settings changed in the UI override
 those defaults and persist in the browser profile.
 
-Open `http://127.0.0.1:5173/standalone.html` in Chrome or Edge. Use the `+`
+Open `http://127.0.0.1:5173/` in Chrome or Edge. Use the `+`
 button in the library panel to authorize a directory. Other browsers fall back
 to a `webkitdirectory` file input when available.
 

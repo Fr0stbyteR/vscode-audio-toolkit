@@ -15,7 +15,7 @@ param(
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 $repoRoot = $PSScriptRoot
-$webRoot = Join-Path $repoRoot "webview-ui"
+$webRoot = Join-Path $repoRoot "app"
 $musicRoot = if ($MusicBackendPath) {
     [System.IO.Path]::GetFullPath($MusicBackendPath)
 } else {
@@ -113,12 +113,12 @@ if ($musicEnv.ContainsKey("MAB_PORT") -and -not [int]::TryParse($musicEnv["MAB_P
 }
 if ($musicPort -lt 1 -or $musicPort -gt 65535) { throw "MAB_PORT must be between 1 and 65535." }
 
-$frontUrl = "http://127.0.0.1:5173/standalone.html"
+$frontUrl = "http://127.0.0.1:5173/"
 $musicUrl = "http://127.0.0.1:$musicPort/v1/health"
 $node = Get-Command node -ErrorAction SilentlyContinue
 $viteScript = Join-Path $webRoot "node_modules\vite\bin\vite.js"
 if (-not $node -or -not (Test-Path -LiteralPath $viteScript)) {
-    throw "Frontend dependencies are missing. Install Node.js, then run: npm ci --prefix webview-ui"
+    throw "Frontend dependencies are missing. Install Node.js, then run: npm ci --prefix app"
 }
 
 $musicPython = Join-Path $musicRoot ".venv\Scripts\python.exe"
@@ -127,7 +127,7 @@ if (-not (Test-Path -LiteralPath $musicPython) -or -not (Test-PythonModules $mus
 }
 
 if ($webEnv.ContainsKey("VITE_MUSIC_ANALYSIS_API") -and $webEnv["VITE_MUSIC_ANALYSIS_API"].TrimEnd('/') -ne "http://127.0.0.1:$musicPort") {
-    Write-Warning "The CLAP URL in webview-ui/.env differs from this backend's MAB_PORT. Update the frontend setting if needed."
+    Write-Warning "The music service URL in app/.env differs from this backend's MAB_PORT. Update the frontend setting if needed."
 }
 if ($musicEnv.ContainsKey("MAB_SESSION_TOKEN") -and $webEnv.ContainsKey("VITE_MUSIC_ANALYSIS_TOKEN") -and $musicEnv["MAB_SESSION_TOKEN"] -ne $webEnv["VITE_MUSIC_ANALYSIS_TOKEN"]) {
     Write-Warning "The CLAP tokens in the two .env files differ. Update the frontend setting if needed."
@@ -144,7 +144,7 @@ $services = @()
 try {
     $definitions = @(
         @{ Name = "Music analysis API"; File = $musicPython; Arguments = @("-m", "music_annotation_backend.main"); Directory = $musicRoot },
-        @{ Name = "Web frontend"; File = $node.Source; Arguments = @("node_modules/vite/bin/vite.js", "--config", "vite.standalone.config.ts", "--host", "127.0.0.1", "--strictPort"); Directory = $webRoot }
+        @{ Name = "Web frontend"; File = $node.Source; Arguments = @("node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--strictPort"); Directory = $webRoot }
     )
     foreach ($definition in $definitions) {
         $label = $definition.Name -replace '\W+', '-'
