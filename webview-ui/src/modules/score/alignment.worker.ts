@@ -27,17 +27,18 @@ function fft(real: Float32Array, imag: Float32Array) {
     }
 }
 
-function normalize(vector: Float32Array) {
+function normalizePitchClasses(vector: Float32Array) {
     let norm = 0;
-    for (const value of vector) norm += value * value;
+    for (let index = 0; index < 12; index++) norm += vector[index] * vector[index];
     norm = Math.sqrt(norm);
-    if (norm > 1e-8) for (let index = 0; index < vector.length; index++) vector[index] /= norm;
+    if (norm > 1e-8) for (let index = 0; index < 12; index++) vector[index] /= norm;
 }
 
 function audioChroma(samples: Float32Array, frames: number): Float32Array[] {
     const size = 4096, sampleRate = 11025;
     const output: Float32Array[] = [];
     const real = new Float32Array(size), imag = new Float32Array(size);
+    const previous = new Float32Array(12);
     const pitchBins = Array.from({ length: 48 }, (_, index) => Math.round((440 * 2 ** ((index + 48 - 69) / 12)) * size / sampleRate));
     for (let frame = 0; frame < frames; frame++) {
         const center = Math.round(frame * Math.max(0, samples.length - 1) / Math.max(1, frames - 1));
@@ -47,39 +48,51 @@ function audioChroma(samples: Float32Array, frames: number): Float32Array[] {
             imag[index] = 0;
         }
         fft(real, imag);
-        const vector = new Float32Array(12);
+        const vector = new Float32Array(13);
         for (let pitch = 0; pitch < pitchBins.length; pitch++) {
             const bin = pitchBins[pitch];
             let energy = 0;
             for (let offset = -1; offset <= 1; offset++) energy += Math.hypot(real[bin + offset], imag[bin + offset]);
             vector[(pitch + 48) % 12] += Math.sqrt(energy);
         }
-        normalize(vector);
+        let positiveFlux = 0, energy = 0;
+        for (let pitchClass = 0; pitchClass < 12; pitchClass++) {
+            positiveFlux += Math.max(0, vector[pitchClass] - previous[pitchClass]);
+            energy += vector[pitchClass];
+            previous[pitchClass] = vector[pitchClass];
+        }
+        vector[12] = energy > 1e-8 ? Math.min(1, positiveFlux / energy * 2) : 0;
+        normalizePitchClasses(vector);
         output.push(vector);
     }
     return output;
 }
 
 function scoreChroma(notes: Note[], frames: number, duration: number): Float32Array[] {
-    const output = Array.from({ length: frames }, () => new Float32Array(12));
+    const output = Array.from({ length: frames }, () => new Float32Array(13));
     for (const note of notes) {
         const start = Math.max(0, Math.floor(note.time / duration * (frames - 1)));
         const end = Math.min(frames - 1, Math.ceil((note.time + Math.max(0.05, note.duration)) / duration * (frames - 1)));
         for (let frame = start; frame <= end; frame++) output[frame][note.pitch % 12] += Math.max(0.3, note.velocity);
+        output[start][12] += Math.max(0.3, note.velocity);
     }
-    output.forEach(normalize);
+    let maximumOnset = 0;
+    for (const vector of output) maximumOnset = Math.max(maximumOnset, vector[12]);
+    for (const vector of output) {
+        normalizePitchClasses(vector);
+        if (maximumOnset > 0) vector[12] /= maximumOnset;
+    }
     return output;
 }
 
 function distance(a: Float32Array, b: Float32Array): number {
     let dot = 0, aEnergy = 0, bEnergy = 0;
     for (let index = 0; index < 12; index++) { dot += a[index] * b[index]; aEnergy += a[index]; bEnergy += b[index]; }
-    if (!aEnergy && !bEnergy) return 0.2;
-    if (!aEnergy || !bEnergy) return 0.9;
-    return 1 - dot;
+    const chromaDistance = !aEnergy && !bEnergy ? 0.2 : !aEnergy || !bEnergy ? 0.9 : 1 - dot;
+    return chromaDistance + Math.abs(a[12] - b[12]) * 0.35;
 }
 
-function dtw(score: Float32Array[], audio: Float32Array[], scoreDuration: number, audioDuration: number): AlignmentPoint[] {
+export function dtw(score: Float32Array[], audio: Float32Array[], scoreDuration: number, audioDuration: number): AlignmentPoint[] {
     const rows = score.length, columns = audio.length, stride = columns + 1;
     const costs = new Float32Array((rows + 1) * stride);
     const directions = new Uint8Array((rows + 1) * stride);
@@ -101,14 +114,27 @@ function dtw(score: Float32Array[], audio: Float32Array[], scoreDuration: number
         }
     }
     if (!Number.isFinite(costs[rows * stride + columns])) throw new Error("The alignment path could not be found.");
-    const correspondence = new Float32Array(rows);
+    const firstColumn = new Float32Array(rows);
+    const lastColumn = new Float32Array(rows);
+    firstColumn.fill(Infinity);
+    lastColumn.fill(-Infinity);
     let row = rows, column = columns;
     while (row > 0 && column > 0) {
-        correspondence[row - 1] = column - 1;
+        firstColumn[row - 1] = Math.min(firstColumn[row - 1], column - 1);
+        lastColumn[row - 1] = Math.max(lastColumn[row - 1], column - 1);
         const direction = directions[row * stride + column];
         if (direction === 0) { row--; column--; }
         else if (direction === 1) row--;
         else column--;
+    }
+    const correspondence = new Float32Array(rows);
+    for (let index = 0; index < rows; index++) {
+        // Horizontal DTW steps mean one score frame spans a range of audio frames.
+        // Keeping the earliest visited column systematically pulled the score ahead.
+        correspondence[index] = Number.isFinite(firstColumn[index])
+            ? (firstColumn[index] + lastColumn[index]) / 2
+            : index / Math.max(1, rows - 1) * (columns - 1);
+        if (index) correspondence[index] = Math.max(correspondence[index - 1], correspondence[index]);
     }
     const points: AlignmentPoint[] = [{ scoreTime: 0, audioTime: 0 }];
     for (let index = 1; index < rows - 1; index += Math.max(1, Math.floor(rows / 500))) {

@@ -8,12 +8,16 @@ import MusicAnalysisClient, { BackendSettings } from "./MusicAnalysisClient";
 import FileExplorer from "./FileExplorer";
 import { LocalAudioEntry } from "./types";
 import getLibrosaModules from "../modules/librosa";
+import LibrosaAnalysisModule from "../modules/librosa/LibrosaAnalysisModule";
 import getMarkerModules from "../modules/marker";
 import getSpectrogramModules from "../modules/spectrogram";
 import getWaveformModules from "../modules/waveform";
 import getSemanticDescriptionModules from "../modules/semantic-description";
+import ClapRelevanceCurve from "../modules/semantic-description/ClapRelevanceCurve";
+import SemanticDescription from "../modules/semantic-description/SemanticDescription";
 import getScoreModules from "../modules/score";
-import { fingerprintAudio } from "./AudioFingerprint";
+import { contentHashAudio, fingerprintAudio } from "./AudioFingerprint";
+import WorkspaceAnalysisStore, { WorkspaceDocument } from "./WorkspaceAnalysisStore";
 import { useLocale } from "../i18n/LocaleContext";
 import "../vscode.css";
 import "./standalone.css";
@@ -33,6 +37,30 @@ const defaultMusicSettings: BackendSettings = {
     token: import.meta.env.VITE_MUSIC_ANALYSIS_TOKEN || ""
 };
 
+function browserDocumentKey(audioHash: string) { return `${MODULES_KEY}:${audioHash}`; }
+
+function readBrowserDocument(audioHash: string): WorkspaceDocument | undefined {
+    try {
+        const value = JSON.parse(localStorage.getItem(browserDocumentKey(audioHash)) || "null") as WorkspaceDocument | null;
+        return value?.audioHash === audioHash && Array.isArray(value.modulesState) ? value : undefined;
+    } catch { return undefined; }
+}
+
+function legacyLayout(): AudioToolkitModulesState | undefined {
+    try {
+        const modules = JSON.parse(localStorage.getItem(MODULES_KEY) || "null") as AudioToolkitModulesState | null;
+        if (!Array.isArray(modules)) return undefined;
+        // The old key was shared by every audio file. Keep its layout, never its annotations.
+        return modules.map(module => ({
+            ...module,
+            state: module.moduleId === "marker" ? { ...module.state, data: [] }
+                : module.moduleId.startsWith("librosa.") ? { ...module.state, data: undefined }
+                    : module.moduleId.startsWith("score.") ? { ...module.state, scoreKey: "", fileName: "", format: "", alignmentAudioKey: "", autoAlignment: [], manualAnchors: [], hiddenTracks: [] }
+                        : module.state
+        }));
+    } catch { return undefined; }
+}
+
 const StandaloneApp: FunctionComponent = () => {
     const { locale, setLocale, t } = useLocale();
     const [musicSettings, setMusicSettings] = useState<BackendSettings>(() => {
@@ -46,6 +74,10 @@ const StandaloneApp: FunctionComponent = () => {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [editor, setEditor] = useState<AudioEditor | null>(null);
     const editorRef = useRef<AudioEditor | null>(null);
+    const workspaceRef = useRef<WorkspaceAnalysisStore | null>(null);
+    const openRevision = useRef(0);
+    const [folderSaving, setFolderSaving] = useState<"unavailable" | "permission" | "syncing" | "enabled" | "error">("unavailable");
+    const [folderError, setFolderError] = useState("");
     const [entry, setEntry] = useState<LocalAudioEntry>();
     const [openingAudio, setOpeningAudio] = useState(false);
     const [error, setError] = useState("");
@@ -70,7 +102,10 @@ const StandaloneApp: FunctionComponent = () => {
         return () => { active = false; };
     }, [musicClient]);
 
-    useEffect(() => () => { void editorRef.current?.context.close(); }, []);
+    useEffect(() => () => {
+        void workspaceRef.current?.flushDocument();
+        void editorRef.current?.context.close();
+    }, []);
 
     useEffect(() => {
         if (!editor) return;
@@ -102,18 +137,34 @@ const StandaloneApp: FunctionComponent = () => {
     }, [editor]);
 
     const openEntry = useCallback(async (nextEntry: LocalAudioEntry) => {
+        const revision = ++openRevision.current;
         setError("");
+        setFolderError("");
         setOpeningAudio(true);
         let nextContext: AudioContext | undefined;
         try {
+            await workspaceRef.current?.flushDocument();
             const file = await nextEntry.getFile();
             const data = await file.arrayBuffer();
-            const assetKey = await fingerprintAudio(data);
+            const [assetKey, audioHash] = await Promise.all([fingerprintAudio(data), contentHashAudio(data)]);
             await registerModules();
             const previous = editorRef.current;
             nextContext = new AudioContext({ latencyHint: "interactive" });
-            let modulesState: AudioToolkitModulesState | undefined;
-            try { modulesState = JSON.parse(localStorage.getItem(MODULES_KEY) || "null") || undefined; } catch { /* ignore corrupt UI state */ }
+            const workspace = nextEntry.rootHandle ? new WorkspaceAnalysisStore(nextEntry.rootHandle, audioHash, nextEntry.path) : null;
+            let folderDocument: WorkspaceDocument | undefined;
+            if (workspace) {
+                try { folderDocument = await workspace.loadDocument(); }
+                catch (reason) { console.warn("Could not restore workspace document from folder", reason); }
+            }
+            const browserDocument = readBrowserDocument(audioHash);
+            const modulesState: AudioToolkitModulesState | undefined = folderDocument && (!browserDocument || folderDocument.savedAt >= browserDocument.savedAt)
+                ? folderDocument.modulesState : browserDocument?.modulesState ?? legacyLayout();
+            const canWrite = workspace ? await workspace.inspectWritePermission() : false;
+            const reportSaveError = (reason: unknown) => {
+                if (workspaceRef.current !== workspace) return;
+                setFolderSaving("error");
+                setFolderError(reason instanceof Error ? reason.message : String(reason));
+            };
             const nextEditor = await AudioEditor.fromData(
                 data,
                 nextContext,
@@ -121,11 +172,68 @@ const StandaloneApp: FunctionComponent = () => {
                 modulesState,
                 assetKey,
                 undefined,
-                request => musicClient.analyze(file, request),
-                request => musicClient.describe(file, request),
-                request => musicClient.relevanceCurve(file, request)
+                async request => {
+                    if (workspace) {
+                        try {
+                            const saved = await workspace.loadLibrosa(request);
+                            if (saved) return saved;
+                        } catch (reason) { console.warn("Could not restore librosa analysis from folder", reason); }
+                    }
+                    const result = await musicClient.analyze(file, request);
+                    if (workspace?.canWrite) {
+                        try { await workspace.saveLibrosa(request, result); }
+                        catch (reason) { reportSaveError(reason); }
+                    }
+                    return result;
+                },
+                async request => {
+                    if (workspace) {
+                        try {
+                            const saved = await workspace.loadDescription(request);
+                            if (saved) return saved;
+                        } catch (reason) { console.warn("Could not restore description from folder", reason); }
+                    }
+                    const result = await musicClient.describe(file, request);
+                    if (workspace?.canWrite) {
+                        try { await workspace.saveDescription(request, result); }
+                        catch (reason) { reportSaveError(reason); }
+                    }
+                    return result;
+                },
+                async request => {
+                    if (workspace) {
+                        try {
+                            const saved = await workspace.loadCurve(request);
+                            if (saved) return saved;
+                        } catch (reason) { console.warn("Could not restore curve from folder", reason); }
+                    }
+                    const result = await musicClient.relevanceCurve(file, request);
+                    if (workspace?.canWrite) {
+                        try { await workspace.saveCurve(request, result); }
+                        catch (reason) { reportSaveError(reason); }
+                    }
+                    return result;
+                }
             );
-            nextEditor.on("modulesState", state => localStorage.setItem(MODULES_KEY, JSON.stringify(state)));
+            if (revision !== openRevision.current) {
+                void nextEditor.context.close();
+                return;
+            }
+            nextEditor.on("modulesState", state => {
+                const snapshot: WorkspaceDocument = { format: "audio-toolkit-workspace", version: 1, audioHash, relativePath: nextEntry.path, savedAt: new Date().toISOString(), modulesState: state };
+                try { localStorage.setItem(browserDocumentKey(audioHash), JSON.stringify(snapshot)); }
+                catch (reason) { console.warn("Could not save browser module state", reason); }
+                workspace?.scheduleDocument(state, reportSaveError);
+            });
+            workspaceRef.current = workspace;
+            setFolderSaving(workspace ? canWrite ? "enabled" : "permission" : "unavailable");
+            const initialSnapshot: WorkspaceDocument = {
+                format: "audio-toolkit-workspace", version: 1, audioHash, relativePath: nextEntry.path,
+                savedAt: new Date().toISOString(), modulesState: nextEditor.modulesState
+            };
+            try { localStorage.setItem(browserDocumentKey(audioHash), JSON.stringify(initialSnapshot)); }
+            catch (reason) { console.warn("Could not save initial browser module state", reason); }
+            if (canWrite) workspace?.scheduleDocument(nextEditor.modulesState, reportSaveError);
             editorRef.current = nextEditor;
             setEntry(nextEntry);
             setEditor(nextEditor);
@@ -133,10 +241,43 @@ const StandaloneApp: FunctionComponent = () => {
             if (previous) void previous.context.close();
         } catch (reason) {
             if (nextContext) void nextContext.close();
+            if (revision !== openRevision.current) return;
             setOpeningAudio(false);
             setError(reason instanceof Error ? reason.message : String(reason));
         }
     }, [musicClient]);
+
+    const enableFolderSaving = async () => {
+        const workspace = workspaceRef.current;
+        if (!workspace || !editorRef.current) return;
+        setFolderError("");
+        try {
+            await workspace.enableWriting();
+            workspace.scheduleDocument(editorRef.current.modulesState, reason => {
+                setFolderSaving("error");
+                setFolderError(reason instanceof Error ? reason.message : String(reason));
+            });
+            await workspace.flushDocument();
+            setFolderSaving("syncing");
+            const failures: string[] = [];
+            // Analyses run before write permission need one cache-backed pass to enter the folder.
+            for (const module of editorRef.current.modulesInstance) {
+                if (workspaceRef.current !== workspace) break;
+                if (module instanceof LibrosaAnalysisModule || module instanceof ClapRelevanceCurve) {
+                    await module.calculate();
+                    if (Array.isArray(module.isCalculating) && module.isCalculating[0] < 0) failures.push(module.moduleId);
+                } else if (module instanceof SemanticDescription && module.lastRequest && module.lastResult) {
+                    await workspace.saveDescription(module.lastRequest, module.lastResult);
+                }
+            }
+            await workspace.flushDocument();
+            if (failures.length) throw new Error(`Some existing analyses could not be copied: ${failures.join(", ")}`);
+            setFolderSaving("enabled");
+        } catch (reason) {
+            setFolderSaving("error");
+            setFolderError(reason instanceof Error ? reason.message : String(reason));
+        }
+    };
 
 
 
@@ -154,6 +295,10 @@ const StandaloneApp: FunctionComponent = () => {
             <div className="brand"><span className="brand-mark">AT</span><div><strong>Audio Toolkit</strong><small>{t("Browser workspace")}</small></div></div>
             <div className="current-file">{entry ? <><span>{t("NOW INSPECTING")}</span><strong>{entry.name}</strong><small>{entry.path}</small></> : <span>{t("Choose an audio file from the library")}</span>}</div>
             <div className="app-header-actions">
+                {entry?.rootHandle ? <button className={`folder-save-button ${folderSaving}`} type="button" disabled={folderSaving === "syncing"} onClick={() => void enableFolderSaving()} title={folderError || t(folderSaving === "enabled" ? "Folder auto-save is on" : "Enable saving in .audio_toolkit")}>
+                    <span className={`codicon codicon-${folderSaving === "enabled" ? "check" : "save"}`} />
+                    {t(folderSaving === "enabled" ? "Folder saving on" : folderSaving === "syncing" ? "Saving existing analyses…" : folderSaving === "error" ? "Retry folder save" : "Save analyses in folder")}
+                </button> : null}
                 <button className="backend-button" onClick={() => setSettingsOpen(value => !value)}>
                     <span className={`status-dot ${backendStatus}`} />
                     {t(backendStatus === "online" ? "Librosa ready" : backendStatus === "checking" ? "Checking service" : "Service offline")}
@@ -178,6 +323,7 @@ const StandaloneApp: FunctionComponent = () => {
             <div id="standalone-layers-host" />
         </aside>
         <main className="web-editor">
+            {folderError && <div className="banner error-text"><strong>{t("Folder save failed")}</strong><span>{folderError}</span></div>}
             {error && <div className="banner error-text"><strong>{t("Could not open audio")}</strong><span>{error}</span></div>}
             {openingAudio && <div className="loading-overlay"><span className="spinner" /><strong>{t("Reading local audio")}</strong></div>}
             {editor && entry ? <AudioEditorContext.Provider value={editor}><AudioEditorContainer standalone key={`${entry.id}:${editor.length}:${editor.sampleRate}`} /></AudioEditorContext.Provider> : <div className="welcome">

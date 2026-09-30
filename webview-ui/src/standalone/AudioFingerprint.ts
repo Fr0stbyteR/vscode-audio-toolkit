@@ -8,3 +8,8 @@ export async function fingerprintAudio(data: ArrayBuffer): Promise<string> {
     const digest = await crypto.subtle.digest("SHA-256", sample);
     return `audio-sample-v1:${Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("")}`;
 }
+
+export async function contentHashAudio(data: ArrayBuffer): Promise<string> {
+    const digest = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+}

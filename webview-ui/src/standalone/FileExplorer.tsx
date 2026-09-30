@@ -23,8 +23,8 @@ interface IterableDirectoryHandle extends FileSystemDirectoryHandle {
 }
 
 interface PermissionedDirectoryHandle extends FileSystemDirectoryHandle {
-    queryPermission(options?: { mode: "read" }): Promise<PermissionState>;
-    requestPermission(options?: { mode: "read" }): Promise<PermissionState>;
+    queryPermission(options?: { mode: "read" | "readwrite" }): Promise<PermissionState>;
+    requestPermission(options?: { mode: "read" | "readwrite" }): Promise<PermissionState>;
 }
 
 interface Props {
@@ -35,6 +35,7 @@ interface Props {
 async function listDirectory(handle: FileSystemDirectoryHandle, parentPath: string): Promise<BrowserNode[]> {
     const nodes: BrowserNode[] = [];
     for await (const [name, child] of (handle as IterableDirectoryHandle).entries()) {
+        if (name === ".audio_toolkit") continue;
         if (child.kind === "file" && !AUDIO_EXTENSIONS.test(name)) continue;
         const path = parentPath ? `${parentPath}/${name}` : name;
         nodes.push({ id: path, name, path, kind: child.kind, handle: child });
@@ -49,7 +50,7 @@ function filesToNodes(files: File[]): BrowserNode[] {
     }).sort((a, b) => a.path.localeCompare(b.path));
 }
 
-const TreeNode: FunctionComponent<{ node: BrowserNode; activeId?: string; onOpen(entry: LocalAudioEntry): void }> = ({ node, activeId, onOpen }) => {
+const TreeNode: FunctionComponent<{ node: BrowserNode; rootHandle?: FileSystemDirectoryHandle; activeId?: string; onOpen(entry: LocalAudioEntry): void }> = ({ node, rootHandle, activeId, onOpen }) => {
     const [expanded, setExpanded] = useState(false);
     const [children, setChildren] = useState<BrowserNode[] | null>(null);
     const open = async () => {
@@ -62,6 +63,7 @@ const TreeNode: FunctionComponent<{ node: BrowserNode; activeId?: string; onOpen
             id: node.id,
             name: node.name,
             path: node.path,
+            rootHandle,
             getFile: () => node.file ? Promise.resolve(node.file) : (node.handle as FileSystemFileHandle).getFile()
         });
     };
@@ -71,7 +73,7 @@ const TreeNode: FunctionComponent<{ node: BrowserNode; activeId?: string; onOpen
             <span className={`tree-icon codicon ${node.kind === "directory" ? `codicon-folder${expanded ? "-opened" : ""}` : "codicon-file-media"}`} />
             <span className="tree-name">{node.name}</span>
         </button>
-        {expanded && children && <ul>{children.map(child => <TreeNode key={child.id} node={child} activeId={activeId} onOpen={onOpen} />)}</ul>}
+        {expanded && children && <ul>{children.map(child => <TreeNode key={child.id} node={child} rootHandle={rootHandle} activeId={activeId} onOpen={onOpen} />)}</ul>}
     </li>;
 };
 
@@ -151,7 +153,7 @@ const FileExplorer: FunctionComponent<Props> = ({ activeId, onOpen }) => {
         />
         {!supportsDirectoryPicker && <p className="browser-note">{t("This browser uses a directory-upload fallback. Chrome and Edge support on-demand access.")}</p>}
         {error && <p className="error-text">{error}</p>}
-        {nodes.length ? <ul className="file-tree">{nodes.map(node => <TreeNode key={node.id} node={node} activeId={activeId} onOpen={onOpen} />)}</ul> : <div className="empty-tree">
+        {nodes.length ? <ul className="file-tree">{nodes.map(node => <TreeNode key={node.id} node={node} rootHandle={supportsDirectoryPicker ? savedHandle : undefined} activeId={activeId} onOpen={onOpen} />)}</ul> : <div className="empty-tree">
             <span>{t("Drop into your sound library")}</span>
             {restoring ? <small>{t("Restoring the previous folder…")}</small> : savedHandle ? <button onClick={() => void reconnectFolder()}>{t("Reconnect")} {savedHandle.name}</button> : <button onClick={() => void chooseFolder()}>{t("Open local folder")}</button>}
             {savedHandle ? <button className="secondary" onClick={() => void chooseFolder()}>{t("Choose another folder")}</button> : null}

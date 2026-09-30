@@ -35,7 +35,7 @@ const badgeStyle = (family: string, relevance: number): React.CSSProperties => (
 const SemanticDescriptionComponent: FunctionComponent<VisualizationOptions<SemanticDescription>> = props => {
     const { t } = useLocale();
     const { module, moduleState, playhead, selRange, configurationMode, overlayMode, activeLayer } = props;
-    const [result, setResult] = useState<SemanticDescriptionResult>();
+    const [result, setResult] = useState<SemanticDescriptionResult | undefined>(() => module.lastResult);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [manualRevision, setManualRevision] = useState(0);
@@ -68,14 +68,18 @@ const SemanticDescriptionComponent: FunctionComponent<VisualizationOptions<Seman
             setLoading(true);
             setError("");
             try {
-                const next = await module.audioEditor.describeSemantics({
+                const request = {
                     startSeconds: range.start,
                     endSeconds: range.end,
                     timelineDurationSeconds: duration,
                     maximumResults: moduleState.maximumResults,
                     providerId: moduleState.providerId || undefined
-                });
-                if (revision === requestRevision.current) setResult(next);
+                };
+                const next = await module.audioEditor.describeSemantics(request);
+                if (revision === requestRevision.current) {
+                    module.rememberResult(request, next);
+                    setResult(next);
+                }
             } catch (reason) {
                 if (revision === requestRevision.current) {
                     const message = reason instanceof Error ? reason.message : String(reason);

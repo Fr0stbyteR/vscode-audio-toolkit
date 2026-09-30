@@ -1,4 +1,4 @@
-import AudioEditor from "../../core/AudioEditor";
+import AudioEditor, { SemanticDescriptionRequest, SemanticDescriptionResult } from "../../core/AudioEditor";
 import { AudioToolkitModule, AudioToolkitModuleState } from "../../core/AudioToolkitModule";
 import SemanticDescriptionComponent from "./SemanticDescriptionComponent";
 
@@ -28,9 +28,17 @@ export default class SemanticDescription implements AudioToolkitModule<SemanticD
     readonly Component = SemanticDescriptionComponent;
     readonly sharableData = Promise.resolve(null);
     onStateChange: ((newState: SemanticDescriptionState) => unknown) | undefined;
+    private lastRequestValue: SemanticDescriptionRequest | undefined;
+    private lastResultValue: SemanticDescriptionResult | undefined;
 
     private constructor(public readonly audioEditor: AudioEditor, private state: SemanticDescriptionState) {}
     getState() { return this.state; }
+    get lastRequest() { return this.lastRequestValue; }
+    get lastResult() { return this.lastResultValue; }
+    rememberResult(request: SemanticDescriptionRequest, result: SemanticDescriptionResult) {
+        this.lastRequestValue = request;
+        this.lastResultValue = result;
+    }
     setState(newState: SemanticDescriptionState) {
         this.state = newState;
         this.onStateChange?.(newState);

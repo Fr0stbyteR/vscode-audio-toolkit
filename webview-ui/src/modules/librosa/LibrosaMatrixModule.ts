@@ -27,7 +27,8 @@ export default abstract class LibrosaMatrixModule<State extends LibrosaMatrixVis
         const rawMatrix = result.matrix;
         const matrix = new Array<Float32Array>(rawMatrix.length);
         for (let i = 0; i < rawMatrix.length; i++) {
-            matrix[i] = Float32Array.from(rawMatrix[i]);
+            const row = rawMatrix[i];
+            matrix[i] = row instanceof Float32Array ? row : Float32Array.from(row);
             rawMatrix[i] = [];
         }
         result.matrix = undefined;

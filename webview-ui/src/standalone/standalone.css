@@ -66,6 +66,10 @@ button { width: auto; border-radius: 4px; font: inherit; }
 .current-file { padding: 0 22px; }
 .current-file > span, .eyebrow { color: #71808c; font: 700 9px/1.6 var(--vscode-editor-font-family); letter-spacing: .13em; }
 .backend-button { height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 11px; color: #b9c3cd; background: #191e24; border: 1px solid #303841; }
+.folder-save-button { height: 32px; display: flex; align-items: center; gap: 7px; padding: 0 10px; color: var(--vscode-foreground); background: var(--vscode-button-secondaryBackground); border: 1px solid var(--vscode-widget-border); cursor: pointer; white-space: nowrap; }
+.folder-save-button:hover { background: var(--vscode-button-secondaryHoverBackground); }
+.folder-save-button.enabled { color: #9ad5aa; }
+.folder-save-button.error { color: var(--vscode-errorForeground); }
 .app-header-actions { display: flex; align-items: center; gap: 10px; }
 .locale-switch { display: flex; padding: 2px; margin-right: 14px; border: 1px solid #303841; border-radius: 5px; background: #191e24; }
 .locale-switch button { min-width: 29px; height: 24px; padding: 0 5px; border: 0; border-radius: 3px; background: transparent; color: #9da9b5; font-size: 11px; cursor: pointer; }
@@ -137,5 +141,5 @@ button { width: auto; border-radius: 4px; font: inherit; }
 }
 
 @media (max-width: 760px) {
-    .standalone-shell { grid-template-columns: 210px minmax(0, 1fr); }.app-header { grid-template-columns: 210px 1fr auto; }.backend-button { font-size: 0; }.backend-button .codicon, .backend-button .status-dot { font-size: 14px; }.current-file small { display: none; }
+    .standalone-shell { grid-template-columns: 210px minmax(0, 1fr); }.app-header { grid-template-columns: 210px 1fr auto; }.backend-button, .folder-save-button { font-size: 0; }.backend-button .codicon, .backend-button .status-dot, .folder-save-button .codicon { font-size: 14px; }.current-file small { display: none; }
 }

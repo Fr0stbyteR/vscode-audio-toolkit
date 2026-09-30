@@ -47,8 +47,8 @@ export interface AudioAnalysisResult {
     sampleRate: number;
     duration: number;
     values?: number[];
-    vectors?: number[][];
-    matrix?: number[][];
+    vectors?: (number[] | Float32Array)[];
+    matrix?: (number[] | Float32Array)[];
     intervals?: [number, number][];
     metadata?: Record<string, string | number | boolean | null>;
     cache?: AudioAnalysisCacheInfo;

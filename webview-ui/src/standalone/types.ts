@@ -2,6 +2,7 @@ export interface LocalAudioEntry {
     id: string;
     name: string;
     path: string;
+    rootHandle?: FileSystemDirectoryHandle;
     getFile(): Promise<File>;
 }
 

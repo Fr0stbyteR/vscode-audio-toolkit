@@ -13,7 +13,7 @@ export interface ParsedScore {
     events: ScoreEvent[];
     svg?: string;
 }
-interface StoredScore { key: string; name: string; format: ScoreFormat; data: ArrayBuffer; }
+export interface StoredScore { key: string; name: string; format: ScoreFormat; data: ArrayBuffer; }
 
 const DB_NAME = "audio-toolkit-scores";
 const STORE_NAME = "scores";
@@ -58,6 +58,14 @@ export async function importScore(file: File): Promise<{ key: string; name: stri
     });
     parsed.delete(key);
     return { key, name: file.name, format };
+}
+
+export async function loadScoreSource(key: string): Promise<StoredScore | undefined> {
+    return withStore<StoredScore | undefined>("readonly", (store, resolve, reject) => {
+        const request = store.get(key);
+        request.onsuccess = () => resolve(request.result as StoredScore | undefined);
+        request.onerror = () => reject(request.error);
+    });
 }
 
 export async function loadScore(key: string): Promise<ParsedScore> {
