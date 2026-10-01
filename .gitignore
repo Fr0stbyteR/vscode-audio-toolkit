@@ -10,7 +10,9 @@ __pycache__/
 *.py[cod]
 *.vsix
 .env
+.env.*
 !.env.example
+.audio_toolkit/
 examples/
 local
 .tmp/

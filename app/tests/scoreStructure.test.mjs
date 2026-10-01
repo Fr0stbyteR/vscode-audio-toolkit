@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import createModule from "verovio/wasm";
@@ -10,11 +10,12 @@ const { Midi } = midiPackage;
 const bundle = await build({ entryPoints: [fileURLToPath(new URL("../src/modules/music-features/ScoreStructure.ts", import.meta.url))], bundle: true, platform: "node", format: "esm", write: false });
 const { inferScoreStructure } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`);
 
-test("K545 detects long repeated passages and does not label the final four sections A", async () => {
+const k545Path = new URL("../../examples/k545-1.xml", import.meta.url);
+test("K545 detects long repeated passages and does not label the final four sections A", { skip: !existsSync(k545Path) && "Optional local K545 score is not redistributed" }, async () => {
     const toolkit = new VerovioToolkit(await createModule());
     try {
         toolkit.setOptions({ breaks: "none", pageWidth: 2100, adjustPageWidth: true, adjustPageHeight: true });
-        toolkit.loadData(readFileSync(new URL("../../examples/k545-1.xml", import.meta.url), "utf8"));
+        toolkit.loadData(readFileSync(k545Path, "utf8"));
         const svg = toolkit.renderToSVG(1), midi = new Midi(Buffer.from(toolkit.renderToMIDI(), "base64"));
         const notes = midi.tracks.flatMap((track, index) => track.notes.map(note => ({ trackId: `${index}`, pitch: note.midi, time: note.time, duration: note.duration })));
         const times = [...svg.matchAll(/<g[^>]*\bid="([^"]+)"[^>]*\bclass="measure"/g)].map(match => toolkit.getTimeForElement(match[1]) / 1000);

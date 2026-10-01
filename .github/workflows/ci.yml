@@ -1,0 +1,42 @@
+name: Frontend checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      # Never embed a personal token or development .env in a public build.
+      VITE_MUSIC_ANALYSIS_API: http://127.0.0.1:49321/
+      VITE_MUSIC_ANALYSIS_TOKEN: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci --prefix app
+      - run: npm run check
+      - name: Prepare static distribution and dependency notices
+        if: runner.os == 'Linux'
+        run: node scripts/prepare-release.mjs
+      - name: Upload static frontend (not a GitHub release)
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: audio-toolkit-web-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14

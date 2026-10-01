@@ -2,6 +2,10 @@
   "name": "audio-toolkit-web-workspace",
   "version": "0.0.1",
   "private": true,
+  "description": "Interactive standalone audio analysis and annotation workspace",
+  "license": "GPL-3.0-or-later",
+  "repository": { "type": "git", "url": "https://github.com/fr0stbyter/vscode-audio-toolkit.git" },
+  "engines": { "node": ">=20.19.0" },
   "scripts": {
     "postinstall": "npm install --prefix app",
     "dev": "npm --prefix app run dev",
@@ -9,6 +13,8 @@
     "build": "npm --prefix app run build",
     "test": "npm --prefix app run test:local",
     "lint": "npm --prefix app run lint",
-    "check": "npm run lint && npm run test && npm run build"
+    "check": "npm run lint && npm run test && npm run build",
+    "preview": "npm --prefix app run preview",
+    "release:prepare": "node scripts/release.mjs"
   }
 }

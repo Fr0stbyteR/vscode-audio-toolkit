@@ -1,0 +1,16 @@
+[
+  {
+    "npmPackage": "@shren/fftw-js",
+    "npmVersion": "0.1.10",
+    "file": "fftw-3.3.10.tar.gz",
+    "url": "https://fftw.org/fftw-3.3.10.tar.gz",
+    "sha256": "56c932549852cddcfafdab3820b0200c7742675be92179e59e6215b340e26467"
+  },
+  {
+    "npmPackage": "verovio",
+    "npmVersion": "4.2.0",
+    "file": "verovio-4.2.0.tar.gz",
+    "url": "https://codeload.github.com/rism-digital/verovio/tar.gz/8a772f537472c283d60b7e3c63c242344949cddf",
+    "sha256": "0b65c375742a5f619e31652a4a064e7485fa259bfb23607af74af4cc8ce55db7"
+  }
+]
