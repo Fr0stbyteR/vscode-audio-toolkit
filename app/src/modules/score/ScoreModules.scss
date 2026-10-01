@@ -56,6 +56,10 @@
 .score-config button:disabled { opacity: .55; cursor: not-allowed; }
 .score-config small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vscode-descriptionForeground); }
 .score-config .error-text { margin: 0; overflow-wrap: anywhere; }
+.score-config .omr-warning { white-space: normal; }
+.score-job-status { position: absolute; bottom: 2px; left: 8px; right: calc(var(--visualizer-right-spacing) + 8px); z-index: 5; padding: 4px 8px; background: var(--vscode-panel-background); font-size: 11px; color: var(--vscode-descriptionForeground); }
+.score-omr-notice { flex: 0 0 auto; padding: 3px 8px; font-size: 11px; color: var(--vscode-descriptionForeground); }
+.score-job-status { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
 .score-tracks { display: flex; flex-direction: column; gap: 5px; padding: 8px; }
 .score-tracks label { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .score-tracks input { flex: 0 0 auto; }

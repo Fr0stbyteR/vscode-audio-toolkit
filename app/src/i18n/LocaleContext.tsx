@@ -4,6 +4,34 @@ export type Locale = "zh" | "en";
 const STORAGE_KEY = "audioToolkit.locale";
 
 const zh: Record<string, string> = {
+    "Instrument distribution": "乐器分布", "Instrument relevance": "乐器相关性", "Instrument regions · candidates": "乐器区域 · 候选",
+    "Mood and theme": "情绪与主题", "Mood and theme relevance": "情绪与主题相关性", "Genre distribution": "风格分布",
+    "Timbre brightness": "音色明暗", "Voice presence": "人声存在度", "Acoustic character": "原声特征", "Electronic character": "电子音色特征",
+    "Tonal character": "有调性特征", "Danceability": "可舞性", "Happy mood": "快乐情绪", "Sad mood": "悲伤情绪",
+    "Relaxed mood": "放松情绪", "Aggressive mood": "激烈情绪", "Party character": "派对特征",
+    "Music auto-tags": "音乐自动标签", "Music tag relevance": "音乐标签相关性", "Tempo · audio estimate": "速度 · 音频估计", "Tempo candidates": "速度候选分布",
+    "Prediction interval (s)": "预测间隔（秒）", "Target label": "目标标签", "Candidate score threshold": "候选得分阈值", "Score": "模型得分",
+    "Import MusicXML": "导入 MusicXML", "Import MusicXML / MIDI": "导入 MusicXML / MIDI", "Image / PDF → MusicXML": "图片 / PDF → MusicXML", "Recognizing score": "识别乐谱", "Preparing score recognition": "准备乐谱识别", "Preparing isolated HOMR environment": "准备独立 HOMR 环境", "Score pages prepared": "乐谱页面已准备", "HOMR models prepared": "HOMR 模型已准备",
+    "OMR result — review the score before alignment": "OMR 识别结果：对齐前请检查乐谱", "Restart the updated backend to enable OMR": "请重启更新后的后端以启用 OMR", "Score recognition failed": "乐谱识别失败", "Score upload exceeds 50 MiB": "乐谱文件不能超过 50 MiB",
+    "OMR is an estimate: review pitches, rhythm, voices, key signatures and page joins before DTW alignment.": "OMR 是推断结果：DTW 对齐前请检查音高、节奏、声部、调号和跨页衔接。",
+    "Choose a keyword to analyze its relevance over time": "输入关键词，分析它随时间变化的相关性", "Relevance request prepared": "相关性请求已准备", "Curve prepared": "曲线已生成", "Partial preview": "部分结果",
+    "Analyze audio or add mood points": "分析音频，或手动添加情绪点", "Import a score to get tempo data": "导入乐谱以获取速度数据", "Open score module": "打开乐谱模组", "Select a range to add a region": "选择一段时间以添加区域标记", "Add selection region": "添加选区标记", "Region": "区域",
+    "Add instrument": "添加乐器", "Remove instrument": "删除乐器", "Could not infer score sections": "无法从当前乐谱推断段落",
+    "Sample point": "采样点",
+    "Restart the updated backend to enable mood analysis": "请重启更新后的后端以启用情绪分析", "Mood model is not available": "情绪模型当前不可用", "No mood analysis backend is available": "未连接情绪分析后端",
+    "Essentia Python/TensorFlow is not supported on native Windows. Run this backend in WSL/Linux or macOS and connect its API.": "Essentia Python/TensorFlow 不支持原生 Windows。请在 WSL/Linux 或 macOS 运行后端并连接其 API。",
+    "Install the optional essentia-tensorflow package in the backend environment.": "请在后端环境中安装可选的 essentia-tensorflow 包。",
+    "Missing Essentia weights: msd-musicnn-1.pb and deam-msd-musicnn-2.pb in MAB_MODEL_ROOT/essentia.": "缺少 Essentia 权重：请将 msd-musicnn-1.pb 和 deam-msd-musicnn-2.pb 放入 MAB_MODEL_ROOT/essentia。",
+    "Score tempo": "乐谱标记速度", "Performed tempo · DTW": "实际演奏速度 · DTW", "Mood · VA curve": "情绪 · VA 曲线", "Form · regions": "曲式 · 区域标记", "Mode / key · regions": "调式 / 调性 · 区域标记", "Meter · regions": "节拍 · 区域标记",
+    "Open module": "打开模组", "Analyze mood": "分析情绪", "Add point at playhead": "在播放光标处添加点", "Curve point": "曲线控制点", "Delete point": "删除控制点", "Manual": "手动", "DTW estimate": "DTW 推断值", "Manual alignment estimate": "手动对齐推断值",
+    "Import a score and run DTW alignment first": "请先导入乐谱并执行 DTW 对齐", "Minimum section (measures)": "最短段落（小节）", "Infer score sections": "推断乐谱段落", "Section candidates": "候选段落", "Use section candidates": "使用候选段落", "Replace existing form regions with candidates?": "用推断的候选段落替换现有曲式标记？", "Discard": "丢弃",
+    "Piece metadata": "整曲元数据", "Title": "曲名", "Composer": "作曲者", "Global structure": "全局曲式", "Tempo (BPM)": "速度（BPM）", "Mode / key": "调式 / 调性", "Instruments": "乐器列表", "Meter": "节拍",
+    "Context / music function": "活动语境 / 音乐功能", "Theme type": "主题类型", "Other theme": "其他主题", "Mood · VA": "情绪 · VA", "Valence": "效价 V", "Arousal": "唤醒度 A",
+    "High arousal": "高唤醒", "Low arousal": "低唤醒", "Negative": "负向", "Positive": "正向", "Add region": "添加区域", "Select region": "选中区域", "Delete region": "删除区域", "Label": "标签", "Start (s)": "起点（秒）", "End (s)": "终点（秒）", "Time (s)": "时间（秒）",
+    "Add tempo point": "添加速度点", "Delete tempo point": "删除速度点", "Add tempo at playhead": "在播放光标处添加速度点", "Tempo curve": "速度曲线", "Use the selection, or the whole piece if no range is selected": "使用当前选区；没有选区时使用整曲",
+    "MusicXML values": "MusicXML 推断值", "Your edits are kept. Select fields to replace with score values.": "已保留你的填写。勾选字段可用乐谱值替换。", "Apply selected score values": "应用勾选的乐谱值", "Score values filled. Your edits will be preserved on import.": "已填入乐谱信息；后续导入会保留你的修改。",
+    "Narrative": "叙事", "Lyrical": "抒情", "Labor": "劳动", "Ritual": "仪式", "Festival": "节庆", "Love": "爱情", "History": "历史", "Knowledge narration": "知识讲述", "Daily life": "日常生活", "Other": "其他",
+    "Pentatonic": "五声调式", "Heptatonic": "七声调式", "Major": "大调", "Minor": "小调", "Dorian": "多利亚", "Phrygian": "弗里几亚", "Lydian": "利底亚", "Mixolydian": "混合利底亚",
     "Browser workspace": "浏览器工作区", "NOW INSPECTING": "当前音频", "Choose an audio file from the library": "从音频库选择文件",
     "Librosa ready": "Librosa 已就绪", "Checking service": "正在检查服务", "Service offline": "服务离线",
     "CLAP loaded": "CLAP 已加载", "Load CLAP": "加载 CLAP", "Checking CLAP": "正在检查 CLAP", "CLAP offline": "CLAP 离线",
@@ -13,7 +41,7 @@ const zh: Record<string, string> = {
     "Saving existing analyses…": "正在保存已有分析…",
     "Enable saving in .audio_toolkit": "允许写入 .audio_toolkit", "Folder auto-save is on": "文件夹自动保存已开启", "Folder save failed": "文件夹保存失败",
     "Reading local audio": "正在读取本地音频", "STANDALONE ANALYSIS WORKSPACE": "独立音频分析工作区",
-    "Open a folder.": "打开文件夹。", "Listen closer.": "细听每一处。",
+    "Open folder": "打开文件夹", "Open a folder.": "打开文件夹。", "Listen closer.": "细听每一处。",
     "Files remain in the browser. Only audio you choose to analyze is sent to the configured backend.": "目录留在浏览器。只有你选择分析的音频会发送到已配置的后端。",
     "Local folder": "本地文件夹", "Selected file": "选中的文件", "Analysis API": "分析 API",
     "LOCAL LIBRARY": "本地音频库", "No folder open": "未打开文件夹", "Open a local folder": "打开本地文件夹",
@@ -97,7 +125,7 @@ const zh: Record<string, string> = {
     "Alt-click a note to select it without moving the playhead": "按住 Alt 点击音符可只选中音符，不移动播放指针",
     "Add synchronized score": "添加同步乐谱", "Anchor selected note to playhead": "将所选音符锚定到播放指针",
     "Automatic alignment active": "已启用自动对齐", "Linear timing until aligned": "对齐前使用线性时间映射",
-    "manual anchors": "个人工锚点", "Clear manual anchors": "清除人工锚点", "Instruments": "乐器",
+    "manual anchors": "个人工锚点", "Clear manual anchors": "清除人工锚点",
     "Loading score": "正在加载乐谱", "Importing score": "正在导入乐谱", "Preparing audio chroma": "正在准备音频色度特征",
     "Extracting chroma features": "正在提取色度特征", "Aligning score and audio": "正在对齐乐谱与音频",
     "Import MusicXML to display a score": "导入 MusicXML 以显示乐谱", "Import MusicXML or MIDI to display notes": "导入 MusicXML 或 MIDI 以显示音符",
@@ -116,7 +144,31 @@ const en: Record<string, string> = {
     suggested: "Suggested", confirmed: "Confirmed", rejected: "Rejected", ambiguous: "Unsure"
 };
 
+Object.assign(zh, {
+    "Energy": "能量", "Loudness · Stevens": "响度 · Stevens", "Zero-crossing rate": "过零率",
+    "Spectral centroid": "频谱质心", "Spectral rolloff": "频谱滚降", "Spectral flatness": "频谱平坦度",
+    "Spectral crest": "频谱峰值因子", "Spectral flux": "频谱通量", "Spectral entropy": "频谱熵",
+    "Spectral complexity": "频谱复杂度", "High-frequency content": "高频含量", "Spectral spread": "频谱展宽",
+    "Spectral skewness": "频谱偏度", "Spectral kurtosis": "频谱峰度", "Sensory dissonance": "感知不协和度",
+    "Pitch · YIN FFT": "音高 · YIN FFT", "Pitch confidence": "音高置信度", "Onset strength": "起音强度",
+    "Mel bands": "Mel 频带", "Bark bands": "Bark 频带", "ERB bands": "ERB 频带",
+    "Harmonic pitch-class profile": "谐波音级分布（HPCP）", "Onsets": "起音", "Silence regions": "静音区域",
+    "Stable pitch regions · estimated": "稳定音高区域 · 估计", "Key regions · estimated": "调性区域 · 估计",
+    "Analysis sample rate": "分析采样率", "Minimum region duration (s)": "最短区域时长（秒）",
+    "Key context window (s)": "调性分析窗口（秒）", "Reference pitch A4 (Hz)": "参考音高 A4（Hz）",
+    "Silence threshold (dBFS)": "静音阈值（dBFS）", "Minimum confidence": "最低置信度",
+    "Analysis request prepared": "分析请求已准备", "Cached analysis loaded": "已读取分析缓存",
+    "Native analysis completed": "原生分析已完成", "Display data prepared": "显示数据已准备",
+    "Checking analysis cache": "分析请求已准备", "Updating markers": "标记数据已取得",
+    "Restart the updated backend to enable Essentia analysis": "请重启更新后的后端以启用 Essentia 分析",
+    "Native Essentia is not available": "原生 Essentia 尚未就绪",
+    "Rebuild the Essentia native worker to enable this algorithm": "请重新构建 Essentia 原生 worker 以启用此算法"
+});
+
 export function translate(locale: Locale, key: string): string {
+    if (locale === "zh" && key.endsWith(" (Essentia TF)")) return `${zh[key.slice(0, -" (Essentia TF)".length)] ?? key.slice(0, -" (Essentia TF)".length)} (Essentia TF)`;
+    if (locale === "zh" && /^Recognized page \d+\/\d+$/.test(key)) return key.replace(/^Recognized page (\d+)\/(\d+)$/, "已识别 $1 / $2 页");
+    if (locale === "zh" && key.endsWith(" (Essentia)")) return `${zh[key.slice(0, -" (Essentia)".length)] ?? key.slice(0, -" (Essentia)".length)} (Essentia)`;
     return locale === "zh" ? zh[key] ?? key : en[key] ?? key;
 }
 

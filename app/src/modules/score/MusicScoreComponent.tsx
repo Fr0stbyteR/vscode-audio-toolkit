@@ -5,6 +5,9 @@ import { selectAlignmentGuides } from "./AlignmentGuides";
 import { MusicScore } from "./ScoreModule";
 import { useScoreWorkspace } from "./useScoreWorkspace";
 import ScoreControls from "./ScoreControls";
+import ScoreImportActions from "./ScoreImportActions";
+import ModuleEmptyState from "../../components/ModuleEmptyState";
+import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { ScoreEvent } from "./ScoreLibrary";
 import "./ScoreModules.scss";
 import { useLocale } from "../../i18n/LocaleContext";
@@ -43,7 +46,7 @@ function sanitizeSvg(svg: string): string {
 const MusicScoreComponent: FunctionComponent<VisualizationOptions<MusicScore>> = props => {
     const { t } = useLocale();
     const { module, moduleState, playhead, viewRange, activeLayer, configurationMode } = props;
-    const { score, busy, error, alignment, currentState, importFile, autoAlign, addAnchor, clearAnchors } = useScoreWorkspace(module, moduleState);
+    const { score, busy, error, alignment, currentState, importFile, recognizeFile, cancelRecognition, omrProgress, autoAlign, addAnchor, clearAnchors } = useScoreWorkspace(module, moduleState);
     const viewportRef = useRef<HTMLDivElement>(null);
     const svgHostRef = useRef<HTMLDivElement>(null);
     const [positions, setPositions] = useState<PositionedEvent[]>([]);
@@ -110,13 +113,14 @@ const MusicScoreComponent: FunctionComponent<VisualizationOptions<MusicScore>> =
     const addCompanion = () => void module.audioEditor.addModule("score.pianoroll", { ...moduleState }, "Piano roll", true);
     return <>
         <div className="visualizer-component-container music-score-module">
-            {!score ? <div className="score-empty">{error ? <span role="alert">{t(error)}</span> : busy ? `${t(busy)}…` : t("Import MusicXML to display a score")}</div> : <>
+            {!score ? (!props.overlayMode || activeLayer) && <ModuleEmptyState message={error ? <span role="alert">{t(error)}</span> : busy ? `${t(busy)}…` : undefined}><ScoreImportActions kind="score" busy={!!busy} onImport={file => void importFile(file)} onOmr={file => void recognizeFile(file)} /></ModuleEmptyState> : <>
                 <div className="score-alignment-strip">
                     <svg width="100%" height="42" viewBox={`0 0 ${Math.max(1, viewportWidth)} 42`} preserveAspectRatio="none" aria-label={t("Score alignment map")}>
                         {alignmentLines.map(event => <g key={event.id} className={event.kind}><line x1={event.audioX} y1="0" x2={event.scoreX} y2="40" /><title>{event.kind === "measure" ? `${t("Measure")} ${event.label ?? ""}` : t("Score note")} · {event.time.toFixed(2)} s</title></g>)}
                         <line className="score-audio-cursor" x1={(playhead - viewStart) / Math.max(1, viewEnd - viewStart) * viewportWidth} y1="0" x2={(playhead - viewStart) / Math.max(1, viewEnd - viewStart) * viewportWidth} y2="42" />
                     </svg>
                 </div>
+                {!busy && moduleState.omrWarnings?.length ? <div className="score-omr-notice" role="status">{t("OMR result — review the score before alignment")}</div> : null}
                 <div className="score-scroll" ref={viewportRef} onScroll={event => setScrollLeft(event.currentTarget.scrollLeft)}>
                     <div className="score-svg" ref={svgHostRef} onClick={handleScoreClick} dangerouslySetInnerHTML={{ __html: safeSvg }} />
                     <div className="score-note-cursor" style={{ left: playheadX }} />
@@ -124,7 +128,8 @@ const MusicScoreComponent: FunctionComponent<VisualizationOptions<MusicScore>> =
                 </div>
             </>}
         </div>
-        <ScoreControls state={currentState} score={score} busy={busy} error={error} selectedTime={selectedTime} playheadSeconds={playhead / module.audioEditor.sampleRate} mode={configurationMode} activeLayer={activeLayer} moduleKind="score" onImport={file => void importFile(file)} onAutoAlign={() => void autoAlign()} onAnchor={addAnchor} onClearAnchors={clearAnchors} onAddCompanion={addCompanion} />
+        {omrProgress && <div className="score-job-status" role="status"><span>{Math.round((omrProgress.progress ?? 0) * 100)}% · {t(omrProgress.message)}</span><VSCodeButton appearance="secondary" onClick={cancelRecognition}>{t("Cancel")}</VSCodeButton></div>}
+        <ScoreControls state={currentState} score={score} busy={busy} error={error} selectedTime={selectedTime} playheadSeconds={playhead / module.audioEditor.sampleRate} mode={configurationMode} activeLayer={activeLayer} moduleKind="score" onImport={file => void importFile(file)} onOmr={file => void recognizeFile(file)} onAutoAlign={() => void autoAlign()} onAnchor={addAnchor} onClearAnchors={clearAnchors} onAddCompanion={addCompanion} />
     </>;
 };
 

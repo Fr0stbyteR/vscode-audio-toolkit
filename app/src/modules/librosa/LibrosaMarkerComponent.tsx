@@ -34,7 +34,10 @@ const LibrosaMarkerComponent: FunctionComponent<VisualizationOptions<LibrosaMark
     const configurationContent = <div className="default-layout"><ConfigurationSections mode={props.configurationMode} analysis={<>
         <ModuleConfigurationContent moduleId={module.moduleId} moduleState={draft} setModuleState={setDraft} optionsMetadata={module.getOptionsMetadata()} wrap={false} />
         <div className="analysis-actions">
-            <VSCodeButton appearance="primary" title={t("Run librosa again and replace the cached result")} onClick={() => module.setState({ ...moduleState, ...draft }, true)}>{t("Reanalyze")}</VSCodeButton>
+            <VSCodeButton appearance="primary" title={t("Reanalyze")} onClick={() => {
+                const changed = analysisKeys.some(key => draft[key] !== module.getAnalysisState(moduleState)[key]);
+                module.setState({ ...moduleState, ...draft }, !changed);
+            }}>{t("Reanalyze")}</VSCodeButton>
             <span>{moduleState.data?.length ?? 0} {t("markers")}</span>
         </div>
         <div className="analysis-cache-status">{moduleState.data && !cacheInfo ? t("Saved with project") : formatCacheInfo(cacheInfo, locale)}</div>

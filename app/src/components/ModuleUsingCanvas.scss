@@ -315,3 +315,12 @@
     }
     
 }
+
+.audio-editor-container div.editor-main-visualizer-component > div.module-using-canvas-container > div.calculating-overlay.progressive {
+    inset: auto var(--visualizer-right-spacing) 0 0; height: auto; width: auto; min-height: 24px; padding: 4px 8px;
+    background: var(--vscode-panel-background); pointer-events: none; align-items: flex-start; font-size: 11px;
+    > div { margin: 0; flex-direction: row; align-items: center; gap: 6px;
+        > vscode-progress-ring { width: 16px; height: 16px; margin: 0; }
+        > div { margin: 0; }
+    }
+}

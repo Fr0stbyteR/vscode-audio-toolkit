@@ -7,6 +7,8 @@ import { audioTimeAtScore } from "./Alignment";
 import { PianoRoll } from "./ScoreModule";
 import { useScoreWorkspace } from "./useScoreWorkspace";
 import ScoreControls from "./ScoreControls";
+import ScoreImportActions from "./ScoreImportActions";
+import ModuleEmptyState from "../../components/ModuleEmptyState";
 import { ScoreNote } from "./ScoreLibrary";
 import { useLocale } from "../../i18n/LocaleContext";
 import "./ScoreModules.scss";
@@ -153,7 +155,7 @@ const PianoRollComponent: FunctionComponent<VisualizationOptions<PianoRoll>> = p
     const monitorContent = selectedNote ? <div className="default-layout"><div>{t("Pitch")}: {pitchName(selectedNote.pitch)} (MIDI {selectedNote.pitch})</div><div>{t("Instrument")}: {score?.tracks.find(track => track.id === selectedNote.trackId)?.name}</div><div>{t("Score time")}: {selectedNote.time.toFixed(2)} s</div><div>{t("Audio time")}: {audioTimeAtScore(alignment, selectedNote.time).toFixed(2)} s</div></div> : undefined;
     return <>
         <ModuleUsingCanvas {...props} defaultVerticalZoom={1} verticalZoom={verticalZoom} setVerticalZoom={setVerticalZoom} defaultVerticalOffset={0} verticalOffset={verticalOffset} setVerticalOffset={setVerticalOffset} paint={paint} paintVerticalRuler={paintVerticalRuler} paintHorizontalRuler={paintHorizontalRuler} onCanvasMouseDown={onCanvasMouseDown} monitorContent={monitorContent} />
-        {!score ? <div className="piano-roll-empty">{error ? <span role="alert">{t(error)}</span> : busy ? `${t(busy)}…` : t("Import MusicXML or MIDI to display notes")}</div> : null}
+        {!score && (!props.overlayMode || activeLayer) ? <ModuleEmptyState message={error ? <span role="alert">{t(error)}</span> : busy ? `${t(busy)}…` : undefined}><ScoreImportActions kind="pianoroll" busy={!!busy} onImport={file => void importFile(file)} /></ModuleEmptyState> : null}
         <ScoreControls state={currentState} score={score} busy={busy} error={error} selectedTime={selectedNote?.time} playheadSeconds={playhead / module.audioEditor.sampleRate} mode={configurationMode} activeLayer={activeLayer} moduleKind="pianoroll" onImport={file => void importFile(file)} onAutoAlign={() => void autoAlign()} onAnchor={addAnchor} onClearAnchors={clearAnchors} onAddCompanion={addCompanion} onTrackVisibility={setTrackVisibility} />
     </>;
 };

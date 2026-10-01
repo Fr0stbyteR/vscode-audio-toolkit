@@ -1,7 +1,8 @@
-import { FunctionComponent, useCallback, useEffect, useRef, useState } from "react";
+import { forwardRef, FunctionComponent, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { LocalAudioEntry } from "./types";
 import { loadRootDirectory, saveRootDirectory } from "./PersistentStorage";
 import { useLocale } from "../i18n/LocaleContext";
+import CollapsiblePanel from "../components/CollapsiblePanel";
 
 const AUDIO_EXTENSIONS = /\.(aac|aif|aiff|flac|m4a|mp3|ogg|opus|wav|webm)$/i;
 
@@ -31,6 +32,8 @@ interface Props {
     activeId?: string;
     onOpen(entry: LocalAudioEntry): void;
 }
+
+export interface FileExplorerHandle { openFolder(): void; }
 
 async function listDirectory(handle: FileSystemDirectoryHandle, parentPath: string): Promise<BrowserNode[]> {
     const nodes: BrowserNode[] = [];
@@ -77,7 +80,7 @@ const TreeNode: FunctionComponent<{ node: BrowserNode; rootHandle?: FileSystemDi
     </li>;
 };
 
-const FileExplorer: FunctionComponent<Props> = ({ activeId, onOpen }) => {
+const FileExplorer = forwardRef<FileExplorerHandle, Props>(({ activeId, onOpen }, ref) => {
     const { t } = useLocale();
     const supportsDirectoryPicker = typeof (window as DirectoryPickerWindow).showDirectoryPicker === "function";
     const [rootName, setRootName] = useState("");
@@ -133,11 +136,10 @@ const FileExplorer: FunctionComponent<Props> = ({ activeId, onOpen }) => {
         }
     };
 
-    return <aside className="file-explorer">
-        <div className="panel-heading">
-            <div><span className="eyebrow">{t("LOCAL LIBRARY")}</span><strong>{t(rootName || "No folder open")}</strong></div>
-            <button className="icon-button" onClick={() => void chooseFolder()} title={t("Open a local folder")}>+</button>
-        </div>
+    useImperativeHandle(ref, () => ({ openFolder: () => void chooseFolder() }));
+
+    return <CollapsiblePanel id="files" title="LOCAL LIBRARY" icon="folder" className="file-explorer" actions={<button className="icon-button" onClick={() => void chooseFolder()} title={t("Open a local folder")} aria-label={t("Open a local folder")}>+</button>}>
+        <div className="file-root-name" title={rootName}>{rootName || t("No folder open")}</div>
         <input
             ref={fallbackRef}
             className="hidden-input"
@@ -159,7 +161,9 @@ const FileExplorer: FunctionComponent<Props> = ({ activeId, onOpen }) => {
             {savedHandle ? <button className="secondary" onClick={() => void chooseFolder()}>{t("Choose another folder")}</button> : null}
             <small>{t("Files remain local until you request an analysis.")}</small>
         </div>}
-    </aside>;
-};
+    </CollapsiblePanel>;
+});
+
+FileExplorer.displayName = "FileExplorer";
 
 export default FileExplorer;

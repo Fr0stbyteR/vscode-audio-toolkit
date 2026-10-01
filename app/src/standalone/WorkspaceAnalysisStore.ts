@@ -1,6 +1,7 @@
 import { AudioAnalysisRequest, AudioAnalysisResult, AudioToolkitModulesState } from "../types";
 import { SemanticCurveRequest, SemanticCurveResult, SemanticDescriptionRequest, SemanticDescriptionResult } from "../core/AudioEditor";
 import { importScore, loadScoreSource, ScoreFormat } from "../modules/score/ScoreLibrary";
+import { MusicMetadata } from "../core/MusicMetadata";
 
 const ROOT_NAME = ".audio_toolkit";
 const FORMAT_VERSION = 1;
@@ -17,6 +18,7 @@ export interface WorkspaceDocument {
     relativePath: string;
     savedAt: string;
     modulesState: AudioToolkitModulesState;
+    metadata?: MusicMetadata;
 }
 
 interface PackedArray {
@@ -28,7 +30,7 @@ interface PackedArray {
 interface StoredLibrosaResult {
     format: "audio-toolkit-librosa";
     version: 1;
-    request: { algorithm: AudioAnalysisRequest["algorithm"]; options: AudioAnalysisRequest["options"] };
+    request: { engine?: AudioAnalysisRequest["engine"]; algorithm: AudioAnalysisRequest["algorithm"]; options: AudioAnalysisRequest["options"] };
     result: Omit<AudioAnalysisResult, "vectors" | "matrix">;
     vectors?: PackedArray;
     matrix?: PackedArray;
@@ -87,6 +89,7 @@ export default class WorkspaceAnalysisStore {
     private writeQueue: Promise<void> = Promise.resolve();
     private documentTimer: ReturnType<typeof setTimeout> | undefined;
     private pendingState: AudioToolkitModulesState | undefined;
+    private pendingMetadata: MusicMetadata | undefined;
 
     constructor(private readonly root: FileSystemDirectoryHandle, readonly audioHash: string, readonly relativePath: string) {}
 
@@ -151,9 +154,10 @@ export default class WorkspaceAnalysisStore {
         return document;
     }
 
-    scheduleDocument(state: AudioToolkitModulesState, onError: (reason: unknown) => void) {
+    scheduleDocument(state: AudioToolkitModulesState, onError: (reason: unknown) => void, metadata?: MusicMetadata) {
         if (!this.writable) return;
         this.pendingState = structuredClone(state);
+        this.pendingMetadata = metadata ? structuredClone(metadata) : undefined;
         if (this.documentTimer) clearTimeout(this.documentTimer);
         this.documentTimer = setTimeout(() => { void this.flushDocument().catch(onError); }, 450);
     }
@@ -162,11 +166,13 @@ export default class WorkspaceAnalysisStore {
         if (this.documentTimer) clearTimeout(this.documentTimer);
         this.documentTimer = undefined;
         const state = this.pendingState;
+        const metadata = this.pendingMetadata;
         this.pendingState = undefined;
+        this.pendingMetadata = undefined;
         if (!state || !this.writable) return this.writeQueue;
         const document: WorkspaceDocument = {
             format: "audio-toolkit-workspace", version: FORMAT_VERSION, audioHash: this.audioHash,
-            relativePath: this.relativePath, savedAt: new Date().toISOString(), modulesState: state
+            relativePath: this.relativePath, savedAt: new Date().toISOString(), modulesState: state, metadata
         };
         return this.enqueue(async () => {
             const directory = (await this.assetDirectory(true))!;
@@ -223,9 +229,9 @@ export default class WorkspaceAnalysisStore {
         if (request.cachePolicy === "refresh") return undefined;
         const directory = await this.resultsDirectory(false);
         if (!directory) return undefined;
-        const key = await this.resultKey("librosa", [request.algorithm, stableOptions(request.options)]);
+        const key = await this.resultKey(request.engine ?? "librosa", [request.algorithm, stableOptions(request.options)]);
         const stored = await readJson<StoredLibrosaResult>(directory, `${key}.json`);
-        if (!stored || stored.format !== "audio-toolkit-librosa" || stored.version !== FORMAT_VERSION || stored.request.algorithm !== request.algorithm) return undefined;
+        if (!stored || stored.format !== "audio-toolkit-librosa" || stored.version !== FORMAT_VERSION || stored.request.algorithm !== request.algorithm || (stored.request.engine ?? "librosa") !== (request.engine ?? "librosa")) return undefined;
         const result: AudioAnalysisResult = { ...stored.result, cache: { status: "hit", createdAt: stored.result.cache?.createdAt } };
         if (stored.vectors) result.vectors = await unpackRows(directory, stored.vectors);
         if (stored.matrix) result.matrix = await unpackRows(directory, stored.matrix);
@@ -237,13 +243,13 @@ export default class WorkspaceAnalysisStore {
         // Pack synchronously: matrix modules release the JSON rows immediately after this call.
         const vectors = result.vectors?.length ? packRows(result.vectors, "") : undefined;
         const matrix = result.matrix?.length ? packRows(result.matrix, "") : undefined;
-        const key = await this.resultKey("librosa", [request.algorithm, stableOptions(request.options)]);
+        const key = await this.resultKey(request.engine ?? "librosa", [request.algorithm, stableOptions(request.options)]);
         if (vectors) vectors.descriptor.file = `${key}-vectors.f32`;
         if (matrix) matrix.descriptor.file = `${key}-matrix.f32`;
         const { vectors: _vectors, matrix: _matrix, ...base } = result;
         const stored: StoredLibrosaResult = {
             format: "audio-toolkit-librosa", version: FORMAT_VERSION,
-            request: { algorithm: request.algorithm, options: stableOptions(request.options) }, result: base,
+            request: { engine: request.engine, algorithm: request.algorithm, options: stableOptions(request.options) }, result: base,
             vectors: vectors?.descriptor, matrix: matrix?.descriptor
         };
         await this.enqueue(async () => {

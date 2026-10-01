@@ -14,6 +14,7 @@ export default abstract class LibrosaMarkerModule<State extends LibrosaMarkerSta
     static MODULE_ID = "librosa.base";
     static MODULE_NAME = "Librosa Analysis";
     static DEFAULT_ANALYSIS_STATE: Record<string, unknown> = {};
+    static ANALYSIS_ENGINE: "librosa" | "essentia" | "essentia-tf" = "librosa";
 
     public readonly moduleId = (this.constructor as typeof LibrosaMarkerModule).MODULE_ID;
     public readonly Component = LibrosaMarkerComponent;
@@ -31,6 +32,7 @@ export default abstract class LibrosaMarkerModule<State extends LibrosaMarkerSta
 
     get isCalculating() { return this._isCalculating; }
     get cacheInfo() { return this._cacheInfo; }
+    get analysisEngine() { return (this.constructor as typeof LibrosaMarkerModule).ANALYSIS_ENGINE; }
     get sharableData() { return Promise.resolve({ state: this.state }); }
     getState() { return this.state; }
 
@@ -61,7 +63,7 @@ export default abstract class LibrosaMarkerModule<State extends LibrosaMarkerSta
         this.setCalculating([5, "Checking analysis cache"]);
         try {
             const options = this.getAnalysisState() as Record<string, string | number | boolean | null>;
-            const result = await this.audioEditor.analyze({ algorithm: this.algorithm, options, cachePolicy: forceRefresh ? "refresh" : "use" });
+            const result = await this.audioEditor.analyze({ engine: this.analysisEngine, algorithm: this.algorithm, options, cachePolicy: forceRefresh ? "refresh" : "use" });
             if (calculationId !== this.calculationId) return;
             this._cacheInfo = result.cache;
             this.onCacheInfo?.(result.cache);

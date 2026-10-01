@@ -1,13 +1,15 @@
 import "@vscode/codicons/dist/codicon.css";
 import { FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AudioEditor from "../core/AudioEditor";
+import { restoreMetadata } from "../core/MusicMetadata";
 import AudioEditorContainer from "../components/AudioEditorContainer";
 import { AudioEditorContext } from "../components/contexts";
 import { AudioToolkitModulesState } from "../core/AudioToolkitModule";
 import MusicAnalysisClient, { BackendSettings } from "./MusicAnalysisClient";
-import FileExplorer from "./FileExplorer";
+import FileExplorer, { FileExplorerHandle } from "./FileExplorer";
 import { LocalAudioEntry } from "./types";
 import getLibrosaModules from "../modules/librosa";
+import getEssentiaModules from "../modules/essentia";
 import LibrosaAnalysisModule from "../modules/librosa/LibrosaAnalysisModule";
 import getMarkerModules from "../modules/marker";
 import getSpectrogramModules from "../modules/spectrogram";
@@ -16,6 +18,7 @@ import getSemanticDescriptionModules from "../modules/semantic-description";
 import ClapRelevanceCurve from "../modules/semantic-description/ClapRelevanceCurve";
 import SemanticDescription from "../modules/semantic-description/SemanticDescription";
 import getScoreModules from "../modules/score";
+import getMusicFeatureModules from "../modules/music-features";
 import { contentHashAudio, fingerprintAudio } from "./AudioFingerprint";
 import WorkspaceAnalysisStore, { WorkspaceDocument } from "./WorkspaceAnalysisStore";
 import { useLocale } from "../i18n/LocaleContext";
@@ -28,7 +31,7 @@ const MUSIC_TOKEN_KEY = "audioToolkit.web.musicToken";
 
 async function registerModules() {
     if (Object.keys(AudioEditor.MODULES_MAP).length) return;
-    const groups = await Promise.all([getWaveformModules(), getSpectrogramModules(), getMarkerModules(), getLibrosaModules(), getSemanticDescriptionModules(), getScoreModules()]);
+    const groups = await Promise.all([getWaveformModules(), getSpectrogramModules(), getMarkerModules(), getLibrosaModules(), getEssentiaModules(), getSemanticDescriptionModules(), getScoreModules(), getMusicFeatureModules()]);
     groups.flat().forEach(Module => AudioEditor.MODULES_MAP[Module.MODULE_ID] = Module);
 }
 
@@ -82,6 +85,7 @@ const StandaloneApp: FunctionComponent = () => {
     const [openingAudio, setOpeningAudio] = useState(false);
     const [error, setError] = useState("");
     const audioFileInput = useRef<HTMLInputElement>(null);
+    const fileExplorerRef = useRef<FileExplorerHandle>(null);
 
     useEffect(() => {
         if (musicSettings.token) localStorage.setItem(MUSIC_TOKEN_KEY, musicSettings.token);
@@ -157,8 +161,8 @@ const StandaloneApp: FunctionComponent = () => {
                 catch (reason) { console.warn("Could not restore workspace document from folder", reason); }
             }
             const browserDocument = readBrowserDocument(audioHash);
-            const modulesState: AudioToolkitModulesState | undefined = folderDocument && (!browserDocument || folderDocument.savedAt >= browserDocument.savedAt)
-                ? folderDocument.modulesState : browserDocument?.modulesState ?? legacyLayout();
+            const restoredDocument = folderDocument && (!browserDocument || folderDocument.savedAt >= browserDocument.savedAt) ? folderDocument : browserDocument;
+            const modulesState: AudioToolkitModulesState | undefined = restoredDocument?.modulesState ?? legacyLayout();
             const canWrite = workspace ? await workspace.inspectWritePermission() : false;
             const reportSaveError = (reason: unknown) => {
                 if (workspaceRef.current !== workspace) return;
@@ -200,45 +204,51 @@ const StandaloneApp: FunctionComponent = () => {
                     }
                     return result;
                 },
-                async request => {
+                async (request, onProgress, signal) => {
                     if (workspace) {
                         try {
-                            const saved = await workspace.loadCurve(request);
-                            if (saved) return saved;
+                            const saved = request.cachePolicy === "refresh" ? undefined : await workspace.loadCurve(request);
+                            if (saved) { onProgress?.(saved, saved.points.length); return saved; }
                         } catch (reason) { console.warn("Could not restore curve from folder", reason); }
                     }
-                    const result = await musicClient.relevanceCurve(file, request);
+                    const result = await musicClient.relevanceCurve(file, request, onProgress, signal);
                     if (workspace?.canWrite) {
                         try { await workspace.saveCurve(request, result); }
                         catch (reason) { reportSaveError(reason); }
                     }
                     return result;
-                }
+                },
+                request => musicClient.mood(file, request),
+                (scoreFile, onProgress, signal) => musicClient.recognizeScore(scoreFile, onProgress, signal)
             );
             if (revision !== openRevision.current) {
                 void nextEditor.context.close();
                 return;
             }
-            nextEditor.on("modulesState", state => {
-                const snapshot: WorkspaceDocument = { format: "audio-toolkit-workspace", version: 1, audioHash, relativePath: nextEntry.path, savedAt: new Date().toISOString(), modulesState: state };
+            nextEditor.metadata = restoreMetadata(restoredDocument?.metadata);
+            const saveDocument = () => {
+                const state = nextEditor.modulesState;
+                const snapshot: WorkspaceDocument = { format: "audio-toolkit-workspace", version: 1, audioHash, relativePath: nextEntry.path, savedAt: new Date().toISOString(), modulesState: state, metadata: nextEditor.metadata };
                 try { localStorage.setItem(browserDocumentKey(audioHash), JSON.stringify(snapshot)); }
                 catch (reason) { console.warn("Could not save browser module state", reason); }
-                workspace?.scheduleDocument(state, reportSaveError);
-            });
+                workspace?.scheduleDocument(state, reportSaveError, nextEditor.metadata);
+            };
+            nextEditor.on("modulesState", saveDocument);
+            nextEditor.on("metadata", saveDocument);
             workspaceRef.current = workspace;
             setFolderSaving(workspace ? canWrite ? "enabled" : "permission" : "unavailable");
             const initialSnapshot: WorkspaceDocument = {
                 format: "audio-toolkit-workspace", version: 1, audioHash, relativePath: nextEntry.path,
-                savedAt: new Date().toISOString(), modulesState: nextEditor.modulesState
+                savedAt: new Date().toISOString(), modulesState: nextEditor.modulesState, metadata: nextEditor.metadata
             };
             try { localStorage.setItem(browserDocumentKey(audioHash), JSON.stringify(initialSnapshot)); }
             catch (reason) { console.warn("Could not save initial browser module state", reason); }
-            if (canWrite) workspace?.scheduleDocument(nextEditor.modulesState, reportSaveError);
+            if (canWrite) workspace?.scheduleDocument(nextEditor.modulesState, reportSaveError, nextEditor.metadata);
             editorRef.current = nextEditor;
             setEntry(nextEntry);
             setEditor(nextEditor);
             setOpeningAudio(false);
-            if (previous) void previous.context.close();
+            if (previous) { previous.modulesInstance.forEach(module => module.dispose?.()); void previous.context.close(); }
         } catch (reason) {
             if (nextContext) void nextContext.close();
             if (revision !== openRevision.current) return;
@@ -256,7 +266,7 @@ const StandaloneApp: FunctionComponent = () => {
             workspace.scheduleDocument(editorRef.current.modulesState, reason => {
                 setFolderSaving("error");
                 setFolderError(reason instanceof Error ? reason.message : String(reason));
-            });
+            }, editorRef.current.metadata);
             await workspace.flushDocument();
             setFolderSaving("syncing");
             const failures: string[] = [];
@@ -319,7 +329,7 @@ const StandaloneApp: FunctionComponent = () => {
             <div><button className="secondary" onClick={() => setSettingsOpen(false)}>{t("Cancel")}</button><button onClick={saveSettings}>{t("Connect")}</button></div>
         </section>}
         <aside className="workspace-sidebar">
-            <FileExplorer activeId={entry?.id} onOpen={openEntry} />
+            <FileExplorer ref={fileExplorerRef} activeId={entry?.id} onOpen={openEntry} />
             <div id="standalone-layers-host" />
         </aside>
         <main className="web-editor">
@@ -327,17 +337,13 @@ const StandaloneApp: FunctionComponent = () => {
             {error && <div className="banner error-text"><strong>{t("Could not open audio")}</strong><span>{error}</span></div>}
             {openingAudio && <div className="loading-overlay"><span className="spinner" /><strong>{t("Reading local audio")}</strong></div>}
             {editor && entry ? <AudioEditorContext.Provider value={editor}><AudioEditorContainer standalone key={`${entry.id}:${editor.length}:${editor.sampleRate}`} /></AudioEditorContext.Provider> : <div className="welcome">
-                <div className="welcome-wave">∿</div>
-                <span className="eyebrow">{t("STANDALONE ANALYSIS WORKSPACE")}</span>
-                <h1>{t("Open a folder.")}<br />{t("Listen closer.")}</h1>
-                <p>{t("Files remain in the browser. Only audio you choose to analyze is sent to the configured backend.")}</p>
                 <input ref={audioFileInput} className="hidden-input" type="file" accept="audio/*,.aif,.aiff" onChange={event => {
                     const file = event.currentTarget.files?.[0];
                     if (file) void openEntry({ id: `single:${file.name}:${file.size}:${file.lastModified}`, name: file.name, path: file.name, getFile: async () => file });
                     event.currentTarget.value = "";
                 }} />
-                <button type="button" onClick={() => audioFileInput.current?.click()}>{t("Open one audio file")}</button>
-                <div className="privacy-flow"><span>{t("Local folder")}</span><b>→</b><span>{t("Selected file")}</span><b>→</b><span>{t("Analysis API")}</span></div>
+                <button type="button" onClick={() => fileExplorerRef.current?.openFolder()}>{t("Open folder")}</button>
+                <button type="button" className="secondary" onClick={() => audioFileInput.current?.click()}>{t("Open one audio file")}</button>
             </div>}
         </main>
     </div>;

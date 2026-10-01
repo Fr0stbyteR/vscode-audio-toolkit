@@ -30,9 +30,19 @@ export type AudioAnalysisAlgorithm =
     | "beats" | "onsets" | "nonSilent"
     | "rms" | "zeroCrossingRate" | "onsetStrength"
     | "spectralCentroid" | "spectralBandwidth" | "spectralRolloff" | "spectralFlatness"
-    | "pitch" | "melSpectrogram" | "chroma" | "mfcc";
+    | "pitch" | "melSpectrogram" | "chroma" | "mfcc"
+    | "energy" | "loudness" | "spectralCrest" | "spectralFlux" | "spectralEntropy"
+    | "spectralComplexity" | "hfc" | "spectralSpread" | "spectralSkewness" | "spectralKurtosis"
+    | "dissonance" | "pitchConfidence" | "melBands" | "barkBands" | "erbBands" | "gfcc" | "hpcp"
+    | "silenceRegions" | "pitchNotes" | "keyRegions"
+    | "tfInstrument" | "tfInstrumentCurve" | "tfInstrumentRegions"
+    | "tfMoodTheme" | "tfMoodThemeCurve" | "tfGenre" | "tfTimbre"
+    | "tfVoice" | "tfAcoustic" | "tfElectronic" | "tfTonal" | "tfDanceability"
+    | "tfHappy" | "tfSad" | "tfRelaxed" | "tfAggressive" | "tfParty"
+    | "tfTags" | "tfTagsCurve" | "tfTempo" | "tfTempoCandidates";
 
 export interface AudioAnalysisRequest {
+    engine?: "librosa" | "essentia" | "essentia-tf";
     algorithm: AudioAnalysisAlgorithm;
     options?: Record<string, string | number | boolean | null>;
     cachePolicy?: "use" | "refresh";
@@ -51,6 +61,7 @@ export interface AudioAnalysisResult {
     vectors?: (number[] | Float32Array)[];
     matrix?: (number[] | Float32Array)[];
     intervals?: [number, number][];
+    labels?: string[];
     metadata?: Record<string, string | number | boolean | null>;
     cache?: AudioAnalysisCacheInfo;
 }

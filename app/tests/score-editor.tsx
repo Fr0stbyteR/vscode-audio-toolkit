@@ -7,8 +7,12 @@ import { LocaleProvider } from "../src/i18n/LocaleContext";
 import getWaveformModules from "../src/modules/waveform";
 import getSpectrogramModules from "../src/modules/spectrogram";
 import getScoreModules from "../src/modules/score";
+import getMusicFeatures from "../src/modules/music-features";
+import getSemanticModules from "../src/modules/semantic-description";
+import MusicAnalysisClient from "../src/standalone/MusicAnalysisClient";
 import { importScore, loadScore, type ScoreNote } from "../src/modules/score/ScoreLibrary";
 import { DEFAULT_SCORE_STATE } from "../src/modules/score/ScoreModule";
+import { alignScoreToAudio, prepareAudioSamples } from "../src/modules/score/Alignment";
 import "../src/theme.css";
 import "../src/standalone/standalone.css";
 
@@ -33,13 +37,33 @@ async function run() {
     const response = await fetch("./fixtures/two-measures.musicxml");
     const imported = await importScore(new File([await response.arrayBuffer()], "two-measures.musicxml"));
     const score = await loadScore(imported.key);
-    const groups = await Promise.all([getWaveformModules(), getSpectrogramModules(), getScoreModules()]);
+    const groups = await Promise.all([getWaveformModules(), getSpectrogramModules(), getScoreModules(), getMusicFeatures(), getSemanticModules()]);
     groups.flat().forEach(Module => AudioEditor.MODULES_MAP[Module.MODULE_ID] = Module);
     const context = new AudioContext();
-    const editor = await AudioEditor.fromData(makeWav(score.notes, score.duration), context, {}, undefined, "score-test-audio");
+    const empty = new URLSearchParams(location.search).has("empty");
+    const wav = makeWav(score.notes, score.duration), audioFile = new File([wav], "synthetic-score-test.wav");
+    const client = new MusicAnalysisClient({ baseUrl: "http://127.0.0.1:49326", token: "audio-toolkit-dev" });
+    const editor = await AudioEditor.fromData(wav, context, {}, undefined, "score-test-audio", location.href, undefined, undefined,
+        (request, progress, signal) => client.relevanceCurve(audioFile, { ...request, providerId: "mock" }, progress, signal), undefined,
+        (file, progress, signal) => client.recognizeScore(file, progress, signal));
     const state = { ...DEFAULT_SCORE_STATE, scoreKey: imported.key, fileName: imported.name, format: imported.format, alignmentAudioKey: "score-test-audio" };
-    await editor.addModule("score.musicxml", state, "MusicXML score", true);
-    await editor.addModule("score.pianoroll", state, "Piano roll", true);
+    await editor.addModule("score.musicxml", empty ? undefined : state, "MusicXML score", true);
+    await editor.addModule("score.pianoroll", empty ? undefined : state, "Piano roll", true);
+    if (empty) {
+        await editor.addModule("music.performed-tempo");
+        await editor.addModule("music.va");
+        await editor.addModule("music.form-regions");
+        await editor.addModule("embedding.relevance-curve");
+        document.title = "Empty modules · local smoke test";
+    }
+    if (new URLSearchParams(location.search).has("features")) {
+        const alignment = await alignScoreToAudio(prepareAudioSamples([editor.audioBuffer.getChannelData(0)], editor.sampleRate), score.notes, editor.duration, score.duration);
+        editor.modulesInstance.find(module => module.moduleId === "score.musicxml")!.setState({ ...state, autoAlignment: alignment });
+        await editor.addModule("music.performed-tempo");
+        await editor.addModule("music.va", { points: [{ time: 0, values: [-.4, .2] }, { time: score.duration / 2, values: [.6, .8] }, { time: score.duration, values: [.1, -.2] }], source: "Manual" });
+        await editor.addModule("music.form-regions");
+        document.title = "Music feature modules · synthetic smoke test";
+    }
     document.getElementById("score-test-root")!.innerHTML = '<div class="standalone-shell"><aside class="workspace-sidebar"><div id="standalone-layers-host"></div></aside><main class="web-editor"><div id="editor-root"></div></main></div>';
     createRoot(document.getElementById("editor-root")!).render(<LocaleProvider><AudioEditorContext.Provider value={editor}><AudioEditorContainer standalone /></AudioEditorContext.Provider></LocaleProvider>);
 }

@@ -1,4 +1,7 @@
 import { Midi } from "@tonejs/midi";
+import { MusicMetadataValues } from "../../core/MusicMetadata";
+import { inferScoreMetadata } from "./ScoreMetadata";
+import type { BeatClockPoint } from "../music-features/PerformedTempo";
 
 export type ScoreFormat = "musicxml" | "mxl" | "midi";
 export interface ScoreNote { id: string; trackId: string; pitch: number; time: number; duration: number; velocity: number; }
@@ -12,6 +15,8 @@ export interface ParsedScore {
     notes: ScoreNote[];
     events: ScoreEvent[];
     svg?: string;
+    metadata?: Partial<MusicMetadataValues>;
+    beatClock: BeatClockPoint[];
 }
 export interface StoredScore { key: string; name: string; format: ScoreFormat; data: ArrayBuffer; }
 
@@ -107,10 +112,15 @@ async function createVerovioToolkit() {
 }
 
 async function parseScore(stored: StoredScore): Promise<ParsedScore> {
+    const beatClock = (midi: Midi): BeatClockPoint[] => {
+        const clock = midi.header.tempos.map(point => ({ time: midi.header.ticksToSeconds(point.ticks), bpm: point.bpm, beats: point.ticks / midi.header.ppq }));
+        if (!clock.length || clock[0].time > 0) clock.unshift({ time: 0, bpm: 120, beats: 0 });
+        return clock;
+    };
     if (stored.format === "midi") {
         const midi = new Midi(stored.data);
         const { tracks, notes } = midiTracks(midi);
-        return { format: "midi", name: stored.name, tracks, notes, events: notes.map(note => ({ id: note.id, time: note.time, kind: "note" })), duration: midi.duration };
+        return { format: "midi", name: stored.name, tracks, notes, events: notes.map(note => ({ id: note.id, time: note.time, kind: "note" })), duration: midi.duration, beatClock: beatClock(midi) };
     }
     const toolkit = await createVerovioToolkit();
     try {
@@ -135,6 +145,8 @@ async function parseScore(stored: StoredScore): Promise<ParsedScore> {
             const kind = element.classList.contains("measure") ? "measure" : "note";
             events.push({ id, time, kind, label: kind === "measure" ? element.getAttribute("n") || undefined : undefined });
         }
+        const measureTimes = events.filter(event => event.kind === "measure").map(event => event.time);
+        const metadata = inferScoreMetadata(stored.format === "mxl" ? toolkit.getMEI() : new TextDecoder().decode(stored.data), measureTimes, midi.duration, midi.header.tempos.map(point => ({ time: point.time ?? midi.header.ticksToSeconds(point.ticks), bpm: point.bpm })));
         events.sort((a, b) => a.time - b.time || (a.kind === "measure" ? -1 : 1));
         let measureNumber = 0, lastMeasureTime = -Infinity;
         for (const event of events) {
@@ -142,6 +154,6 @@ async function parseScore(stored: StoredScore): Promise<ParsedScore> {
             if (event.time - lastMeasureTime > 0.01) { measureNumber++; lastMeasureTime = event.time; }
             event.label ||= String(measureNumber);
         }
-        return { format: stored.format, name: stored.name, tracks, notes, events, duration: midi.duration, svg };
+        return { format: stored.format, name: stored.name, tracks, notes, events, duration: midi.duration, svg, metadata, beatClock: beatClock(midi) };
     } finally { toolkit.destroy(); }
 }

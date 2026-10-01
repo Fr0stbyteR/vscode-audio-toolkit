@@ -10,18 +10,16 @@ state can be stored beside the opened audio directory in `.audio_toolkit/`.
 
 ## Quick start
 
-Install the frontend once:
-
-```powershell
-npm ci --prefix app
-```
-
-Start the frontend together with the sibling `music-embedding-analysis`
-backend:
+With Node.js installed, start the frontend together with the sibling
+`music-embedding-analysis` backend (dependencies are prepared automatically):
 
 ```powershell
 .\start-standalone.ps1
 ```
+
+macOS: `bash start-standalone.command`. First launch also prepares and verifies
+the backend's native Essentia runtime and its 29 DSP modules plus VA inference.
+It needs internet and disk space; later launches reuse the installed artifacts.
 
 Or run only the frontend:
 

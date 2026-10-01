@@ -17,10 +17,12 @@ export default abstract class LibrosaMatrixModule<State extends LibrosaMatrixVis
     abstract readonly unit: string;
     get dataSlices() { return this._dataSlices; }
     get valueRange() { return this._valueRange; }
+    get valueUnit() { return this.unit; }
+    get binLabels(): string[] | undefined { return undefined; }
     get bins() { return this._dataSlices?.[0].resizedMatrices.sizes[0][1] ?? 1; }
     protected hasData() { return !!this._dataSlices?.length; }
     protected consumeResult(result: AudioAnalysisResult) {
-        if (!result.matrix?.length || !result.matrix[0]?.length) throw new Error("Librosa returned no matrix data.");
+        if (!result.matrix?.length || !result.matrix[0]?.length) throw new Error(`${this.analysisEngine} returned no matrix data.`);
         // Convert incrementally and release the JSON rows as soon as possible. Keeping the
         // nested number arrays alive while allocating the Float32 copy can otherwise make a
         // several-minute Mel result briefly consume hundreds of MB in the webview.
@@ -33,7 +35,7 @@ export default abstract class LibrosaMatrixModule<State extends LibrosaMatrixVis
         }
         result.matrix = undefined;
         const hopLength = Number(result.metadata?.hopLength ?? 512);
-        const audioSamplesPerFrame = hopLength / result.sampleRate * this.audioEditor.sampleRate;
+        const audioSamplesPerFrame = hopLength / result.sampleRate * this.audioEditor.sampleRate * (result.duration > 0 ? this.audioEditor.duration / result.duration : 1);
         this._valueRange = [Number(result.metadata?.minValue ?? 0), Number(result.metadata?.maxValue ?? 1)];
         this._dataSlices = [{
             startIndex: 0,

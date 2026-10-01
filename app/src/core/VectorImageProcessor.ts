@@ -33,9 +33,13 @@ export interface VectorPaintOptions {
     labelUnit: string;
     confidenceDataSlices: VectorDataSlice[];
     confidenceThreshold: number | undefined;
+    interpolation: "linear" | "step";
 }
 
 export interface VectorDataSlice {
+    /** Optional exact audio-sample coordinates for nonuniform feature/control points.
+     * These are point timestamps, not the centers of uniform analysis frames. */
+    samplePositions?: Float64Array;
     startIndex: number;
     endIndex: number;
     offsetFromSample: number;
@@ -51,9 +55,51 @@ export interface VectorCursorInfo {
     fromIndex: number;
     /** Exclusive */
     toIndex: number;
+    pointIndex?: number;
 };
 
 class VectorImageProcessor {
+    private static lowerBound(positions: Float64Array, sample: number) {
+        let low = 0, high = positions.length;
+        while (low < high) { const middle = (low + high) >>> 1; if (positions[middle] < sample) low = middle + 1; else high = middle; }
+        return low;
+    }
+    /** Timestamped curves share Vector's clipping, point visibility and cursor semantics.
+     * Do not resample them: that would invent samples or move uneven control points. */
+    private static paintTimestamped(ctx: CanvasRenderingContext2D, slices: VectorDataSlice[], options: Partial<VectorPaintOptions>, viewRange: [number, number], color: string) {
+        const { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, paintOver = false, interpolation = "linear" } = options;
+        if (!paintOver) ctx.clearRect(0, 0, width, height);
+        const span = viewRange[1] - viewRange[0];
+        if (span <= 0 || !Number.isFinite(span)) return;
+        const pixelsPerSample = width / span;
+        const channels = slices[0].vectors.length, channelHeight = height / channels;
+        ctx.save(); ctx.lineWidth = 1; ctx.strokeStyle = color; ctx.fillStyle = color;
+        for (const slice of slices) {
+            const positions = slice.samplePositions!;
+            if (!positions.length) continue;
+            const first = Math.max(0, this.lowerBound(positions, viewRange[0]) - 1);
+            const last = Math.min(positions.length - 1, this.lowerBound(positions, viewRange[1]));
+            for (let channel = 0; channel < channels; channel++) {
+                ctx.save(); ctx.beginPath(); ctx.rect(0, channel * channelHeight, width, channelHeight); ctx.clip();
+                ctx.beginPath(); let started = false, previousY = 0;
+                for (let index = first; index <= last; index++) {
+                    const value = slice.vectors[channel][index];
+                    if (!Number.isFinite(value)) { started = false; continue; }
+                    const x = (positions[index] - viewRange[0]) * pixelsPerSample;
+                    const y = channelHeight * (channel + (1 - (value * verticalZoom - verticalOffset)) / 2);
+                    if (started) { if (interpolation === "step") ctx.lineTo(x, previousY); ctx.lineTo(x, y); }
+                    else ctx.moveTo(x, y);
+                    started = true; previousY = y;
+                    const leftSpacing = index ? positions[index] - positions[index - 1] : Infinity;
+                    const rightSpacing = index + 1 < positions.length ? positions[index + 1] - positions[index] : Infinity;
+                    if (Math.min(leftSpacing, rightSpacing) * pixelsPerSample > 10) ctx.fillRect(x - 2, y - 2, 4, 4);
+                }
+                if (interpolation === "step" && started && last === positions.length - 1 && slice.endIndex > positions[last]) ctx.lineTo((slice.endIndex - viewRange[0]) * pixelsPerSample, previousY);
+                ctx.stroke(); ctx.restore();
+            }
+        }
+        ctx.restore();
+    }
     static DEFAULT_RESIZE_FACTOR = 4;
     static DEFAULT_MIN_WIDTH = 4;
     static generateResized(vectors: Float32Array[], audioSamplesPerFrame: number, { resizeFactor = this.DEFAULT_RESIZE_FACTOR, minWidth = this.DEFAULT_MIN_WIDTH }: Partial<VectorResizeOptions> = {}) {
@@ -113,10 +159,15 @@ class VectorImageProcessor {
     static paint(
         ctx: CanvasRenderingContext2D,
         dataSlices: VectorDataSlice[],
-        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, beforeAndAfter = "inherit", paintOver = false, paintSeparator = !paintOver, confidenceDataSlices, confidenceThreshold }: Partial<VectorPaintOptions>,
+        { width = ctx.canvas.width, height = ctx.canvas.height, verticalZoom = 1, verticalOffset = 0, beforeAndAfter = "inherit", paintOver = false, paintSeparator = !paintOver, confidenceDataSlices, confidenceThreshold, interpolation = "linear" }: Partial<VectorPaintOptions>,
         { viewRange }: Pick<VisualizationOptions<any>, "viewRange">,
         { phosphorColor = "rgb(67, 217, 150)", separatorColor = "grey" }: Partial<Pick<VisualizationStyleOptions, "phosphorColor" | "separatorColor">> 
     ) {
+        if (!dataSlices.length) { if (!paintOver) ctx.clearRect(0, 0, width, height); return; }
+        if (dataSlices.every(slice => !!slice.samplePositions)) {
+            this.paintTimestamped(ctx, dataSlices, { width, height, verticalZoom, verticalOffset, paintOver, interpolation }, viewRange, phosphorColor);
+            return;
+        }
         const numberOfChannels = dataSlices[0].vectors.length;
         const yMin = (verticalOffset - 1) / verticalZoom;
         const yMax = (verticalOffset + 1) / verticalZoom;
@@ -576,6 +627,25 @@ class VectorImageProcessor {
         { width, height, verticalZoom = 1, verticalOffset = 0 }: Partial<VectorPaintOptions> & Pick<VectorPaintOptions, "width" | "height">,
         { viewRange }: Pick<VisualizationOptions<any>, "viewRange">
     ): VectorCursorInfo {
+        if (dataSlices.length && dataSlices.every(slice => !!slice.samplePositions)) {
+            const sample = viewRange[0] + x / width * (viewRange[1] - viewRange[0]);
+            let selectedSlice: VectorDataSlice | undefined, pointIndex = -1, distance = Infinity;
+            for (const slice of dataSlices) {
+                const positions = slice.samplePositions!;
+                const insertion = this.lowerBound(positions, sample);
+                for (const index of [insertion - 1, insertion]) {
+                    if (index < 0 || index >= positions.length || positions[index] < viewRange[0] || positions[index] > viewRange[1]) continue;
+                    const nextDistance = Math.abs(positions[index] - sample);
+                    if (nextDistance < distance) { selectedSlice = slice; pointIndex = index; distance = nextDistance; }
+                }
+            }
+            if (!selectedSlice) return { x, y, channel: 0, value: NaN, fromIndex: Math.round(sample), toIndex: Math.round(sample) + 1 };
+            const channelHeight = height / selectedSlice.vectors.length;
+            const channel = Math.max(0, Math.min(selectedSlice.vectors.length - 1, Math.floor(y / channelHeight)));
+            const value = selectedSlice.vectors[channel][pointIndex];
+            const position = selectedSlice.samplePositions![pointIndex];
+            return { x: (position - viewRange[0]) / (viewRange[1] - viewRange[0]) * width, y: Number.isFinite(value) ? channelHeight * (channel + (1 - (value * verticalZoom - verticalOffset)) / 2) : y, channel, value, fromIndex: Math.round(position), toIndex: Math.round(position) + 1, pointIndex };
+        }
         const numberOfChannels = dataSlices[0].vectors.length;
         const yMin = (verticalOffset - 1) / verticalZoom;
         const yMax = (verticalOffset + 1) / verticalZoom;

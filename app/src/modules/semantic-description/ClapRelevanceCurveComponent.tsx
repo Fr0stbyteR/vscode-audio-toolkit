@@ -7,6 +7,8 @@ import { setCanvasToFullSize } from "../../utils";
 import ClapRelevanceCurve, { ClapRelevanceCurveState } from "./ClapRelevanceCurve";
 import "./ClapRelevanceCurveComponent.scss";
 import { useLocale } from "../../i18n/LocaleContext";
+import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
+import ModuleEmptyState from "../../components/ModuleEmptyState";
 
 function getTransform(module: ClapRelevanceCurve) {
     const values = module.dataSlices?.[0]?.vectors[0];
@@ -55,9 +57,11 @@ const ClapRelevanceCurveComponent: FunctionComponent<VisualizationOptions<ClapRe
     }, [module]);
     const paint = useCallback((ref: React.RefObject<HTMLCanvasElement>) => {
         const canvas = ref.current; const ctx = canvas?.getContext("2d");
-        if (!canvas || !ctx || !dataSlices?.length) return;
+        if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        VectorImageProcessor.paint(ctx, dataSlices, { width, height, verticalZoom, verticalOffset, beforeAndAfter: "inherit" }, { viewRange }, { phosphorColor: moduleState.color });
+        ctx.clearRect(0, 0, width, height);
+        if (!dataSlices?.length) return;
+        VectorImageProcessor.paint(ctx, dataSlices, { width, height, verticalZoom, verticalOffset, beforeAndAfter: "none" }, { viewRange }, { phosphorColor: moduleState.color });
     }, [dataSlices, moduleState.color, verticalOffset, verticalZoom, viewRange]);
     const paintVerticalRuler = useCallback((ref: React.RefObject<HTMLCanvasElement>) => {
         const canvas = ref.current; const ctx = canvas?.getContext("2d"); if (!canvas || !ctx) return;
@@ -87,11 +91,15 @@ const ClapRelevanceCurveComponent: FunctionComponent<VisualizationOptions<ClapRe
             <label>{t("Prompts")} <span>{t("One prompt per line; multiple prompts are aggregated.")}</span><textarea rows={4} value={draft.prompts.join("\n")} onChange={event => setDraft({ ...draft, prompts: event.target.value.split("\n") })} /></label>
             <div className="clap-curve-setting-row"><label>{t("Window (s)")}<input type="number" min="1" max="30" step="0.5" value={draft.windowSeconds} onChange={event => setDraft({ ...draft, windowSeconds: +event.target.value })} /></label><label>{t("Hop (s)")}<input type="number" min="0.1" max="10" step="0.1" value={draft.hopSeconds} onChange={event => setDraft({ ...draft, hopSeconds: +event.target.value })} /></label></div>
             <label>{t("Prompt aggregation")}<select value={draft.aggregation} onChange={event => setDraft({ ...draft, aggregation: event.target.value as "mean" | "max" })}><option value="mean">{t("Mean")}</option><option value="max">{t("Maximum")}</option></select></label>
-            <label>{t("Provider")}<select value={draft.providerId} onChange={event => setDraft({ ...draft, providerId: event.target.value })}><option value="">{t("Auto")}</option><option value="laion_clap_music_htsat_base">LAION-CLAP</option><option value="muq_mulan_large">MuQ-MuLan</option><option value="mock">{t("Mock (test)")}</option></select></label>
+            <label>{t("Provider")}<select value={draft.providerId} onChange={event => setDraft({ ...draft, providerId: event.target.value })}><option value="">{t("Auto")}</option><option value="clap_music">Music CLAP</option><option value="m2d_clap_2025">M2D-CLAP</option><option value="laion_clap_music_htsat_base">LAION-CLAP</option><option value="muq_mulan_large">MuQ-MuLan</option><option value="mock">{t("Mock (test)")}</option></select></label>
             <button onClick={() => apply(true)}>{t("Analyze curve")}</button>
         </div>} />;
     const monitorContent = <div className="default-layout clap-curve-monitor"><div><span>{t("Keyword")}</span><strong>{moduleState.keyword}</strong></div><div><span>{t("Provider")}</span><strong>{result?.providerName || "—"}</strong></div><div><span>{t("Samples")}</span><strong>{result?.points.length ?? "—"}</strong></div><div><span>{t("Cache")}</span><strong>{result ? t(result.cached ? "Hit" : "Miss") : "—"}</strong></div>{cursorInfo ? <div><span>{t("Similarity")}</span><strong>{typeof cursorInfo.value === "number" ? cursorInfo.value.toFixed(4) : "—"}</strong></div> : null}</div>;
-    return <ModuleUsingCanvas {...props} {...{ calculating, defaultVerticalOffset, verticalOffset, setVerticalOffset, defaultVerticalZoom, verticalZoom, setVerticalZoom, cursorX, cursorY, onCursor, paint, paintVerticalRuler, paintHorizontalRuler, configurationContent, monitorContent }} />;
+    const running = Boolean(calculating && (!Array.isArray(calculating) || calculating[0] >= 0));
+    return <><ModuleUsingCanvas {...props} nonBlockingLoading emptyContent={!dataSlices?.length && !running ? <ModuleEmptyState message={t("Choose a keyword to analyze its relevance over time")}><input aria-label={t("Keyword")} placeholder={t("Keyword")} value={draft.keyword} onChange={event => setDraft({ ...draft, keyword: event.target.value, prompts: [event.target.value] })} /><VSCodeButton disabled={!draft.keyword.trim()} onClick={() => apply(true)}>{t("Analyze curve")}</VSCodeButton></ModuleEmptyState> : undefined} {...{ calculating, defaultVerticalOffset, verticalOffset, setVerticalOffset, defaultVerticalZoom, verticalZoom, setVerticalZoom, cursorX, cursorY, onCursor, paint, paintVerticalRuler, paintHorizontalRuler, configurationContent, monitorContent }} />
+        {running && (!props.overlayMode || props.activeLayer) && <div className="module-inline-action" onMouseDown={event => event.stopPropagation()}><VSCodeButton appearance="secondary" onClick={() => module.cancel()}>{t("Cancel")}</VSCodeButton></div>}
+        {module.incompletePreview && (!props.overlayMode || props.activeLayer) && <div className="module-inline-action" onMouseDown={event => event.stopPropagation()}><span>{t("Partial preview")} {module.incompletePreview.join(" / ")}</span> <VSCodeButton appearance="secondary" onClick={() => void module.calculate()}>{t("Analyze curve")}</VSCodeButton></div>}
+    </>;
 };
 
 export default ClapRelevanceCurveComponent;

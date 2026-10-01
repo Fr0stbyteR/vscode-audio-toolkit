@@ -11,10 +11,10 @@ export default abstract class LibrosaVectorModule<State extends LibrosaVisualiza
     get dataSlices() { return this._dataSlices; }
     protected hasData() { return !!this._dataSlices?.length; }
     protected consumeResult(result: AudioAnalysisResult) {
-        if (!result.vectors?.length) throw new Error("Librosa returned no vector data.");
+        if (!result.vectors?.length) throw new Error(`${this.analysisEngine} returned no vector data.`);
         const vectors = this.selectVectors(result).map(values => values instanceof Float32Array ? values : Float32Array.from(values));
         const hopLength = Number(result.metadata?.hopLength ?? 512);
-        const audioSamplesPerSample = hopLength / result.sampleRate * this.audioEditor.sampleRate;
+        const audioSamplesPerSample = hopLength / result.sampleRate * this.audioEditor.sampleRate * (result.duration > 0 ? this.audioEditor.duration / result.duration : 1);
         this._dataSlices = [{
             startIndex: 0,
             endIndex: this.audioEditor.length,

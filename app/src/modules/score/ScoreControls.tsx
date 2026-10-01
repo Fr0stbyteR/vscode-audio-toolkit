@@ -1,9 +1,10 @@
-import { FunctionComponent, useRef } from "react";
+import { FunctionComponent } from "react";
 import { createPortal } from "react-dom";
 import ConfigurationSections from "../../components/ConfigurationSections";
 import { useLocale } from "../../i18n/LocaleContext";
 import type { ScoreState } from "./ScoreModule";
 import { ParsedScore } from "./ScoreLibrary";
+import ScoreImportActions from "./ScoreImportActions";
 
 interface Props {
     state: ScoreState;
@@ -16,6 +17,7 @@ interface Props {
     activeLayer: boolean;
     moduleKind: "score" | "pianoroll";
     onImport(file: File): void;
+    onOmr?(file: File): void;
     onAutoAlign(): void;
     onAnchor(scoreTime: number, audioTime: number): void;
     onClearAnchors(): void;
@@ -25,10 +27,8 @@ interface Props {
 
 const ScoreControls: FunctionComponent<Props> = props => {
     const { t } = useLocale();
-    const input = useRef<HTMLInputElement>(null);
     const content = <ConfigurationSections mode={props.mode} analysis={<div className="score-config">
-        <input ref={input} className="hidden-input" type="file" accept={props.moduleKind === "score" ? ".musicxml,.xml,.mxl" : ".musicxml,.xml,.mxl,.mid,.midi"} onChange={event => { const file = event.currentTarget.files?.[0]; if (file) props.onImport(file); event.currentTarget.value = ""; }} />
-        <button type="button" onClick={() => input.current?.click()}>{t("Import score")}</button>
+        <ScoreImportActions kind={props.moduleKind} busy={!!props.busy} onImport={props.onImport} onOmr={props.onOmr} />
         {props.state.fileName ? <small title={props.state.fileName}>{props.state.fileName}</small> : null}
         {props.score ? <>
             <button type="button" disabled={!!props.busy || !props.score.notes.length} onClick={props.onAutoAlign}>{t("Auto-align to audio (DTW)")}</button>
@@ -41,6 +41,7 @@ const ScoreControls: FunctionComponent<Props> = props => {
         </> : null}
         {props.busy ? <span role="status">{t(props.busy)}…</span> : null}
         {props.error ? <span className="error-text" role="alert">{t(props.error)}</span> : null}
+        {props.state.omrWarnings?.map(warning => <small className="omr-warning" key={warning}>{t(warning)}</small>)}
     </div>} appearance={props.onTrackVisibility && props.score ? <div className="score-tracks"><strong>{t("Instruments")}</strong>{props.score.tracks.map(track => <label key={track.id}><input type="checkbox" checked={!props.state.hiddenTracks.includes(track.id)} onChange={event => props.onTrackVisibility?.(track.id, event.target.checked)} /><span style={{ color: track.color }}>●</span>{track.name}</label>)}</div> : undefined} />;
     const host = document.getElementById("inspector-config-root");
     return host ? props.activeLayer ? createPortal(content, host) : null : <div className="visualizer-component-configuration">{content}</div>;

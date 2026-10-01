@@ -14,6 +14,8 @@ import { createPortal } from "react-dom";
 
 export interface ModuleUsingCanvasProps extends VisualizationOptions<AudioToolkitModule> {
     calculating?: boolean | [number, string];
+    nonBlockingLoading?: boolean;
+    emptyContent?: React.ReactNode;
     defaultVerticalZoom: number;
     verticalZoom: number,
     setVerticalZoom: React.Dispatch<React.SetStateAction<number>>,
@@ -368,6 +370,7 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
             </div>
             <div ref={divMainRef} className="module-using-canvas-canvas-container visualizer-component-visualization-area" onMouseDown={handleCanvasMouseDown} onMouseEnter={() => setCursorHovered(true)} onMouseMove={handleCanvasMouseMove} onMouseLeave={handleCanvasMouseLeave}>
                 <canvas ref={canvasRef} style={{ opacity: foregroundOpacity ?? 1 }} />
+                {(!overlayMode || activeLayer) && props.emptyContent}
                 <canvas ref={referenceCanvasRef} className="canvas-reference-overlay" style={{ opacity: moduleState.referenceOpacity ?? .35, display: overlayMode || !moduleState.referenceOverlay || moduleState.referenceOverlay === "none" ? "none" : undefined }} />
                 <div className="selrange" style={{ left: selLeft, width: selWidth }} hidden={!selRange}>
                     <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />
@@ -393,12 +396,12 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
                 {showChannelEnableOverlay ? enabledChannels.map((enabled, i) => <div key={i} className={enabled ? "" : "disabled"} />) : null}
             </div>
             {
-                calculating
-                ? <div className={`calculating-overlay${calculatingError ? " error" : ""}`}>
+                calculating && (!props.nonBlockingLoading || !overlayMode || activeLayer)
+                ? <div className={`calculating-overlay${calculatingError ? " error" : ""}${props.nonBlockingLoading ? " progressive" : ""}`}>
                     <div>
                         {calculatingError ? null : <VSCodeProgressRing />}
                         <div>
-                            {calculatingError ?? (Array.isArray(calculating) ? `${Math.max(0, Math.min(100, Math.round(calculating[0])))}% · ${t("Completed:")} ${calculating[1]}` : t("Starting…"))}
+                            {calculatingError ?? (Array.isArray(calculating) ? `${Math.max(0, Math.min(100, Math.round(calculating[0])))}% · ${t("Completed:")} ${t(calculating[1])}` : t("Starting…"))}
                         </div>
                     </div>
                 </div>

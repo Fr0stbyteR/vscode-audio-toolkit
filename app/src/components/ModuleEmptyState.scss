@@ -1,0 +1,7 @@
+.module-empty-state { position: absolute; inset: 0 var(--visualizer-right-spacing, 0px) 0 0; z-index: 3; display: grid; place-items: center; padding: 12px; pointer-events: none; color: var(--vscode-descriptionForeground); }
+.visualizer-component-visualization-area > .module-empty-state { right: 0; }
+.module-empty-content { max-width: 100%; text-align: center; display: flex; flex-direction: column; gap: 10px; }
+.module-empty-message { font-size: var(--vscode-font-size); overflow-wrap: anywhere; }
+.module-empty-actions { pointer-events: auto; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; }
+.module-empty-actions input { max-width: 200px; min-width: 80px; color: var(--vscode-input-foreground); background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border, var(--vscode-widget-border)); padding: 5px 8px; }
+.module-inline-action { position: absolute; right: calc(var(--visualizer-right-spacing) + 8px); top: 8px; z-index: 5; }

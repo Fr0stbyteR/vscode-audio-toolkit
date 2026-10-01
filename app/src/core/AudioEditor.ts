@@ -8,6 +8,9 @@ import Spectrogram from "../modules/spectrogram/Spectrogram";
 import Waveform from "../modules/waveform/Waveform";
 import { AudioAnalysisRequest, AudioAnalysisResult } from "../types";
 import { decodeAiffPcm, isAiffFile } from "./decodeAiffPcm";
+import { emptyMetadata, MusicMetadata } from "./MusicMetadata";
+import type { MoodRequest, MoodResult } from "./MoodAnalysis";
+import type { CurveProgress, ScoreRecognitionProgress, ScoreRecognitionResult } from "./ScoreRecognition";
 
 export interface SemanticDescriptionRequest {
     startSeconds: number;
@@ -84,6 +87,8 @@ export type {
 export type AudioPlayingState = "stopped" | "paused" | "playing";
 
 export interface AudioEditorEventMap {
+    "focusModule": number;
+    "metadata": MusicMetadata;
     "viewRange": [number, number];
     "selRange": [number, number] | null;
     "selRangeToPlay": [number, number] | null;
@@ -114,6 +119,9 @@ export interface AudioEditorState {
 }
 
 class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
+    focusModule(index: number) { if (index > 0 && index < this.modulesInstance.length) { this.setModuleVisible(index, true); this.emit("focusModule", index); } }
+    metadata: MusicMetadata = emptyMetadata();
+    setMetadata(metadata: MusicMetadata) { this.metadata = metadata; this.emit("metadata", metadata); }
     static DEFAULT_CONFIGURATION: AudioEditorConfiguration = {
         audioUnit: "time",
         fftSize: 1024,
@@ -130,7 +138,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         { moduleId: Waveform.MODULE_ID, moduleName: Waveform.MODULE_NAME, visible: true, state: Waveform.DEFAULT_STATE },
         { moduleId: Spectrogram.MODULE_ID, moduleName: Spectrogram.MODULE_NAME, visible: true, state: Spectrogram.DEFAULT_STATE }
     ];
-    static async fromData(data: ArrayBuffer, context: AudioContext, configuration: Partial<AudioEditorConfiguration> = {}, modulesState?: AudioToolkitModulesState, uri?: string, workspaceUri = location.href, analyze?: (request: AudioAnalysisRequest) => Promise<AudioAnalysisResult>, describeSemantics?: (request: SemanticDescriptionRequest) => Promise<SemanticDescriptionResult>, analyzeSemanticCurve?: (request: SemanticCurveRequest) => Promise<SemanticCurveResult>) {
+    static async fromData(data: ArrayBuffer, context: AudioContext, configuration: Partial<AudioEditorConfiguration> = {}, modulesState?: AudioToolkitModulesState, uri?: string, workspaceUri = location.href, analyze?: (request: AudioAnalysisRequest) => Promise<AudioAnalysisResult>, describeSemantics?: (request: SemanticDescriptionRequest) => Promise<SemanticDescriptionResult>, analyzeSemanticCurve?: (request: SemanticCurveRequest, onProgress?: CurveProgress, signal?: AbortSignal) => Promise<SemanticCurveResult>, analyzeMood?: (request: MoodRequest) => Promise<MoodResult>, recognizeScore?: (file: File, onProgress?: (progress: ScoreRecognitionProgress) => void, signal?: AbortSignal) => Promise<ScoreRecognitionResult>) {
         let audioBuffer: AudioBuffer;
         if (isAiffFile(data)) {
             const decoded = decodeAiffPcm(data);
@@ -141,7 +149,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         }
         const operableAudioBuffer: OperableAudioBuffer = Object.setPrototypeOf(audioBuffer, OperableAudioBuffer.prototype);
         const timeDomainData = operableAudioBuffer.toArray(true);
-        const audioEditor = new AudioEditor(operableAudioBuffer, timeDomainData, context, { ...this.DEFAULT_CONFIGURATION, ...configuration }, uri, workspaceUri, analyze, describeSemantics, analyzeSemanticCurve);
+        const audioEditor = new AudioEditor(operableAudioBuffer, timeDomainData, context, { ...this.DEFAULT_CONFIGURATION, ...configuration }, uri, workspaceUri, analyze, describeSemantics, analyzeSemanticCurve, analyzeMood, recognizeScore);
         await audioEditor.initPlayer();
         const state = modulesState ?? (audioBuffer.duration > 60 ? this.DEFAULT_MODULES_STATE.slice(0, 2) : this.DEFAULT_MODULES_STATE);
         await audioEditor.initModules(state);
@@ -213,7 +221,9 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         private _workspaceUri: string | undefined,
         private readonly _analyze?: (request: AudioAnalysisRequest) => Promise<AudioAnalysisResult>,
         private readonly _describeSemantics?: (request: SemanticDescriptionRequest) => Promise<SemanticDescriptionResult>,
-        private readonly _analyzeSemanticCurve?: (request: SemanticCurveRequest) => Promise<SemanticCurveResult>
+        private readonly _analyzeSemanticCurve?: (request: SemanticCurveRequest, onProgress?: CurveProgress, signal?: AbortSignal) => Promise<SemanticCurveResult>,
+        private readonly _analyzeMood?: (request: MoodRequest) => Promise<MoodResult>,
+        private readonly _recognizeScore?: (file: File, onProgress?: (progress: ScoreRecognitionProgress) => void, signal?: AbortSignal) => Promise<ScoreRecognitionResult>
     ) {
         super();
         this.setState({
@@ -225,13 +235,21 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         if (!this._analyze) return Promise.reject(new Error("No audio analysis backend is available."));
         return this._analyze(request);
     }
+    analyzeMood(request: MoodRequest) {
+        if (!this._analyzeMood) return Promise.reject(new Error("No mood analysis backend is available"));
+        return this._analyzeMood(request);
+    }
     describeSemantics(request: SemanticDescriptionRequest) {
         if (!this._describeSemantics) return Promise.reject(new Error("No music embedding backend is available."));
         return this._describeSemantics(request);
     }
-    analyzeSemanticCurve(request: SemanticCurveRequest) {
+    recognizeScore(file: File, onProgress?: (progress: ScoreRecognitionProgress) => void, signal?: AbortSignal) {
+        if (!this._recognizeScore) return Promise.reject(new Error("No score recognition backend is available"));
+        return this._recognizeScore(file, onProgress, signal);
+    }
+    analyzeSemanticCurve(request: SemanticCurveRequest, onProgress?: CurveProgress, signal?: AbortSignal) {
         if (!this._analyzeSemanticCurve) return Promise.reject(new Error("No music embedding backend is available."));
-        return this._analyzeSemanticCurve(request);
+        return this._analyzeSemanticCurve(request, onProgress, signal);
     }
     private async initPlayer() {
         this._player = await AudioPlayer.init(this);
@@ -302,11 +320,15 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         const instance = await Constructor.fromAudioData(this, initialState, sharableData);
         this._modulesInstance = [...this._modulesInstance, instance];
         this._modulesState = [...this._modulesState, { moduleId, moduleName: moduleName ?? Constructor.MODULE_NAME, visible: visible ?? true, lastVisibleHeight, state: instance.getState() }];
-        const handleStateChange = (newState: any) => this.setModuleState(this._modulesInstance.indexOf(instance), newState);
+        const handleStateChange = (newState: any) => {
+            const index = this._modulesInstance.indexOf(instance);
+            if (index >= 0) this.setModuleState(index, newState);
+        };
         instance.onStateChange = handleStateChange;
         this.emit("modulesState", this._modulesState);
     }
     removeModule(index: number) {
+        this._modulesInstance[index]?.dispose?.();
         const prevState = { ...this._modulesState };
         this._modulesState.splice(index, 1);
         this._modulesState = this._modulesState.slice();

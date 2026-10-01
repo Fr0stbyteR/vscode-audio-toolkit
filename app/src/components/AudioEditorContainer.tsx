@@ -7,6 +7,8 @@ import AudioEditorMonitor from "./AudioEditorMonitor";
 import { AudioEditorContext } from "./contexts";
 import { AudioToolkitModulesState } from "../core/AudioToolkitModule";
 import { useLocale } from "../i18n/LocaleContext";
+import CollapsiblePanel from "./CollapsiblePanel";
+import MusicMetadataPanel from "./MusicMetadataPanel";
 
 interface Props {
     standalone?: boolean;
@@ -81,6 +83,7 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
     }, [audioEditor, hasInspector]);
     useEffect(() => {
         audioEditor.on("playhead", setPlayhead);
+        audioEditor.on("focusModule", setActiveLayerIndex);
         audioEditor.on("viewRange", setViewRange);
         audioEditor.on("selRange", setSelRange);
         audioEditor.on("playing", setPlaying);
@@ -92,6 +95,7 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
         window.addEventListener("resize", handleWindowUiResized);
         return () => {
             audioEditor.off("playhead", setPlayhead);
+            audioEditor.off("focusModule", setActiveLayerIndex);
             audioEditor.off("viewRange", setViewRange);
             audioEditor.off("selRange", setSelRange);
             audioEditor.off("playing", setPlaying);
@@ -116,9 +120,10 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
             <div className="audio-editor-right-container">
                 {hasInspector ? <>
                     <header className="inspector-header"><span>{t("INSPECTOR")}</span><strong>{t(modulesState[activeLayerIndex]?.moduleName ?? "Select a layer")}</strong></header>
-                    <section className="inspector-section"><h3><span className="codicon codicon-info" /> {t("Data")}</h3><div id="inspector-data" /></section>
-                    <section className="inspector-section"><h3><span className="codicon codicon-beaker" /> {t("Analysis")}</h3><div id="inspector-analysis" /></section>
-                    <section className="inspector-section"><h3><span className="codicon codicon-paintcan" /> {t("Appearance")}</h3><div id="inspector-appearance" /></section>
+                    <CollapsiblePanel id="data" title="Data" icon="info" className="inspector-section"><div id="inspector-data" /></CollapsiblePanel>
+                    <CollapsiblePanel id="analysis" title="Analysis" icon="beaker" className="inspector-section"><div id="inspector-analysis" /></CollapsiblePanel>
+                    <CollapsiblePanel id="appearance" title="Appearance" icon="paintcan" className="inspector-section"><div id="inspector-appearance" /></CollapsiblePanel>
+                    <MusicMetadataPanel />
                     <div id="inspector-config-root" hidden />
                 </> : null}
             </div>

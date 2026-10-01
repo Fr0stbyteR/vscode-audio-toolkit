@@ -29,6 +29,13 @@ const ModuleConfigurationContent: FunctionComponent<ConfigurationContentProps> =
                 </div>
             );
         } else if (typeof value === "number") {
+            if (range.length > 3) return <div key={id}>
+                <label htmlFor={id}>{t(description)}</label>
+                <VSCodeDropdown id={id} value={String(value)} onInput={event => {
+                    const nextValue = Number((event.currentTarget as HTMLInputElement).value);
+                    if (range.includes(nextValue)) setModuleState({ ...moduleState, [k]: nextValue });
+                }}>{range.map(v => <VSCodeOption key={v} value={String(v)}>{v}</VSCodeOption>)}</VSCodeDropdown>
+            </div>;
             const [min, step, max] = range;
             return (
                 <div key={id}>

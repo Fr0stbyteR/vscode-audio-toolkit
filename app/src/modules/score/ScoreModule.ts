@@ -14,6 +14,7 @@ export interface ScoreState extends AudioToolkitModuleState {
     autoAlignment: AlignmentPoint[];
     manualAnchors: AlignmentPoint[];
     hiddenTracks: string[];
+    omrWarnings?: string[];
 }
 
 export const DEFAULT_SCORE_STATE: ScoreState = {

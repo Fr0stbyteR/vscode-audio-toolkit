@@ -108,7 +108,8 @@ $webEnv = Read-DotEnv $webEnvPath
 $musicEnv = Read-DotEnv $musicEnvPath
 
 $musicPort = 49321
-if ($musicEnv.ContainsKey("MAB_PORT") -and -not [int]::TryParse($musicEnv["MAB_PORT"], [ref]$musicPort)) {
+$configuredMusicPort = if ($env:MAB_PORT) { $env:MAB_PORT } elseif ($musicEnv.ContainsKey("MAB_PORT")) { $musicEnv["MAB_PORT"] } else { "49321" }
+if (-not [int]::TryParse($configuredMusicPort, [ref]$musicPort)) {
     throw "MAB_PORT must be an integer in $musicEnvPath"
 }
 if ($musicPort -lt 1 -or $musicPort -gt 65535) { throw "MAB_PORT must be between 1 and 65535." }
@@ -117,14 +118,21 @@ $frontUrl = "http://127.0.0.1:5173/"
 $musicUrl = "http://127.0.0.1:$musicPort/v1/health"
 $node = Get-Command node -ErrorAction SilentlyContinue
 $viteScript = Join-Path $webRoot "node_modules\vite\bin\vite.js"
-if (-not $node -or -not (Test-Path -LiteralPath $viteScript)) {
-    throw "Frontend dependencies are missing. Install Node.js, then run: npm ci --prefix app"
+if (-not $node) {
+    throw "Node.js is required for the web frontend. Install Node.js and run this script again."
+}
+if (-not (Test-Path -LiteralPath $viteScript)) {
+    if ($Check) { Write-Host "First launch will run npm ci --prefix app." }
+    else {
+        $npmCommand = Get-Command npm.cmd -CommandType Application -ErrorAction Stop
+        & $npmCommand.Source ci --prefix $webRoot
+        if ($LASTEXITCODE -ne 0) { throw "Frontend dependency installation failed." }
+    }
 }
 
 $musicPython = Join-Path $musicRoot ".venv\Scripts\python.exe"
-if (-not (Test-Path -LiteralPath $musicPython) -or -not (Test-PythonModules $musicPython @("music_annotation_backend", "uvicorn", "librosa"))) {
-    throw "Music backend environment is missing at $musicRoot\.venv. See its README.md for the initial installation."
-}
+$backendStartScript = Join-Path $musicRoot "start.ps1"
+if (-not (Test-Path -LiteralPath $backendStartScript)) { throw "Backend start.ps1 is missing at $musicRoot" }
 
 if ($webEnv.ContainsKey("VITE_MUSIC_ANALYSIS_API") -and $webEnv["VITE_MUSIC_ANALYSIS_API"].TrimEnd('/') -ne "http://127.0.0.1:$musicPort") {
     Write-Warning "The music service URL in app/.env differs from this backend's MAB_PORT. Update the frontend setting if needed."
@@ -137,11 +145,28 @@ foreach ($port in @(5173, $musicPort)) {
 }
 if ($Check) { Write-Host "Ready to start the frontend and unified backend."; return }
 
+# Always use the backend's first-run workflow; directly invoking its API used
+# to skip Essentia installation and could report a misleading healthy service.
+$originalMusicToken = $env:MAB_SESSION_TOKEN
+$temporaryMusicToken = -not $env:MAB_SESSION_TOKEN -and [string]::IsNullOrEmpty($musicEnv["MAB_SESSION_TOKEN"]) -and $webEnv.ContainsKey("VITE_MUSIC_ANALYSIS_TOKEN")
+if ($temporaryMusicToken) {
+    $env:MAB_SESSION_TOKEN = $webEnv["VITE_MUSIC_ANALYSIS_TOKEN"]
+}
+try {
+    Write-Host "Preparing unified backend and verifying Essentia modules..."
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $backendStartScript -PrepareOnly
+    if ($LASTEXITCODE -ne 0) { throw "Backend / Essentia preparation failed; services were not started." }
+    if (-not (Test-PythonModules $musicPython @("music_annotation_backend", "uvicorn", "librosa"))) { throw "Backend preparation did not create a usable environment." }
+} catch {
+    if ($temporaryMusicToken) { $env:MAB_SESSION_TOKEN = $originalMusicToken }
+    throw
+}
+
 $logRoot = Join-Path $repoRoot ".standalone-logs"
-New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
 $runId = Get-Date -Format "yyyyMMdd-HHmmss-fff"
 $services = @()
 try {
+    New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
     $definitions = @(
         @{ Name = "Music analysis API"; File = $musicPython; Arguments = @("-m", "music_annotation_backend.main"); Directory = $musicRoot },
         @{ Name = "Web frontend"; File = $node.Source; Arguments = @("node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--strictPort"); Directory = $webRoot }
@@ -170,6 +195,7 @@ try {
         Start-Sleep -Seconds 1
     }
 } finally {
+    if ($temporaryMusicToken) { $env:MAB_SESSION_TOKEN = $originalMusicToken }
     foreach ($service in $services) {
         if (-not $service.Process.HasExited) {
             # Windows venv launchers can create a child Python process. Stop the

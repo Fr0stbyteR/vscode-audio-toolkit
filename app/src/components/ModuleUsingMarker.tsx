@@ -28,6 +28,8 @@ export interface ModuleUsingMarkerProps extends VisualizationOptions<IAudioToolk
     markerClassName: string;
     markerData: AudioMarker[];
     calculating?: boolean | [number, string];
+    regionOnly?: boolean;
+    emptyContent?: React.ReactNode;
     backgroundOpacity?: number;
     paintBackground?: (canvasRef: React.RefObject<HTMLCanvasElement>) => void | Promise<void>;
     paintVerticalRuler: (canvasRef: React.RefObject<HTMLCanvasElement>) => void | Promise<void>;
@@ -48,7 +50,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
     const { t } = useLocale();
     const {
         markerClassName, markerData,
-        module, calculating,
+        module, calculating, regionOnly,
         paintBackground, paintVerticalRuler, 
         backgroundOpacity,
         configurationContent, configurationContentChildren, monitorContent,
@@ -435,6 +437,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
                 <canvas ref={canvasVerticalRulerRef} />
             </div>
             <div ref={divMainRef} className="markers-container visualizer-component-visualization-area">
+                {(!overlayMode || activeLayer) && props.emptyContent}
                 <div className="markers">
                     <div className="marker-selection-overlay selrange" style={{ left: selLeft, width: selWidth }} hidden={!selRange}>
                         <div className="resize-handler resize-handler-w" onMouseDown={handleResizeStartMouseDown} />
@@ -447,7 +450,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
                         {
                             playhead < viewStart || playhead > viewEnd
                             ? null
-                            : !selRange && (!overlayMode || activeLayer) ? <div className="playhead" style={{ left: playheadLeft }}>
+                            : !regionOnly && !selRange && (!overlayMode || activeLayer) ? <div className="playhead" style={{ left: playheadLeft }}>
                                 <VSCodeButton className="marker-add-button marker-point-add" tabIndex={-1} aria-label={t("Add Marker")} title={t("Add marker at playhead")} appearance="icon" onClick={handleClickAddMarker} onMouseDown={handleAddMarkerMouseDown}>
                                     <span className="codicon codicon-add"></span>
                                 </VSCodeButton>
@@ -486,16 +489,16 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
                     <div>
                         {calculatingError ? null : <VSCodeProgressRing />}
                         <div>
-                            {calculatingError ?? (Array.isArray(calculating) ? `${Math.max(0, Math.min(100, Math.round(calculating[0])))}% · ${t("Completed:")} ${calculating[1]}` : t("Starting…"))}
+                            {calculatingError ?? (Array.isArray(calculating) ? `${Math.max(0, Math.min(100, Math.round(calculating[0])))}% · ${t("Completed:")} ${t(calculating[1])}` : t("Starting…"))}
                         </div>
                     </div>
                 </div>
                 : null
             }
         </div>
-        {document.getElementById("inspector-config-root") ? (activeLayer ? createPortal(configurationContent ?? <ConfigurationSections mode="both" appearance={<MarkerConfiguration {...{ module, selectedMarkers, setSelectedMarkers, color, setColor, markerClassName, markerName, setMarkerName }} />} />, document.getElementById("inspector-config-root")!) : null) :
+        {document.getElementById("inspector-config-root") ? (activeLayer ? createPortal(configurationContent ?? <ConfigurationSections mode="both" analysis={configurationContentChildren} appearance={<MarkerConfiguration {...{ module, selectedMarkers, setSelectedMarkers, color, setColor, markerClassName, markerName, setMarkerName }} />} />, document.getElementById("inspector-config-root")!) : null) :
             <div className={`visualizer-component-configuration module-using-marker-configuration ${module.moduleId.replace(".", "-")}-configuration-container`}>
-                {configurationContent ?? <div className="default-layout">{configurationContentChildren}<ConfigurationSections mode={props.configurationMode} appearance={<MarkerConfiguration {...{ module, selectedMarkers, setSelectedMarkers, color, setColor, markerClassName, markerName, setMarkerName }} />} /></div>}
+                {configurationContent ?? <ConfigurationSections mode={props.configurationMode} analysis={configurationContentChildren} appearance={<MarkerConfiguration {...{ module, selectedMarkers, setSelectedMarkers, color, setColor, markerClassName, markerName, setMarkerName }} />} />}
             </div>}
         {document.getElementById("inspector-data") ? (activeLayer && monitorContent ? createPortal(monitorContent, document.getElementById("inspector-data")!) : null) : <div className="visualizer-component-monitor">{monitorContent}</div>}
     </>);

@@ -24,6 +24,7 @@ const LibrosaMatrixComponent: FunctionComponent<VisualizationOptions<LibrosaMatr
     const [calculating, setCalculating] = useState<boolean | [number, string]>(module.isCalculating);
     const [renderInfo, setRenderInfo] = useState("Waiting for data");
     const [cacheInfo, setCacheInfo] = useState(module.cacheInfo);
+    const bins = module.bins;
     const valueSpan = Math.max(Number.EPSILON, module.valueRange[1] - module.valueRange[0]);
     const colorMin = Math.max(0, Math.min(1, moduleState.colorMin ?? 0));
     const colorMax = Math.max(colorMin + Number.EPSILON, Math.min(1, moduleState.colorMax ?? 1));
@@ -70,19 +71,42 @@ const LibrosaMatrixComponent: FunctionComponent<VisualizationOptions<LibrosaMatr
     const paintHorizontalRuler = useCallback((ref: React.RefObject<HTMLCanvasElement>) => {
         const canvas = ref.current; const ctx = canvas?.getContext("2d"); if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        const fromBin = verticalOffset / 2 * module.bins / verticalZoom;
-        const toBin = (verticalOffset / 2 + 1) * module.bins / verticalZoom;
+        const fromBin = verticalOffset / 2 * bins / verticalZoom;
+        const toBin = (verticalOffset / 2 + 1) * bins / verticalZoom;
+        if (module.binLabels) {
+            const rulerLeft = width - getVisualizerRulerWidth(canvas);
+            const scale = height / Math.max(Number.EPSILON, toBin - fromBin);
+            ctx.clearRect(0, 0, width, height);
+            ctx.save();
+            ctx.font = `12px ${monospaceFont}`;
+            ctx.textBaseline = "middle";
+            const labelStep = Math.max(1, Math.ceil(16 / scale));
+            module.binLabels.forEach((label, bin) => {
+                if (bin % labelStep !== 0) return;
+                const y = (toBin - bin - .5) * scale;
+                if (y < 0 || y > height) return;
+                ctx.strokeStyle = gridColor;
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(rulerLeft, y); ctx.stroke();
+                ctx.strokeStyle = gridRulerColor;
+                ctx.beginPath(); ctx.moveTo(rulerLeft, y); ctx.lineTo(rulerLeft + 5, y); ctx.stroke();
+                ctx.fillStyle = textColor;
+                ctx.save(); ctx.beginPath(); ctx.rect(rulerLeft + 8, 0, Math.max(0, width - rulerLeft - 8), height); ctx.clip();
+                ctx.fillText(label, rulerLeft + 8, y); ctx.restore();
+            });
+            ctx.restore();
+            return;
+        }
         const rulerZoom = 2 / Math.max(1, toBin - fromBin);
         const rulerOffset = ((fromBin + toBin) / 2) * rulerZoom;
         VectorImageProcessor.paintHorizontalRuler(ctx, 1, { width, height, verticalZoom: rulerZoom, verticalOffset: rulerOffset, labelMode: "linear", labelUnit: module.unit, labelsWidth: getVisualizerRulerWidth(canvas) }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
-    }, [gridColor, gridRulerColor, module.bins, module.unit, monospaceFont, textColor, verticalOffset, verticalZoom]);
+    }, [bins, gridColor, gridRulerColor, module, monospaceFont, textColor, verticalOffset, verticalZoom]);
     const onCursor = useCallback((x: number, y: number, width: number, height: number) => {
         if (!dataSlices?.length || x < 0 || x > width || y < 0 || y > height) { setCursorX(undefined); setCursorY(undefined); setCursorInfo(null); return; }
         const info = MatrixImageProcessor.getInfoFromCursor(dataSlices, x, y, { width, height, verticalZoom, verticalOffset }, { viewRange });
         setCursorX(info.x); setCursorY(info.y); setCursorInfo(info);
     }, [dataSlices, verticalOffset, verticalZoom, viewRange]);
     const configurationContent = <LibrosaConfiguration module={module} moduleState={moduleState} mode={props.configurationMode} />;
-    const monitorContent = <div className="default-layout"><div>{formatCacheInfo(cacheInfo, locale)}</div><div>{t(renderInfo)}</div>{cursorInfo ? <><div>{formatSampleRange(cursorInfo.fromIndex, cursorInfo.toIndex)} {t("samples")}</div><div>{t("Bin")} {cursorInfo.fromBin}–{cursorInfo.toBin}</div><div>{cursorInfo.value.toFixed(3)} {module.unit}</div></> : null}</div>;
+    const monitorContent = <div className="default-layout"><div>{formatCacheInfo(cacheInfo, locale)}</div><div>{t(renderInfo)}</div>{cursorInfo ? <><div>{formatSampleRange(cursorInfo.fromIndex, cursorInfo.toIndex)} {t("samples")}</div><div>{module.binLabels?.[Math.floor(cursorInfo.fromBin)] ?? `${t("Bin")} ${cursorInfo.fromBin}–${cursorInfo.toBin}`}</div><div>{cursorInfo.value.toFixed(3)} {module.valueUnit}</div></> : null}</div>;
     return <ModuleUsingCanvas {...props} {...{ calculating, defaultVerticalOffset, verticalOffset, setVerticalOffset, defaultVerticalZoom, verticalZoom, setVerticalZoom, cursorX, cursorY, onCursor, paint, paintVerticalRuler, paintHorizontalRuler, configurationContent, monitorContent }} foregroundOpacity={moduleState.opacity ?? 1} />;
 };
 
