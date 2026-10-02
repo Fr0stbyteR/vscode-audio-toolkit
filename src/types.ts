@@ -1,6 +1,7 @@
 export type AudioUnit = "time" | "sample" | "measure";
 
 export interface AudioEditorConfiguration {
+    playbackFollow?: "page" | "scroll";
     audioUnit: AudioUnit;
     fftSize: number;
     fftOverlap: number;

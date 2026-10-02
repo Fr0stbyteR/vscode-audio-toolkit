@@ -6,6 +6,7 @@ import { VSCodeButton, VSCodeDropdown, VSCodeOption } from "@vscode/webview-ui-t
 import TimeInput from "./TimeInput";
 import { useLocale } from "../i18n/LocaleContext";
 import { cachedModuleForModule, cachedModulesToAdd } from "../core/AnalysisCache";
+import { PLAYBACK_FOLLOW_STORAGE_KEY, playbackFollowMode } from "../core/PlaybackFollow";
 
 interface Props extends Pick<AudioEditorState, "playing" | "playhead" | "loop"> {
     configuration: AudioEditorConfiguration;
@@ -22,6 +23,18 @@ const AudioEditorControls: FunctionComponent<Props> = ({ playhead, playing, loop
     const [addError, setAddError] = useState("");
     const mounted = useRef(true);
     const batchRunning = useRef(false);
+    const followMode = playbackFollowMode(configuration.playbackFollow);
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem(PLAYBACK_FOLLOW_STORAGE_KEY);
+            if (saved !== null && audioEditor.configuration.playbackFollow !== playbackFollowMode(saved)) audioEditor.setConfiguration({ playbackFollow: playbackFollowMode(saved) });
+        } catch { /* The default still works when browser storage is unavailable. */ }
+    }, [audioEditor]);
+    const handleFollowInput = (event: React.ChangeEvent<HTMLSelectElement>) => {
+        const mode = playbackFollowMode(event.currentTarget.value);
+        audioEditor.setConfiguration({ playbackFollow: mode });
+        try { localStorage.setItem(PLAYBACK_FOLLOW_STORAGE_KEY, mode); } catch { /* Session-only preference. */ }
+    };
     useEffect(() => {
         mounted.current = true;
         audioEditor.on("analysisCache", setCachedAnalyses);
@@ -97,6 +110,10 @@ const AudioEditorControls: FunctionComponent<Props> = ({ playhead, playing, loop
                     <VSCodeButton tabIndex={-1} title={t("Loop")} appearance="icon" className={loop ? "active" : ""} onClick={handleClickLoop}>
                         <span className="codicon codicon-refresh"></span>
                     </VSCodeButton>
+                    <select className="editor-playback-follow" aria-label={t("Playback follow")} title={t(followMode === "page" ? "Turn the page before the playhead leaves the view" : "Scroll with the playhead while keeping the current zoom")} value={followMode} onChange={handleFollowInput} onKeyDown={event => event.stopPropagation()}>
+                        <option value="page">{t("Page follow")}</option>
+                        <option value="scroll">{t("Scroll follow")}</option>
+                    </select>
                 </span>
             </span>
             <span className="editor-add-component">

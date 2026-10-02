@@ -91,6 +91,8 @@ const AudioEditorContainer: FunctionComponent<Props> = (props: Props) => {
         audioEditor.on("loop", setLoop);
         audioEditor.on("enabledChannels", setEnabledChannels);
         audioEditor.on("configuration", setConfiguration);
+        // Child controls can restore preferences before this parent subscribes.
+        setConfiguration(audioEditor.configuration);
         audioEditor.on("uiResized", handleUiResized);
         audioEditor.on("modulesState", handleModulesState);
         window.addEventListener("resize", handleWindowUiResized);

@@ -12,6 +12,7 @@ import { emptyMetadata, MusicMetadata } from "./MusicMetadata";
 import type { MoodRequest, MoodResult } from "./MoodAnalysis";
 import type { CurveProgress, ScoreRecognitionProgress, ScoreRecognitionResult } from "./ScoreRecognition";
 import { CachedAnalysis, CachedModuleState, cachedModuleForModule, rememberCachedModuleState } from "./AnalysisCache";
+import { playbackFollowMode, playbackFollowRange } from "./PlaybackFollow";
 
 export interface SemanticDescriptionRequest {
     startSeconds: number;
@@ -147,6 +148,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     metadata: MusicMetadata = emptyMetadata();
     setMetadata(metadata: MusicMetadata) { this.metadata = metadata; this.emit("metadata", metadata); }
     static DEFAULT_CONFIGURATION: AudioEditorConfiguration = {
+        playbackFollow: "page",
         audioUnit: "time",
         fftSize: 1024,
         fftOverlap: 2,
@@ -294,6 +296,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     setConfiguration(configuration: Partial<AudioEditorConfiguration>) {
         this._configuration = { ...this._configuration, ...configuration };
         this.emit("configuration", this._configuration);
+        if (configuration.playbackFollow !== undefined && this.state.playing === "playing") this.followPlayback();
     }
     async setModulesState(modulesState: AudioToolkitModulesState) {
         this._modulesState = [...this._modulesState];
@@ -423,8 +426,13 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         const { length } = this;
         const playhead = Math.max(0, Math.min(length, Math.round(playheadIn)));
         this.setState({ playhead });
+        if (fromPlayer && this.state.playing === "playing") this.followPlayback();
         this.emit("playhead", playhead);
         if (shouldReplay) this.play();
+    }
+    private followPlayback() {
+        const range = playbackFollowRange(this.state.viewRange, this.state.playhead, this.length, playbackFollowMode(this.configuration.playbackFollow));
+        if (range) this.setViewRange(range);
     }
     async selectAll() {
         this.setSelRangeToAll();
@@ -481,6 +489,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         const playing: AudioPlayingState = "playing";
         this.setState({ playing });
         this.emit("playing", playing);
+        this.setPlayhead(this.state.selRange?.[0] ?? this.state.playhead, true);
         this.player!.play();
     }
     pause() {
@@ -493,6 +502,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         const playing: AudioPlayingState = "playing";
         this.setState({ playing });
         this.emit("playing", playing);
+        this.setPlayhead(this.state.selRange?.[0] ?? this.state.playhead, true);
         this.player!.play();
     }
     stop() {
@@ -507,10 +517,11 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         if (monitoring || playing === "playing") this.player!.postFxGainNode.gain.setTargetAtTime(dbtoa(gain), this.context.currentTime, 0.01);
     }
     handlePlayerEnded(playhead: number) {
+        // The final audio callback can arrive before the next animation frame.
+        this.setPlayhead(playhead, true);
         const playing: AudioPlayingState = "stopped";
         this.setState({ playing });
         this.emit("playing", playing);
-        this.setPlayhead(playhead);
     };
 }
 

@@ -4,6 +4,9 @@ export type Locale = "zh" | "en";
 const STORAGE_KEY = "audioToolkit.locale";
 
 const zh: Record<string, string> = {
+    "Playback follow": "播放头跟随", "Page follow": "翻页跟随", "Scroll follow": "滚动跟随",
+    "Turn the page before the playhead leaves the view": "播放头接近视图右边缘时翻页，保留当前缩放",
+    "Scroll with the playhead while keeping the current zoom": "视图随播放头滚动，保留当前缩放",
     "Analysis backend connected": "分析后端已连接", "Connecting to analysis backend": "正在连接分析后端", "Analysis backend disconnected": "分析后端未连接", "Analysis backend settings": "分析后端设置",
     "Add all cached modules": "一键添加已缓存模组",
     "Local analysis available": "已有本地分析结果", "No local analysis available": "尚无本地分析结果", "Analysis data loaded": "分析数据已加载",

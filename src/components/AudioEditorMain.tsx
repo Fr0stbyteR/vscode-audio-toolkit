@@ -441,7 +441,7 @@ const AudioEditorMain: FunctionComponent<Props> = (props) => {
                 </div>;
             })}
         </div>
-        <div className="editor-layers-hint">{t(overlayMode ? "Drag to reorder · top layers draw in front" : "Drag to reorder · list follows canvas order")}</div>
+        {/* <div className="editor-layers-hint">{t(overlayMode ? "Drag to reorder · top layers draw in front" : "Drag to reorder · list follows canvas order")}</div> */}
         {props.onResetAudio ? <div className="editor-layers-actions"><VSCodeButton className="danger-button" appearance="secondary" onClick={props.onResetAudio} title={t("Clear local results and reset this audio")}><span slot="start" className="codicon codicon-discard" aria-hidden="true" />{t("Reset this audio…")}</VSCodeButton></div> : null}</> : null}
     </div>;
     return (

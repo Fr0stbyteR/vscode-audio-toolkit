@@ -372,8 +372,8 @@ const StandaloneApp: FunctionComponent = () => {
 
     return <><div className="standalone-shell" ref={shellRef} aria-busy={openingAudio}>
         <header className="app-header">
-            <div className="brand"><span className="brand-mark">AT</span><div><strong>Audio Toolkit</strong><small>{t("Browser workspace")}</small></div></div>
-            <div className="current-file">{entry && <><span>{t("NOW INSPECTING")}</span><strong>{entry.name}</strong><small>{entry.path}</small></>}</div>
+            <div className="brand">{/* <span className="brand-mark">AT</span> */}<div><strong>Audio Toolkit</strong>{/* <small>{t("Browser workspace")}</small> */}</div></div>
+            <div className="current-file">{entry && <><span>{t("NOW INSPECTING")}</span><strong>{entry.name}</strong></>}</div>
             <div className="app-header-actions">
                 {entry?.rootHandle ? <button className={`header-action folder-save-button ${folderSaving}`} type="button" disabled={folderSaving === "syncing"} onClick={() => void enableFolderSaving()} title={folderError || t(folderSaving === "enabled" ? "Folder auto-save is on" : "Enable saving in .audio_toolkit")}>
                     <span className={`codicon codicon-${folderSaving === "enabled" ? "check" : "save"}`} aria-hidden="true" />
