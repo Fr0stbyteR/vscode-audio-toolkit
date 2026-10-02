@@ -8,12 +8,12 @@ async function bundled(path, stubUI = false) {
         entryPoints: [fileURLToPath(new URL(path, import.meta.url))],
         bundle: true, platform: "node", format: "esm", write: false,
         plugins: stubUI ? [{ name: "stub-ui", setup(build) {
-            build.onLoad({ filter: /Librosa(?:Vector|Matrix|Marker)Component\.tsx$/ }, () => ({ contents: "export default function Component() {}", loader: "js" }));
+            build.onLoad({ filter: /(?:Librosa(?:Vector|Matrix|Marker)|MusicCurve)Component\.tsx$/ }, () => ({ contents: "export default function Component() {}", loader: "js" }));
         } }] : []
     });
     return import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`);
 }
-const { analysisIdentity, cachedAnalysisForModule, cachedModulesToAdd, mergeCachedAnalyses } = await bundled("../src/core/AnalysisCache.ts");
+const { analysisIdentity, cachedAnalysisForModule, cachedModuleForModule, cachedModulesToAdd, mergeCachedAnalyses, rememberCachedModuleState } = await bundled("../src/core/AnalysisCache.ts");
 const definition = (algorithm, engine = "librosa") => ({ getAnalysisRequest: () => ({ engine, algorithm, options: { hopLength: 512 } }) });
 const cache = (algorithm, hopLength, engine = "librosa", savedAt = "2026-10-02") => ({ request: { engine, algorithm, options: { hopLength } }, savedAt });
 
@@ -54,4 +54,46 @@ test("all librosa and Essentia module descriptors match their calculation defaul
         const entry = { request, savedAt: "2026-10-02" };
         assert.equal(cachedAnalysisForModule(Module, [entry]), entry);
     }
+});
+
+test("VA results and manual edits are advertised and restored without native analysis requests", async () => {
+    const { MoodVA } = await bundled("../src/modules/music-features/MusicCurve.ts", true);
+    const registry = { "music.va": MoodVA, rms: definition("rms") };
+    const state = { ...MoodVA.DEFAULT_STATE, points: [{ time: 1, values: [.25, -.4] }], source: "Manual" };
+    let snapshots = rememberCachedModuleState([], "music.va", MoodVA, state);
+    state.points[0].values[0] = .9;
+    const cached = cachedModuleForModule("music.va", MoodVA, [], snapshots);
+    assert.equal(cached.state.points[0].values[0], .25, "cache does not alias editable module state");
+    assert.deepEqual(cachedModulesToAdd(registry, [], [], snapshots), [{ moduleId: "music.va", state: cached.state }]);
+    assert.deepEqual(cachedModulesToAdd(registry, [], [{ moduleId: "music.va", visible: false }], snapshots), []);
+    const module = await MoodVA.fromAudioData({ duration: 5 }, cached.state);
+    assert.deepEqual(module.getState().points, snapshots[0].state.points);
+    assert.equal(module.getState().source, "Manual");
+    snapshots = rememberCachedModuleState(snapshots, "music.va", MoodVA, { ...state, points: [] });
+    assert.equal(cachedModuleForModule("music.va", MoodVA, [], snapshots), undefined, "clearing all points invalidates the curve cache");
+    for (const points of [[{ time: 0, values: [null, null] }], [{ time: 0, values: [1] }], [{ time: Infinity, values: [0, 0] }]]) {
+        assert.equal(MoodVA.getCacheableState({ ...state, points }), undefined);
+    }
+    assert.equal(cachedModuleForModule("rms", registry.rms, [cache("rms", 512)], snapshots).state.hopLength, 512);
+});
+
+test("VA calculation updates the menu snapshot; disposing ignores late results", async () => {
+    const { MoodVA } = await bundled("../src/modules/music-features/MusicCurve.ts", true);
+    let resolve;
+    const editor = { duration: 5, metadata: { values: {}, sources: {} },
+        analyzeMood: () => new Promise(done => { resolve = done; }),
+        setMetadata(metadata) { this.metadata = metadata; }
+    };
+    const module = await MoodVA.fromAudioData(editor);
+    let snapshots = [];
+    module.onStateChange = state => { snapshots = rememberCachedModuleState(snapshots, "music.va", MoodVA, state); };
+    const calculation = module.calculate();
+    assert.equal(snapshots.length, 0, "creating/loading an empty VA is not cached");
+    resolve({ model: "test-va", points: [{ timeSeconds: 1, valence: .2, arousal: -.3 }] });
+    await calculation;
+    assert.equal(cachedModuleForModule("music.va", MoodVA, [], snapshots).state.source, "test-va");
+    const late = module.calculate(); module.dispose();
+    resolve({ model: "late", points: [{ timeSeconds: 1, valence: .9, arousal: .9 }] });
+    await late;
+    assert.equal(module.getState().source, "test-va");
 });

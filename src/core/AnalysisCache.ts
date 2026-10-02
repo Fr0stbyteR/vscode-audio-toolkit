@@ -5,6 +5,12 @@ export interface CachedAnalysis {
     savedAt: string;
 }
 
+/** Module-owned curves (including manual edits), not native analysis requests. */
+export interface CachedModuleState {
+    moduleId: string;
+    state: Record<string, unknown>;
+}
+
 export function analysisIdentity(request: AudioAnalysisRequest) {
     const options = Object.fromEntries(Object.entries(request.options ?? {}).sort(([a], [b]) => a.localeCompare(b)));
     return JSON.stringify([request.engine ?? "librosa", request.algorithm, options]);
@@ -25,6 +31,22 @@ export function mergeCachedAnalyses(...lists: CachedAnalysis[][]): CachedAnalysi
 
 interface AnalysisModuleDefinition {
     getAnalysisRequest?: (state?: Record<string, unknown>) => AudioAnalysisRequest;
+    getCacheableState?: (state: Record<string, unknown>) => Record<string, unknown> | undefined;
+}
+
+export function cachedModuleForModule(moduleId: string, Module: AnalysisModuleDefinition, entries: CachedAnalysis[], states: CachedModuleState[] = []) {
+    const saved = states.find(entry => entry.moduleId === moduleId);
+    const state = saved && Module?.getCacheableState?.(saved.state);
+    if (state) return { state };
+    const analysis = cachedAnalysisForModule(Module, entries);
+    return analysis ? { state: { ...analysis.request.options } } : undefined;
+}
+
+export function rememberCachedModuleState(entries: CachedModuleState[], moduleId: string, Module: AnalysisModuleDefinition, state: Record<string, unknown>) {
+    if (!Module?.getCacheableState) return entries;
+    const saved = Module.getCacheableState(state);
+    const rest = entries.filter(entry => entry.moduleId !== moduleId);
+    return saved ? [...rest, { moduleId, state: structuredClone(saved) }] : rest;
 }
 
 /** Prefer the default settings; otherwise reuse the most recently saved variant. */
@@ -38,10 +60,10 @@ export function cachedAnalysisForModule(Module: AnalysisModuleDefinition, entrie
         ?? candidates.sort((a, b) => b.savedAt.localeCompare(a.savedAt))[0];
 }
 
-export function cachedModulesToAdd(modules: Record<string, AnalysisModuleDefinition>, entries: CachedAnalysis[], existing: AudioToolkitModulesState) {
+export function cachedModulesToAdd(modules: Record<string, AnalysisModuleDefinition>, entries: CachedAnalysis[], existing: AudioToolkitModulesState, states: CachedModuleState[] = []) {
     const present = new Set(existing.map(module => module.moduleId));
     return Object.entries(modules).flatMap(([moduleId, Module]) => {
-        const cached = cachedAnalysisForModule(Module, entries);
-        return cached && !present.has(moduleId) ? [{ moduleId, state: { ...cached.request.options } }] : [];
+        const cached = cachedModuleForModule(moduleId, Module, entries, states);
+        return cached && !present.has(moduleId) ? [{ moduleId, state: cached.state }] : [];
     });
 }

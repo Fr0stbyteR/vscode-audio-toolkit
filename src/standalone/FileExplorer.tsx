@@ -3,6 +3,7 @@ import { LocalAudioEntry } from "./types";
 import { loadRootDirectory, saveRootDirectory } from "./PersistentStorage";
 import { useLocale } from "../i18n/LocaleContext";
 import CollapsiblePanel from "../components/CollapsiblePanel";
+import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 
 const AUDIO_EXTENSIONS = /\.(aac|aif|aiff|flac|m4a|mp3|ogg|opus|wav|webm)$/i;
 
@@ -138,8 +139,8 @@ const FileExplorer = forwardRef<FileExplorerHandle, Props>(({ activeId, onOpen }
 
     useImperativeHandle(ref, () => ({ openFolder: () => void chooseFolder() }));
 
-    return <CollapsiblePanel id="files" title="LOCAL LIBRARY" icon="folder" className="file-explorer" actions={<button className="icon-button" onClick={() => void chooseFolder()} title={t("Open a local folder")} aria-label={t("Open a local folder")}>+</button>}>
-        <div className="file-root-name" title={rootName}>{rootName || t("No folder open")}</div>
+    return <CollapsiblePanel id="files" title="LOCAL LIBRARY" icon="folder" className="file-explorer" actions={<VSCodeButton appearance="icon" onClick={() => void chooseFolder()} title={t("Open a local folder")} aria-label={t("Open a local folder")}><span className="codicon codicon-folder-opened" aria-hidden="true" /></VSCodeButton>}>
+        {rootName && <div className="file-root-name" title={rootName}>{rootName}</div>}
         <input
             ref={fallbackRef}
             className="hidden-input"
@@ -153,13 +154,12 @@ const FileExplorer = forwardRef<FileExplorerHandle, Props>(({ activeId, onOpen }
                 setNodes(filesToNodes(files));
             }}
         />
-        {!supportsDirectoryPicker && <p className="browser-note">{t("This browser uses a directory-upload fallback. Chrome and Edge support on-demand access.")}</p>}
         {error && <p className="error-text">{error}</p>}
         {nodes.length ? <ul className="file-tree">{nodes.map(node => <TreeNode key={node.id} node={node} rootHandle={supportsDirectoryPicker ? savedHandle : undefined} activeId={activeId} onOpen={onOpen} />)}</ul> : <div className="empty-tree">
-            <span>{t("Drop into your sound library")}</span>
-            {restoring ? <small>{t("Restoring the previous folder…")}</small> : savedHandle ? <button onClick={() => void reconnectFolder()}>{t("Reconnect")} {savedHandle.name}</button> : <button onClick={() => void chooseFolder()}>{t("Open local folder")}</button>}
-            {savedHandle ? <button className="secondary" onClick={() => void chooseFolder()}>{t("Choose another folder")}</button> : null}
-            <small>{t("Files remain local until you request an analysis.")}</small>
+            {restoring ? <small role="status">{t("Restoring the previous folder…")}</small> : savedHandle ? <>
+                <button className="button-with-icon" onClick={() => void reconnectFolder()}><span className="codicon codicon-folder-opened" aria-hidden="true" />{t("Reconnect")} {savedHandle.name}</button>
+                <button className="secondary button-with-icon" onClick={() => void chooseFolder()}><span className="codicon codicon-folder-opened" aria-hidden="true" />{t("Choose another folder")}</button>
+            </> : null}
         </div>}
     </CollapsiblePanel>;
 });

@@ -76,7 +76,6 @@ const StandaloneApp: FunctionComponent = () => {
     const [draftMusicSettings, setDraftMusicSettings] = useState(musicSettings);
     const musicClient = useMemo(() => new MusicAnalysisClient(musicSettings), [musicSettings]);
     const [backendStatus, setBackendStatus] = useState<"checking" | "online" | "offline">("checking");
-    const [musicBackendStatus, setMusicBackendStatus] = useState<"checking" | "online" | "idle" | "offline">("checking");
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [editor, setEditor] = useState<AudioEditor | null>(null);
     const editorRef = useRef<AudioEditor | null>(null);
@@ -104,14 +103,11 @@ const StandaloneApp: FunctionComponent = () => {
     useEffect(() => {
         let active = true;
         setBackendStatus("checking");
-        setMusicBackendStatus("checking");
-        musicClient.health().then(capabilities => {
+        musicClient.health().then(() => {
             if (!active) return;
             setBackendStatus("online");
-            const loaded = capabilities.providers.some(provider => provider.loaded && provider.supportsTextEmbeddings);
-            setMusicBackendStatus(loaded ? "online" : "idle");
         }).catch(() => {
-            if (active) { setBackendStatus("offline"); setMusicBackendStatus("offline"); }
+            if (active) setBackendStatus("offline");
         });
         return () => { active = false; };
     }, [musicClient]);
@@ -263,6 +259,7 @@ const StandaloneApp: FunctionComponent = () => {
             );
             constructedEditor = nextEditor;
             nextEditor.setCachedAnalyses(cachedAnalyses);
+            nextEditor.restoreCachedModuleStates(reset ? [] : restoredDocument?.cachedModuleStates);
             if (revision !== openRevision.current) {
                 nextEditor.modulesInstance.forEach(module => module.dispose?.());
                 void nextEditor.context.close();
@@ -272,10 +269,10 @@ const StandaloneApp: FunctionComponent = () => {
             const saveDocument = () => {
                 if (editorRef.current !== nextEditor) return;
                 const state = nextEditor.modulesState;
-                const snapshot: WorkspaceDocument = { format: "audio-toolkit-workspace", version: 1, audioHash, relativePath: nextEntry.path, savedAt: new Date().toISOString(), modulesState: state, metadata: nextEditor.metadata };
+                const snapshot: WorkspaceDocument = { format: "audio-toolkit-workspace", version: 1, audioHash, relativePath: nextEntry.path, savedAt: new Date().toISOString(), modulesState: state, metadata: nextEditor.metadata, cachedModuleStates: nextEditor.cachedModuleStatesForDocument };
                 try { localStorage.setItem(browserDocumentKey(audioHash), JSON.stringify(snapshot)); }
                 catch (reason) { console.warn("Could not save browser module state", reason); }
-                workspace?.scheduleDocument(state, reportSaveError, nextEditor.metadata);
+                workspace?.scheduleDocument(state, reportSaveError, nextEditor.metadata, nextEditor.cachedModuleStatesForDocument);
             };
             nextEditor.on("modulesState", saveDocument);
             nextEditor.on("metadata", saveDocument);
@@ -284,11 +281,11 @@ const StandaloneApp: FunctionComponent = () => {
             setFolderSaving(workspace ? canWrite ? "enabled" : "permission" : "unavailable");
             const initialSnapshot: WorkspaceDocument = {
                 format: "audio-toolkit-workspace", version: 1, audioHash, relativePath: nextEntry.path,
-                savedAt: new Date().toISOString(), modulesState: nextEditor.modulesState, metadata: nextEditor.metadata
+                savedAt: new Date().toISOString(), modulesState: nextEditor.modulesState, metadata: nextEditor.metadata, cachedModuleStates: nextEditor.cachedModuleStatesForDocument
             };
             try { localStorage.setItem(browserDocumentKey(audioHash), JSON.stringify(initialSnapshot)); }
             catch (reason) { console.warn("Could not save initial browser module state", reason); }
-            if (canWrite) workspace?.scheduleDocument(nextEditor.modulesState, reportSaveError, nextEditor.metadata);
+            if (canWrite) workspace?.scheduleDocument(nextEditor.modulesState, reportSaveError, nextEditor.metadata, nextEditor.cachedModuleStatesForDocument);
             editorRef.current = nextEditor;
             currentFileRef.current = file;
             currentHashRef.current = audioHash;
@@ -339,7 +336,7 @@ const StandaloneApp: FunctionComponent = () => {
             workspace.scheduleDocument(editorRef.current.modulesState, reason => {
                 setFolderSaving("error");
                 setFolderError(reason instanceof Error ? reason.message : String(reason));
-            }, editorRef.current.metadata);
+            }, editorRef.current.metadata, editorRef.current.cachedModuleStatesForDocument);
             await workspace.flushDocument();
             setFolderSaving("syncing");
             const failures: string[] = [];
@@ -376,18 +373,16 @@ const StandaloneApp: FunctionComponent = () => {
     return <><div className="standalone-shell" ref={shellRef} aria-busy={openingAudio}>
         <header className="app-header">
             <div className="brand"><span className="brand-mark">AT</span><div><strong>Audio Toolkit</strong><small>{t("Browser workspace")}</small></div></div>
-            <div className="current-file">{entry ? <><span>{t("NOW INSPECTING")}</span><strong>{entry.name}</strong><small>{entry.path}</small></> : <span>{t("Choose an audio file from the library")}</span>}</div>
+            <div className="current-file">{entry && <><span>{t("NOW INSPECTING")}</span><strong>{entry.name}</strong><small>{entry.path}</small></>}</div>
             <div className="app-header-actions">
-                {entry?.rootHandle ? <button className={`folder-save-button ${folderSaving}`} type="button" disabled={folderSaving === "syncing"} onClick={() => void enableFolderSaving()} title={folderError || t(folderSaving === "enabled" ? "Folder auto-save is on" : "Enable saving in .audio_toolkit")}>
-                    <span className={`codicon codicon-${folderSaving === "enabled" ? "check" : "save"}`} />
-                    {t(folderSaving === "enabled" ? "Folder saving on" : folderSaving === "syncing" ? "Saving existing analyses…" : folderSaving === "error" ? "Retry folder save" : "Save analyses in folder")}
+                {entry?.rootHandle ? <button className={`header-action folder-save-button ${folderSaving}`} type="button" disabled={folderSaving === "syncing"} onClick={() => void enableFolderSaving()} title={folderError || t(folderSaving === "enabled" ? "Folder auto-save is on" : "Enable saving in .audio_toolkit")}>
+                    <span className={`codicon codicon-${folderSaving === "enabled" ? "check" : "save"}`} aria-hidden="true" />
+                    <span className="header-action-label">{t(folderSaving === "enabled" ? "Folder saving on" : folderSaving === "syncing" ? "Saving existing analyses…" : folderSaving === "error" ? "Retry folder save" : "Save analyses in folder")}</span>
                 </button> : null}
-                <button className="backend-button" onClick={() => setSettingsOpen(value => !value)}>
-                    <span className={`status-dot ${backendStatus}`} />
-                    {t(backendStatus === "online" ? "Librosa ready" : backendStatus === "checking" ? "Checking service" : "Service offline")}
-                    <span className={`status-dot ${musicBackendStatus}`} />
-                    {t(musicBackendStatus === "online" ? "CLAP loaded" : musicBackendStatus === "idle" ? "Load CLAP" : musicBackendStatus === "checking" ? "Checking CLAP" : "CLAP offline")}
-                    <span className="codicon codicon-settings-gear" />
+                <button className="header-action backend-button" onClick={() => setSettingsOpen(value => !value)} aria-expanded={settingsOpen} aria-label={t("Analysis backend settings")} title={t(backendStatus === "online" ? "Analysis backend connected" : backendStatus === "checking" ? "Connecting to analysis backend" : "Analysis backend disconnected")}>
+                    <span className={`status-dot ${backendStatus}`} aria-hidden="true" />
+                    <span className="header-action-label">{t(backendStatus === "online" ? "Analysis backend connected" : backendStatus === "checking" ? "Connecting to analysis backend" : "Analysis backend disconnected")}</span>
+                    <span className="codicon codicon-settings-gear" aria-hidden="true" />
                 </button>
                 <div className="locale-switch" role="group" aria-label="Language / 语言">
                     <button type="button" className={locale === "zh" ? "active" : ""} aria-pressed={locale === "zh"} onClick={() => setLocale("zh")}>中</button>
@@ -396,7 +391,7 @@ const StandaloneApp: FunctionComponent = () => {
             </div>
         </header>
         {settingsOpen && <section className="backend-popover">
-            <strong>{t("Music analysis service · librosa + CLAP")}</strong>
+            <strong>{t("Analysis backend settings")}</strong>
             <label>{t("API base URL")}<input value={draftMusicSettings.baseUrl} onChange={event => setDraftMusicSettings(value => ({ ...value, baseUrl: event.target.value }))} placeholder="http://127.0.0.1:49321/" /></label>
             <label>{t("Bearer token")} <span>{t("(saved in this browser)")}</span><input type="password" value={draftMusicSettings.token} onChange={event => setDraftMusicSettings(value => ({ ...value, token: event.target.value }))} /></label>
             <div><button className="secondary" onClick={() => setSettingsOpen(false)}>{t("Cancel")}</button><button onClick={saveSettings}>{t("Connect")}</button></div>
@@ -414,8 +409,8 @@ const StandaloneApp: FunctionComponent = () => {
                     if (file) void openEntry({ id: `single:${file.name}:${file.size}:${file.lastModified}`, name: file.name, path: file.name, getFile: async () => file });
                     event.currentTarget.value = "";
                 }} />
-                <button type="button" onClick={() => fileExplorerRef.current?.openFolder()}>{t("Open folder")}</button>
-                <button type="button" className="secondary" onClick={() => audioFileInput.current?.click()}>{t("Open one audio file")}</button>
+                <button type="button" className="button-with-icon" onClick={() => fileExplorerRef.current?.openFolder()}><span className="codicon codicon-folder-opened" aria-hidden="true" />{t("Open folder")}</button>
+                <button type="button" className="secondary button-with-icon" onClick={() => audioFileInput.current?.click()}><span className="codicon codicon-file-media" aria-hidden="true" />{t("Open one audio file")}</button>
             </div>}
         </main>
     </div>
@@ -425,7 +420,7 @@ const StandaloneApp: FunctionComponent = () => {
         <strong>{entry?.name}</strong>
         <p>{t("This clears all modules, markers, score links, metadata and local analysis results for this audio. This cannot be undone.")}</p>
         <p>{t("The original audio, other audio files, backend caches and connection settings are kept.")}</p>
-        <div className="audio-reset-actions"><button type="button" className="secondary" autoFocus onClick={() => resetDialogRef.current?.close()}>{t("Cancel")}</button><button type="button" onClick={() => void resetAudio()}>{t("Clear and reset")}</button></div>
+        <div className="audio-reset-actions"><button type="button" className="secondary" autoFocus onClick={() => resetDialogRef.current?.close()}>{t("Cancel")}</button><button type="button" className="danger-button button-with-icon" onClick={() => void resetAudio()}><span className="codicon codicon-discard" aria-hidden="true" />{t("Clear and reset")}</button></div>
     </dialog>, document.body)}</>;
 };
 

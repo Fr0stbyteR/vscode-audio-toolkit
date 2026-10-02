@@ -58,6 +58,7 @@ export declare const AudioToolkitModule: {
     MODULE_NAME: string;
     DEFAULT_STATE: any;
     getAnalysisRequest?(state?: Record<string, unknown>): AudioAnalysisRequest;
+    getCacheableState?(state: Record<string, unknown>): Record<string, unknown> | undefined;
     prototype: AudioToolkitModule;
     fromAudioData(audioEditor: AudioEditor, initialState?: any, sharableData?: Record<string, any>): Promise<AudioToolkitModule<any>>;
 };

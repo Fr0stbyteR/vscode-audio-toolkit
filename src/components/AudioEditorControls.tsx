@@ -5,18 +5,19 @@ import AudioEditor, { AudioEditorConfiguration, AudioEditorState } from "../core
 import { VSCodeButton, VSCodeDropdown, VSCodeOption } from "@vscode/webview-ui-toolkit/react";
 import TimeInput from "./TimeInput";
 import { useLocale } from "../i18n/LocaleContext";
-import { cachedAnalysisForModule, cachedModulesToAdd } from "../core/AnalysisCache";
+import { cachedModuleForModule, cachedModulesToAdd } from "../core/AnalysisCache";
 
 interface Props extends Pick<AudioEditorState, "playing" | "playhead" | "loop"> {
     configuration: AudioEditorConfiguration;
 }
 
 const AudioEditorControls: FunctionComponent<Props> = ({ playhead, playing, loop, configuration }) => {
-    const { t } = useLocale();
+    const { t, locale } = useLocale();
     const audioEditor = useContext(AudioEditorContext)!;
     const handlePlayheadChanged = (playhead: number) => audioEditor.setPlayhead(playhead);
     const [playheadBeforePlay, setPlayheadBeforePlay] = useState(playhead);
     const [cachedAnalyses, setCachedAnalyses] = useState(audioEditor.cachedAnalyses);
+    const [cachedModuleStates, setCachedModuleStates] = useState(audioEditor.cachedModuleStates);
     const [addingCached, setAddingCached] = useState(false);
     const [addError, setAddError] = useState("");
     const mounted = useRef(true);
@@ -24,9 +25,10 @@ const AudioEditorControls: FunctionComponent<Props> = ({ playhead, playing, loop
     useEffect(() => {
         mounted.current = true;
         audioEditor.on("analysisCache", setCachedAnalyses);
-        return () => { mounted.current = false; audioEditor.off("analysisCache", setCachedAnalyses); };
+        audioEditor.on("moduleCache", setCachedModuleStates);
+        return () => { mounted.current = false; audioEditor.off("analysisCache", setCachedAnalyses); audioEditor.off("moduleCache", setCachedModuleStates); };
     }, [audioEditor]);
-    const cachedToAdd = cachedModulesToAdd(AudioEditor.MODULES_MAP, cachedAnalyses, audioEditor.modulesState);
+    const cachedToAdd = cachedModulesToAdd(AudioEditor.MODULES_MAP, cachedAnalyses, audioEditor.modulesState, cachedModuleStates);
     const cachedBatchLabel = `${t("Add all cached modules")}${cachedToAdd.length ? ` (${cachedToAdd.length})` : ""}`;
     const handleClickPlay = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
         e.currentTarget.blur();
@@ -76,8 +78,7 @@ const AudioEditorControls: FunctionComponent<Props> = ({ playhead, playing, loop
                 finally { batchRunning.current = false; if (mounted.current) setAddingCached(false); }
             })();
         } else {
-            const cached = cachedAnalysisForModule(AudioEditor.MODULES_MAP[moduleId], cachedAnalyses);
-            void audioEditor.addModule(moduleId, cached?.request.options).catch(reason => { if (mounted.current) setAddError(reason instanceof Error ? reason.message : String(reason)); });
+            void audioEditor.addModule(moduleId).catch(reason => { if (mounted.current) setAddError(reason instanceof Error ? reason.message : String(reason)); });
         }
     };
     return (
@@ -99,12 +100,12 @@ const AudioEditorControls: FunctionComponent<Props> = ({ playhead, playing, loop
                 </span>
             </span>
             <span className="editor-add-component">
-                <VSCodeDropdown className="editor-add-component-dropdown" value="none" disabled={addingCached} aria-busy={addingCached} onInput={handleAddModuleInput}>
+                <VSCodeDropdown key={locale} className="editor-add-component-dropdown" value="none" disabled={addingCached} aria-busy={addingCached} onInput={handleAddModuleInput}>
                     <VSCodeOption value="none">{t("Add a Module")}</VSCodeOption>
                     <VSCodeOption value="cached-all" className="cached-module-batch" aria-label={cachedBatchLabel} disabled={!cachedToAdd.length}>{cachedBatchLabel}</VSCodeOption>
                     {
                         Object.keys(AudioEditor.MODULES_MAP).map(moduleId => {
-                            const cached = cachedAnalysisForModule(AudioEditor.MODULES_MAP[moduleId], cachedAnalyses);
+                            const cached = cachedModuleForModule(moduleId, AudioEditor.MODULES_MAP[moduleId], cachedAnalyses, cachedModuleStates);
                             return <VSCodeOption key={moduleId} value={moduleId} aria-label={t(AudioEditor.MODULES_MAP[moduleId].MODULE_NAME)} className={cached ? "module-cached" : "module-uncached"} title={t(cached ? "Local analysis available" : "No local analysis available")}>
                                 {cached ? <span className="codicon codicon-check" aria-hidden="true" /> : null}{t(AudioEditor.MODULES_MAP[moduleId].MODULE_NAME)}
                             </VSCodeOption>;

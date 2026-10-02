@@ -223,3 +223,20 @@ test("persists VA pairs, DTW gaps and region module binding in the workspace doc
     await store.flushDocument();
     assert.deepEqual((await new WorkspaceAnalysisStore(root, "feature-audio", "track.wav").loadDocument()).modulesState, modules);
 });
+
+test("VA menu cache survives module deletion and folder reload; reset removes it", async () => {
+    const root = new MemoryDirectoryHandle(), hash = "d".repeat(64);
+    const store = new WorkspaceAnalysisStore(root, hash, "track.wav");
+    await store.enableWriting();
+    const cachedModuleStates = [{ moduleId: "music.va", state: { kind: "va", points: [{ time: 1, values: [.25, -.4] }], source: "Manual" } }];
+    store.scheduleDocument([], () => {}, undefined, cachedModuleStates);
+    cachedModuleStates[0].state.points[0].values[0] = .9;
+    await store.flushDocument();
+    const document = await new WorkspaceAnalysisStore(root, hash, "track.wav").loadDocument();
+    assert.deepEqual(document.modulesState, []);
+    assert.equal(document.cachedModuleStates[0].state.points[0].values[0], .25);
+    await store.resetLocal();
+    store.scheduleDocument([], () => {}, undefined, cachedModuleStates);
+    await store.flushDocument();
+    assert.equal(await new WorkspaceAnalysisStore(root, hash, "track.wav").loadDocument(), undefined);
+});

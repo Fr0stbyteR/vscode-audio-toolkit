@@ -21,6 +21,15 @@ export class MetadataMarker extends Marker {
     static MODULE_ID = "music.form-regions";
     static MODULE_NAME = "Form · regions";
     static DEFAULT_STATE: MetadataMarkerState = { name: "", data: [], field: "form", minimumMeasures: 4 };
+    static getCacheableState(state: Record<string, unknown>) {
+        if (state.field !== this.DEFAULT_STATE.field || !Array.isArray(state.data) || !state.data.length || state.data.length > 50000) return undefined;
+        if (!state.data.every(marker => marker && Array.isArray(marker.position) && marker.position.length === 2
+            && marker.position.every((value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0) && marker.position[1] > marker.position[0]
+            && typeof marker.name === "string" && typeof marker.color === "string")) return undefined;
+        const saved = { ...state };
+        delete saved.candidates;
+        return saved;
+    }
     static async fromAudioData(editor: AudioEditor, initial: Partial<MetadataMarkerState> = {}) {
         return new MetadataMarker(editor, { ...this.DEFAULT_STATE, ...initial, field: "form" });
     }
@@ -46,7 +55,15 @@ export class MetadataMarker extends Marker {
     }
     syncMetadata() {
         const state = this.getState();
-        const data = this.audioEditor.metadata.values[state.field].map((region, index) => ({ name: region.label, position: [region.start * this.audioEditor.sampleRate, region.end * this.audioEditor.sampleRate] as [number, number], color: state.data[index]?.color ?? "#4e94ce" }));
+        const metadata = this.audioEditor.metadata;
+        // Old workspace documents may contain module data without metadata.
+        // Hydrate only an untouched field; never undo a deliberate user clear.
+        if (!metadata.sources[state.field] && !metadata.values[state.field].length && state.data.length) {
+            const regions = state.data.map((marker, index) => { const [start, end] = typeof marker.position === "number" ? [marker.position, marker.position] : marker.position; return { id: `${state.field}-${index}`, label: marker.name, start: start / this.audioEditor.sampleRate, end: end / this.audioEditor.sampleRate }; });
+            this.audioEditor.setMetadata({ ...metadata, values: { ...metadata.values, [state.field]: regions }, sources: { ...metadata.sources, [state.field]: "user" } });
+            return;
+        }
+        const data = metadata.values[state.field].map((region, index) => ({ name: region.label, position: [region.start * this.audioEditor.sampleRate, region.end * this.audioEditor.sampleRate] as [number, number], color: state.data[index]?.color ?? "#4e94ce" }));
         if (JSON.stringify(state.data) !== JSON.stringify(data)) super.setState({ ...state, data });
     }
     async inferSections() {

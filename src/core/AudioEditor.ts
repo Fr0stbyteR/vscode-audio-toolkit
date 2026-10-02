@@ -11,7 +11,7 @@ import { decodeAiffPcm, isAiffFile } from "./decodeAiffPcm";
 import { emptyMetadata, MusicMetadata } from "./MusicMetadata";
 import type { MoodRequest, MoodResult } from "./MoodAnalysis";
 import type { CurveProgress, ScoreRecognitionProgress, ScoreRecognitionResult } from "./ScoreRecognition";
-import type { CachedAnalysis } from "./AnalysisCache";
+import { CachedAnalysis, CachedModuleState, cachedModuleForModule, rememberCachedModuleState } from "./AnalysisCache";
 
 export interface SemanticDescriptionRequest {
     startSeconds: number;
@@ -89,6 +89,7 @@ export type AudioPlayingState = "stopped" | "paused" | "playing";
 
 export interface AudioEditorEventMap {
     "analysisCache": CachedAnalysis[];
+    "moduleCache": CachedModuleState[];
     "focusModule": number;
     "metadata": MusicMetadata;
     "viewRange": [number, number];
@@ -123,6 +124,25 @@ export interface AudioEditorState {
 class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
     cachedAnalyses: CachedAnalysis[] = [];
     setCachedAnalyses(entries: CachedAnalysis[]) { this.cachedAnalyses = entries; this.emit("analysisCache", entries); }
+    cachedModuleStates: CachedModuleState[] = [];
+    get cachedModuleStatesForDocument() {
+        // Active curves are already in modulesState; don't duplicate long curves
+        // in localStorage. Retain detached results after deleting their module.
+        const present = new Set(this.modulesState.map(entry => entry.moduleId));
+        return this.cachedModuleStates.filter(entry => !present.has(entry.moduleId));
+    }
+    restoreCachedModuleStates(entries: CachedModuleState[] = []) {
+        this.cachedModuleStates = [];
+        for (const entry of Array.isArray(entries) ? entries : []) {
+            if (entry?.state && typeof entry.state === "object") this.rememberModuleResult(entry.moduleId, entry.state);
+        }
+        // Older workspaces already have VA points in their module state.
+        for (const entry of this.modulesState) this.rememberModuleResult(entry.moduleId, entry.state as unknown as Record<string, unknown>);
+    }
+    private rememberModuleResult(moduleId: string, state: Record<string, unknown>) {
+        const next = rememberCachedModuleState(this.cachedModuleStates, moduleId, AudioEditor.MODULES_MAP[moduleId], state);
+        if (next !== this.cachedModuleStates) { this.cachedModuleStates = next; this.emit("moduleCache", next); }
+    }
     focusModule(index: number) { if (index > 0 && index < this.modulesInstance.length) { if (!this.modulesState[index].visible) this.setModuleVisible(index, true); this.emit("focusModule", index); } }
     metadata: MusicMetadata = emptyMetadata();
     setMetadata(metadata: MusicMetadata) { this.metadata = metadata; this.emit("metadata", metadata); }
@@ -298,6 +318,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         const prevState = { ...this._modulesState };
         this._modulesState = [...this._modulesState];
         this._modulesState[index] = { ...this._modulesState[index], state };
+        this.rememberModuleResult(this._modulesState[index].moduleId, state as unknown as Record<string, unknown>);
         this.emit("modulesState", this._modulesState);
     }
     setModuleVisible(index: number, visible: boolean | number) {
@@ -321,7 +342,9 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
         const Constructor = AudioEditor.MODULES_MAP[moduleId];
         if (!Constructor) throw new Error(`Module ${moduleId} not found.`);
         const sharableData = this.getSharableData();
-        const instance = await Constructor.fromAudioData(this, initialState, sharableData);
+        const cached = initialState === undefined ? cachedModuleForModule(moduleId, Constructor, this.cachedAnalyses, this.cachedModuleStates) : undefined;
+        const state = initialState ?? cached?.state;
+        const instance = await Constructor.fromAudioData(this, Constructor.getCacheableState && state ? structuredClone(state) : state, sharableData);
         this._modulesInstance = [...this._modulesInstance, instance];
         this._modulesState = [...this._modulesState, { moduleId, moduleName: moduleName ?? Constructor.MODULE_NAME, visible: visible ?? true, lastVisibleHeight, state: instance.getState() }];
         const handleStateChange = (newState: any) => {
@@ -329,6 +352,7 @@ class AudioEditor extends TypedEventEmitter<AudioEditorEventMap> {
             if (index >= 0) this.setModuleState(index, newState);
         };
         instance.onStateChange = handleStateChange;
+        this.rememberModuleResult(moduleId, instance.getState());
         this.emit("modulesState", this._modulesState);
         return instance;
     }

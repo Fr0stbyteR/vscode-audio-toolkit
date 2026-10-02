@@ -11,6 +11,7 @@ export interface MusicCurveState extends AudioToolkitModuleState {
     name: string; kind: CurveKind; points: CurvePoint[]; colors: string[];
     windowSeconds: number; hopSeconds: number; scoreKey: string;
     source: string; error: string;
+    alignmentSignature?: string;
 }
 const defaults: MusicCurveState = { name: "", kind: "tempo", points: [], colors: ["#4e94ce", "#c586c0"], windowSeconds: 3, hopSeconds: .5, scoreKey: "", source: "", error: "" };
 
@@ -18,6 +19,14 @@ export class MusicCurve implements AudioToolkitModule<MusicCurveState> {
     static MODULE_ID = "music.tempo";
     static MODULE_NAME = "Score tempo";
     static DEFAULT_STATE = defaults;
+    static getCacheableState(state: Record<string, unknown>) {
+        const channels = this.DEFAULT_STATE.kind === "va" ? 2 : 1;
+        if (state.kind !== this.DEFAULT_STATE.kind || !Array.isArray(state.points) || !state.points.length || state.points.length > 50000) return undefined;
+        if (!state.points.every(point => point && Number.isFinite(point.time) && point.time >= 0 && Array.isArray(point.values) && point.values.length === channels
+            && point.values.every((value: unknown) => value === null || typeof value === "number" && Number.isFinite(value)))) return undefined;
+        if (!state.points.some(point => point.values.some((value: unknown) => typeof value === "number"))) return undefined;
+        return { ...state, error: "" };
+    }
     static async fromAudioData(editor: AudioEditor, initial: Partial<MusicCurveState> = {}) { return new MusicCurve(editor, { ...defaults, ...initial, kind: "tempo" }); }
     readonly Component = MusicCurveComponent;
     readonly sharableData = Promise.resolve(null);
@@ -26,6 +35,7 @@ export class MusicCurve implements AudioToolkitModule<MusicCurveState> {
     busy = false;
     private revision = 0;
     private signature = "";
+    dispose() { ++this.revision; this.onStateChange = undefined; this.onBusyChange = undefined; }
     protected constructor(public readonly audioEditor: AudioEditor, private state: MusicCurveState) {
         const channels = state.kind === "va" ? 2 : 1;
         state.points = (Array.isArray(state.points) ? state.points : []).slice(0, 50000).filter(point => point && Number.isFinite(point.time) && point.time >= 0 && point.time <= audioEditor.duration && Array.isArray(point.values)).map(point => ({ time: point.time, values: Array.from({ length: channels }, (_, index) => typeof point.values[index] === "number" && Number.isFinite(point.values[index]) ? state.kind === "va" ? Math.max(-1, Math.min(1, point.values[index]!)) : point.values[index]! : null) })).sort((a, b) => a.time - b.time);
@@ -46,7 +56,13 @@ export class MusicCurve implements AudioToolkitModule<MusicCurveState> {
     }
     syncMetadata() {
         if (this.state.kind !== "tempo") return;
-        const points = this.audioEditor.metadata.values.tempo.map(point => ({ time: point.time, values: [point.bpm] }));
+        const metadata = this.audioEditor.metadata;
+        if (!metadata.sources.tempo && !metadata.values.tempo.length && this.state.points.length) {
+            const tempo = this.state.points.filter(point => point.values[0] !== null).map((point, index) => ({ id: `tempo-${index}`, time: point.time, bpm: point.values[0]! }));
+            this.audioEditor.setMetadata({ ...metadata, values: { ...metadata.values, tempo }, sources: { ...metadata.sources, tempo: this.state.source === "MusicXML" ? "musicxml" : "user" } });
+            return;
+        }
+        const points = metadata.values.tempo.map(point => ({ time: point.time, values: [point.bpm] }));
         if (JSON.stringify(points) !== JSON.stringify(this.state.points)) this.setState({ ...this.state, points, source: this.audioEditor.metadata.sources.tempo === "musicxml" ? "MusicXML" : "Manual" });
     }
     updateMoodSummary() {
@@ -66,9 +82,10 @@ export class MusicCurve implements AudioToolkitModule<MusicCurveState> {
             const audioKey = this.audioEditor.uri || `${this.audioEditor.sampleRate}:${this.audioEditor.length}`;
             const sources = this.audioEditor.modulesInstance.filter(module => module.moduleId === "score.musicxml" || module.moduleId === "score.pianoroll").map(module => module.getState() as ScoreState);
             const source = sources.find(score => score.scoreKey && (!this.state.scoreKey || score.scoreKey === this.state.scoreKey) && score.alignmentAudioKey === audioKey && (score.autoAlignment.length > 2 || score.manualAnchors.length >= 2));
-            const signature = JSON.stringify([source, this.state.windowSeconds, this.state.hopSeconds]);
+            const signature = JSON.stringify([source?.scoreKey, source?.alignmentAudioKey, source?.autoAlignment, source?.manualAnchors, this.state.windowSeconds, this.state.hopSeconds]);
             if (!force && signature === this.signature) return;
             this.signature = signature;
+            if (!force && this.state.points.length && (!source || this.state.alignmentSignature === signature)) return;
             if (!source) {
                 ++this.revision;
                 this.busy = false; this.onBusyChange?.(false);
@@ -82,7 +99,7 @@ export class MusicCurve implements AudioToolkitModule<MusicCurveState> {
                 if (id !== this.revision) return;
                 const alignment = source.autoAlignment.length > 2 ? alignmentPoints(source.autoAlignment, source.manualAnchors, score.duration, this.audioEditor.duration) : source.manualAnchors;
                 const points = performedTempo(alignment, score.beatClock, this.state.windowSeconds, this.state.hopSeconds);
-                this.setState({ ...this.state, scoreKey: source.scoreKey, points, source: source.autoAlignment.length > 2 ? "DTW estimate" : "Manual alignment estimate", error: "" });
+                this.setState({ ...this.state, scoreKey: source.scoreKey, points, source: source.autoAlignment.length > 2 ? "DTW estimate" : "Manual alignment estimate", alignmentSignature: signature, error: "" });
             } catch (error) { if (id === this.revision) this.setState({ ...this.state, points: [], error: error instanceof Error ? error.message : String(error) }); }
             finally { if (id === this.revision) { this.busy = false; this.onBusyChange?.(false); } }
             return;

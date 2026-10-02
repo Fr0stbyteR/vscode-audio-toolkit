@@ -2,7 +2,7 @@ import { AudioAnalysisRequest, AudioAnalysisResult, AudioToolkitModulesState } f
 import { SemanticCurveRequest, SemanticCurveResult, SemanticDescriptionRequest, SemanticDescriptionResult } from "../core/AudioEditor";
 import { importScore, loadScoreSource, ScoreFormat } from "../modules/score/ScoreLibrary";
 import { MusicMetadata } from "../core/MusicMetadata";
-import type { CachedAnalysis } from "../core/AnalysisCache";
+import type { CachedAnalysis, CachedModuleState } from "../core/AnalysisCache";
 
 const ROOT_NAME = ".audio_toolkit";
 const FORMAT_VERSION = 1;
@@ -20,6 +20,7 @@ export interface WorkspaceDocument {
     savedAt: string;
     modulesState: AudioToolkitModulesState;
     metadata?: MusicMetadata;
+    cachedModuleStates?: CachedModuleState[];
 }
 
 interface PackedArray {
@@ -97,6 +98,7 @@ export default class WorkspaceAnalysisStore {
     private documentTimer: ReturnType<typeof setTimeout> | undefined;
     private pendingState: AudioToolkitModulesState | undefined;
     private pendingMetadata: MusicMetadata | undefined;
+    private pendingCachedModuleStates: CachedModuleState[] | undefined;
 
     constructor(private readonly root: FileSystemDirectoryHandle, readonly audioHash: string, readonly relativePath: string) {}
 
@@ -119,6 +121,7 @@ export default class WorkspaceAnalysisStore {
         this.documentTimer = undefined;
         this.pendingState = undefined;
         this.pendingMetadata = undefined;
+        this.pendingCachedModuleStates = undefined;
         // Drain an already running write and suppress any queued/late writes.
         await this.writeQueue;
         try {
@@ -191,10 +194,11 @@ export default class WorkspaceAnalysisStore {
         return document;
     }
 
-    scheduleDocument(state: AudioToolkitModulesState, onError: (reason: unknown) => void, metadata?: MusicMetadata) {
+    scheduleDocument(state: AudioToolkitModulesState, onError: (reason: unknown) => void, metadata?: MusicMetadata, cachedModuleStates?: CachedModuleState[]) {
         if (!this.writable) return;
         this.pendingState = structuredClone(state);
         this.pendingMetadata = metadata ? structuredClone(metadata) : undefined;
+        this.pendingCachedModuleStates = cachedModuleStates ? structuredClone(cachedModuleStates) : undefined;
         if (this.documentTimer) clearTimeout(this.documentTimer);
         this.documentTimer = setTimeout(() => { void this.flushDocument().catch(onError); }, 450);
     }
@@ -204,12 +208,14 @@ export default class WorkspaceAnalysisStore {
         this.documentTimer = undefined;
         const state = this.pendingState;
         const metadata = this.pendingMetadata;
+        const cachedModuleStates = this.pendingCachedModuleStates;
         this.pendingState = undefined;
         this.pendingMetadata = undefined;
+        this.pendingCachedModuleStates = undefined;
         if (!state || !this.writable) return this.writeQueue;
         const document: WorkspaceDocument = {
             format: "audio-toolkit-workspace", version: FORMAT_VERSION, audioHash: this.audioHash,
-            relativePath: this.relativePath, savedAt: new Date().toISOString(), modulesState: state, metadata
+            relativePath: this.relativePath, savedAt: new Date().toISOString(), modulesState: state, metadata, cachedModuleStates
         };
         return this.enqueue(async () => {
             const directory = (await this.assetDirectory(true))!;

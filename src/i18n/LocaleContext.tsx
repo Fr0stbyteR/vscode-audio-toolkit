@@ -4,6 +4,7 @@ export type Locale = "zh" | "en";
 const STORAGE_KEY = "audioToolkit.locale";
 
 const zh: Record<string, string> = {
+    "Analysis backend connected": "分析后端已连接", "Connecting to analysis backend": "正在连接分析后端", "Analysis backend disconnected": "分析后端未连接", "Analysis backend settings": "分析后端设置",
     "Add all cached modules": "一键添加已缓存模组",
     "Local analysis available": "已有本地分析结果", "No local analysis available": "尚无本地分析结果", "Analysis data loaded": "分析数据已加载",
     "Reset this audio…": "重置此音频…", "Clear local results and reset this audio": "清空此音频的本地结果并重置界面",
