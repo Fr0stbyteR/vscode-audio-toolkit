@@ -17,12 +17,11 @@ const rootFiles = [
     "README.zh-CN.md", "STANDALONE.md", "THIRD_PARTY_NOTICES.md", "CHANGELOG.md",
     "CONTRIBUTING.md", "SECURITY.md", "start-standalone.ps1",
     "start-standalone.cmd", "start-standalone.command",
-    "app/.env.example", "app/.eslintrc.json", "app/.gitignore", "app/index.html",
-    "app/package.json", "app/package-lock.json", "app/tsconfig.json", "app/vite.config.ts",
+    ".env.example", ".eslintrc.json", "index.html", "tsconfig.json", "vite.config.ts",
 ];
 const files = [...rootFiles];
-for (const folder of ["app/src", "app/public", "app/tests", "scripts", "docs", ".github"]) {
-    files.push(...await collectSourceFiles(root, folder, { optional: folder === "app/public" }));
+for (const folder of ["src", "public", "tests", "scripts", "docs", ".github"]) {
+    files.push(...await collectSourceFiles(root, folder, { optional: folder === "public" }));
 }
 for (const path of files) {
     const destination = join(output, "audio-toolkit", path);
@@ -32,7 +31,7 @@ for (const path of files) {
 
 // The npm wrapper contains editable TS source and its native Emscripten build
 // recipe; the underlying FFTW C code must be included separately.
-const wrapper = join(root, "app", "node_modules", "@shren", "fftw-js");
+const wrapper = join(root, "node_modules", "@shren", "fftw-js");
 await cp(wrapper, join(output, "fftw-js-0.1.10"), {
     recursive: true,
     filter: path => !relative(wrapper, path).split(/[\\/]/).includes("node_modules"),
@@ -40,7 +39,7 @@ await cp(wrapper, join(output, "fftw-js-0.1.10"), {
 
 const sources = JSON.parse(await readFile(join(root, "docs", "third-party-sources.json"), "utf8"));
 for (const source of sources) {
-    const installed = JSON.parse(await readFile(join(root, "app", "node_modules", source.npmPackage, "package.json"), "utf8"));
+    const installed = JSON.parse(await readFile(join(root, "node_modules", source.npmPackage, "package.json"), "utf8"));
     if (installed.version !== source.npmVersion) throw new Error(`Update corresponding-source manifest for ${source.npmPackage}@${installed.version}`);
     let bytes;
     try { bytes = await readFile(join(cache, source.file)); }

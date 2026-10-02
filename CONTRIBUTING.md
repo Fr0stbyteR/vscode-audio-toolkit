@@ -4,7 +4,7 @@ Audio Toolkit is a standalone React/TypeScript/Vite frontend. Python analysis
 belongs in the separate `music-embedding-analysis` repository, not this tree.
 
 ```sh
-npm ci --prefix app
+npm ci
 npm run dev
 npm run check
 ```

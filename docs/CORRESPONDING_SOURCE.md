@@ -18,7 +18,7 @@ static web files. Distribute both together. This directory contains:
 From `audio-toolkit/`, with Node 22 and npm:
 
 ```sh
-npm ci --prefix app
+npm ci
 npm run check
 ```
 

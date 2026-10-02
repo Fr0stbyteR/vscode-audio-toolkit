@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const app = join(root, "app"), output = join(root, "dist");
+const output = join(root, "dist");
 await stat(join(output, "index.html")); // Build first; never copy a development .env.
 
 // Include dependencies used by source imports, even when erroneously classified
@@ -23,7 +23,7 @@ async function scan(folder) {
         }
     }
 }
-await scan(join(app, "src"));
+await scan(join(root, "src"));
 
 async function locate(name, from) {
     for (let folder = from; ; folder = dirname(folder)) {
@@ -76,7 +76,7 @@ async function include(name, from) {
     if (/\bGPL-/i.test(String(pkg.license))) entry.warnings.push("GPL dependency: retain corresponding source and rebuild instructions with this GPL distribution.");
     for (const dependency of Object.keys(pkg.dependencies ?? {})) await include(dependency, folder);
 }
-for (const name of [...packages].sort()) await include(name, app);
+for (const name of [...packages].sort()) await include(name, root);
 for (const name of ["LICENSE", "THIRD_PARTY_NOTICES.md", "STANDALONE.md"]) await copyFile(join(root, name), join(output, name));
 const records = [...inventory.values()].sort((a, b) => a.name.localeCompare(b.name));
 await writeFile(join(output, "third-party-inventory.json"), JSON.stringify(records, null, 2) + "\n");

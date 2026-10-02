@@ -39,7 +39,7 @@
 ```sh
 git clone https://github.com/fr0stbyter/vscode-audio-toolkit.git
 cd vscode-audio-toolkit
-npm ci --prefix app
+npm ci
 npm run dev
 ```
 
@@ -63,7 +63,7 @@ bash start-standalone.command
 Windows 已验证真实推理；macOS 适配与模型 CI 已配置，不等于都在本机 Mac
 上验证。Windows 可用 `-MusicBackendPath <path>` 指定后端位置。
 
-后端选项在后端 `.env`；前端默认连接见 `app/.env.example`，右上角设置可连接
+后端选项在后端 `.env`；前端默认连接见 `.env.example`，右上角设置可连接
 本地／远程后端。**公开构建不要嵌入私人 token**，所有 `VITE_*` 值都能从
 JavaScript 读取。详见 [安全说明](SECURITY.md)。
 

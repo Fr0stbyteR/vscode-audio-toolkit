@@ -15,7 +15,7 @@ param(
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 $repoRoot = $PSScriptRoot
-$webRoot = Join-Path $repoRoot "app"
+$webRoot = $repoRoot
 $musicRoot = if ($MusicBackendPath) {
     [System.IO.Path]::GetFullPath($MusicBackendPath)
 } else {
@@ -122,7 +122,7 @@ if (-not $node) {
     throw "Node.js is required for the web frontend. Install Node.js and run this script again."
 }
 if (-not (Test-Path -LiteralPath $viteScript)) {
-    if ($Check) { Write-Host "First launch will run npm ci --prefix app." }
+    if ($Check) { Write-Host "First launch will run npm ci in the frontend root." }
     else {
         $npmCommand = Get-Command npm.cmd -CommandType Application -ErrorAction Stop
         & $npmCommand.Source ci --prefix $webRoot
@@ -135,7 +135,7 @@ $backendStartScript = Join-Path $musicRoot "start.ps1"
 if (-not (Test-Path -LiteralPath $backendStartScript)) { throw "Backend start.ps1 is missing at $musicRoot" }
 
 if ($webEnv.ContainsKey("VITE_MUSIC_ANALYSIS_API") -and $webEnv["VITE_MUSIC_ANALYSIS_API"].TrimEnd('/') -ne "http://127.0.0.1:$musicPort") {
-    Write-Warning "The music service URL in app/.env differs from this backend's MAB_PORT. Update the frontend setting if needed."
+    Write-Warning "The music service URL in frontend .env differs from this backend's MAB_PORT. Update the frontend setting if needed."
 }
 if ($musicEnv.ContainsKey("MAB_SESSION_TOKEN") -and $webEnv.ContainsKey("VITE_MUSIC_ANALYSIS_TOKEN") -and $musicEnv["MAB_SESSION_TOKEN"] -ne $webEnv["VITE_MUSIC_ANALYSIS_TOKEN"]) {
     Write-Warning "The CLAP tokens in the two .env files differ. Update the frontend setting if needed."

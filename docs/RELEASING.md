@@ -12,7 +12,7 @@ npm publication. The separately installed analysis API is not in `dist/`.
    fonts and optional backend/model terms independently.
 2. Update the version in both package manifests and lockfiles, then summarize
    changes in `CHANGELOG.md`. No release tag has been created automatically.
-3. Install the locked app dependencies: `npm ci --prefix app` (Node 22 is used
+3. Install the locked app dependencies: `npm ci` (Node 22 is used
    in CI). Run `npm run release:prepare` from the repository root.
 4. Inspect `dist/third-party-inventory.json` and included license texts. This
    automated inventory does not replace a source/resource licensing review.

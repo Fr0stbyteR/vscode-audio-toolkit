@@ -1,0 +1,111 @@
+import { FunctionComponent, useCallback, useEffect, useMemo, useState } from "react";
+import ModuleUsingCanvas from "../../components/ModuleUsingCanvas";
+import MatrixImageProcessor, { MatrixCursorInfo } from "../../core/MatrixImageProcessor";
+import { getVisualizerRulerWidth, VisualizationOptions } from "../../core/AudioToolkitModule";
+import VectorImageProcessor from "../../core/VectorImageProcessor";
+import { setCanvasToFullSize } from "../../utils";
+import LibrosaConfiguration from "./LibrosaConfiguration";
+import LibrosaMatrixModule from "./LibrosaMatrixModule";
+import MatrixWebGLRenderer from "../../core/MatrixWebGLRenderer";
+import { formatSampleRange } from "./LibrosaCacheInfo";
+import { useLocale } from "../../i18n/LocaleContext";
+
+const LibrosaMatrixComponent: FunctionComponent<VisualizationOptions<LibrosaMatrixModule<any>>> = props => {
+    const { t } = useLocale();
+    const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration } = props;
+    const defaultVerticalZoom = 1;
+    const defaultVerticalOffset = 0;
+    const [verticalZoom, setVerticalZoom] = useState(defaultVerticalZoom);
+    const [verticalOffset, setVerticalOffset] = useState(defaultVerticalOffset);
+    const [cursorX, setCursorX] = useState<number>();
+    const [cursorY, setCursorY] = useState<number>();
+    const [cursorInfo, setCursorInfo] = useState<MatrixCursorInfo | null>(null);
+    const [dataSlices, setDataSlices] = useState(module.dataSlices);
+    const [calculating, setCalculating] = useState<boolean | [number, string]>(module.isCalculating);
+    const [renderInfo, setRenderInfo] = useState("Waiting for data");
+    const bins = module.bins;
+    const valueSpan = Math.max(Number.EPSILON, module.valueRange[1] - module.valueRange[0]);
+    const colorMin = Math.max(0, Math.min(1, moduleState.colorMin ?? 0));
+    const colorMax = Math.max(colorMin + Number.EPSILON, Math.min(1, moduleState.colorMax ?? 1));
+    const displayRange = useMemo<[number, number]>(() => [module.valueRange[0] + valueSpan * colorMin, module.valueRange[0] + valueSpan * colorMax], [colorMax, colorMin, module.valueRange, valueSpan]);
+    const colorMap = moduleState.colorMap ?? "inferno";
+    useEffect(() => {
+        module.onDataChange = data => setDataSlices(data as typeof module.dataSlices);
+        module.onCalculating = setCalculating;
+        return () => { module.onDataChange = undefined; module.onCalculating = undefined; };
+    }, [module]);
+    const paint = useCallback(async (ref: React.RefObject<HTMLCanvasElement>) => {
+        const canvas = ref.current;
+        const ctx = canvas?.getContext("2d");
+        if (!canvas || !ctx || !dataSlices?.length) return;
+        const [width, height] = setCanvasToFullSize(canvas);
+        if (configuration.matrixRenderer !== "canvas2d" && dataSlices.length === 1) {
+            try {
+                const stats = MatrixWebGLRenderer.forCanvas(canvas)?.paint(ctx, dataSlices[0], width, height, viewRange, verticalZoom, verticalOffset, displayRange, colorMap);
+                if (stats) {
+                    setRenderInfo(`WebGL 2 · ${t("upload")} ${stats.uploadMs.toFixed(2)} ms · ${t("draw")} ${stats.drawMs.toFixed(2)} ms`);
+                    return;
+                }
+            } catch (error) {
+                console.error("Matrix WebGL rendering failed; falling back to Canvas 2D.", error);
+            }
+            setRenderInfo(t("WebGL unavailable or failed · Canvas 2D fallback"));
+        }
+        try {
+            const started = performance.now();
+            await MatrixImageProcessor.paint(ctx, dataSlices, { width, height, verticalZoom, verticalOffset, minValue: displayRange[0], maxValue: displayRange[1], colorMap }, { viewRange }, {});
+            setRenderInfo(`Canvas 2D · ${(performance.now() - started).toFixed(2)} ms`);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.error("Matrix Canvas 2D rendering failed.", error);
+            setRenderInfo(`${t("Render failed:")} ${message}`);
+        }
+    }, [colorMap, configuration.matrixRenderer, dataSlices, displayRange, verticalOffset, verticalZoom, viewRange, t]);
+    const paintVerticalRuler = useCallback((ref: React.RefObject<HTMLCanvasElement>) => {
+        const canvas = ref.current; const ctx = canvas?.getContext("2d"); if (!canvas || !ctx) return;
+        const [width, height] = setCanvasToFullSize(canvas);
+        VectorImageProcessor.paintVerticalRuler(ctx, module.audioEditor.sampleRate, { width, height, labelsHeight: 0 }, { viewRange, configuration }, { gridColor });
+    }, [configuration, gridColor, module, viewRange]);
+    const paintHorizontalRuler = useCallback((ref: React.RefObject<HTMLCanvasElement>) => {
+        const canvas = ref.current; const ctx = canvas?.getContext("2d"); if (!canvas || !ctx) return;
+        const [width, height] = setCanvasToFullSize(canvas);
+        const fromBin = verticalOffset / 2 * bins / verticalZoom;
+        const toBin = (verticalOffset / 2 + 1) * bins / verticalZoom;
+        if (module.binLabels) {
+            const rulerLeft = width - getVisualizerRulerWidth(canvas);
+            const scale = height / Math.max(Number.EPSILON, toBin - fromBin);
+            ctx.clearRect(0, 0, width, height);
+            ctx.save();
+            ctx.font = `12px ${monospaceFont}`;
+            ctx.textBaseline = "middle";
+            const labelStep = Math.max(1, Math.ceil(16 / scale));
+            module.binLabels.forEach((label, bin) => {
+                if (bin % labelStep !== 0) return;
+                const y = (toBin - bin - .5) * scale;
+                if (y < 0 || y > height) return;
+                ctx.strokeStyle = gridColor;
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(rulerLeft, y); ctx.stroke();
+                ctx.strokeStyle = gridRulerColor;
+                ctx.beginPath(); ctx.moveTo(rulerLeft, y); ctx.lineTo(rulerLeft + 5, y); ctx.stroke();
+                ctx.fillStyle = textColor;
+                ctx.save(); ctx.beginPath(); ctx.rect(rulerLeft + 8, 0, Math.max(0, width - rulerLeft - 8), height); ctx.clip();
+                ctx.fillText(label, rulerLeft + 8, y); ctx.restore();
+            });
+            ctx.restore();
+            return;
+        }
+        const rulerZoom = 2 / Math.max(1, toBin - fromBin);
+        const rulerOffset = ((fromBin + toBin) / 2) * rulerZoom;
+        VectorImageProcessor.paintHorizontalRuler(ctx, 1, { width, height, verticalZoom: rulerZoom, verticalOffset: rulerOffset, labelMode: "linear", labelUnit: module.unit, labelsWidth: getVisualizerRulerWidth(canvas) }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
+    }, [bins, gridColor, gridRulerColor, module, monospaceFont, textColor, verticalOffset, verticalZoom]);
+    const onCursor = useCallback((x: number, y: number, width: number, height: number) => {
+        if (!dataSlices?.length || x < 0 || x > width || y < 0 || y > height) { setCursorX(undefined); setCursorY(undefined); setCursorInfo(null); return; }
+        const info = MatrixImageProcessor.getInfoFromCursor(dataSlices, x, y, { width, height, verticalZoom, verticalOffset }, { viewRange });
+        setCursorX(info.x); setCursorY(info.y); setCursorInfo(info);
+    }, [dataSlices, verticalOffset, verticalZoom, viewRange]);
+    const configurationContent = <LibrosaConfiguration module={module} moduleState={moduleState} mode={props.configurationMode} />;
+    const monitorContent = <div className="default-layout"><div>{t(renderInfo)}</div>{cursorInfo ? <><div>{formatSampleRange(cursorInfo.fromIndex, cursorInfo.toIndex)} {t("samples")}</div><div>{module.binLabels?.[Math.floor(cursorInfo.fromBin)] ?? `${t("Bin")} ${cursorInfo.fromBin}–${cursorInfo.toBin}`}</div><div>{cursorInfo.value.toFixed(3)} {module.valueUnit}</div></> : null}</div>;
+    return <ModuleUsingCanvas {...props} {...{ calculating, defaultVerticalOffset, verticalOffset, setVerticalOffset, defaultVerticalZoom, verticalZoom, setVerticalZoom, cursorX, cursorY, onCursor, paint, paintVerticalRuler, paintHorizontalRuler, configurationContent, monitorContent }} foregroundOpacity={moduleState.opacity ?? 1} />;
+};
+
+export default LibrosaMatrixComponent;

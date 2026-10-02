@@ -58,12 +58,12 @@ Start the backend from `music-embedding-analysis`:
 In another terminal, start the frontend:
 
 ```powershell
-cd app
+# From the frontend repository root
 npm run dev
 ```
 
-Vite reads the unified service URL and default token from `app/.env`; use
-`app/.env.example` as the template. Settings changed in the UI override
+Vite reads the unified service URL and default token from `.env`; use
+`.env.example` as the template. Settings changed in the UI override
 those defaults and persist in the browser profile.
 
 Open `http://127.0.0.1:5173/` in Chrome or Edge. Use the `+`

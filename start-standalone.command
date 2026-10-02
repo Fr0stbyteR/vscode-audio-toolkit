@@ -4,7 +4,7 @@ set -euo pipefail
 umask 077
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 music_root="${MUSIC_BACKEND_PATH:-$(dirname "$repo_root")/music-embedding-analysis}"
-web_root="$repo_root/app"
+web_root="$repo_root"
 no_browser=false
 basic=false
 for option in "$@"; do

@@ -1,6 +1,11 @@
 out
 dist
 node_modules
+.DS_Store
+dist-ssr
+build
+build-ssr
+*.local
 .standalone-data/
 .standalone-logs/
 .venv-standalone/

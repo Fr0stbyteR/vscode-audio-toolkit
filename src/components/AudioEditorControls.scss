@@ -1,0 +1,123 @@
+.audio-editor-container .editor-main-controls {
+    position: relative;
+    z-index: 1100;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    flex: 0 0 auto;
+    height: auto;
+    align-items: center;
+    gap: 6px 10px;
+    min-width: 0;
+    padding: 10px 4px;
+
+    & > span {
+        align-self: center;
+
+        &.time-input {
+            position: static;
+            order: 0;
+            flex: 0 0 auto;
+        }
+    }
+
+    & > span.editor-main-player-controls-container {
+        flex: 1 1 120px;
+        order: 1;
+        min-width: 120px;
+        margin-left: 0;
+        position: relative;
+        white-space: nowrap;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        text-align: center;
+
+        & > span.editor-main-player-controls {
+            flex: 1 1 auto;
+            
+            & > vscode-button {
+                border-bottom: 1px transparent solid;
+                border-radius: 0px;
+
+                &.active {
+                    border-bottom: 1px var(--vscode-panelTitle-activeBorder) solid;
+                }
+
+                &[disabled] {
+                    cursor: unset;
+                }
+
+                & > span.codicon {
+                    &.codicon-play {
+                        color: var(--vscode-debugIcon-startForeground);
+                    }
+                    &.codicon-debug-stop {
+                        color: var(--vscode-debugIcon-stopForeground);
+                    }
+                    &.codicon-debug-pause {
+                        color: var(--vscode-debugIcon-pauseForeground);
+                    }
+                    &.codicon-debug-continue-small {
+                        color: var(--vscode-debugIcon-continueForeground);
+                    }
+                    &.codicon-refresh {
+                        color: var(--vscode-debugIcon-restartForeground);
+                    }
+                }
+            }
+            & > .ui.buttons {
+                height: 30px;
+
+                & > button.ui.button {
+                    margin: 0;
+
+                    &:last-child {
+                        border-top-right-radius: 0px;
+                        border-bottom-right-radius: 0px;
+                    }
+                }
+            }
+
+            & > .menu {
+                display: inline-flex;
+                margin-top: 0;
+                
+                & > .audio-editor-device-selector {
+                    display: inline-flex;
+                    width: 300px;
+                    border-top-left-radius: 0px;
+                    border-bottom-left-radius: 0px;
+
+                    & > div:first-child {
+                        text-overflow: ellipsis;
+                        overflow: hidden;
+                        white-space: nowrap;
+                    }
+                }
+            }
+        }
+    }
+
+    & > span.editor-add-component {
+        flex: 1 1 200px;
+        order: 2;
+        min-width: 140px;
+        max-width: 328px;
+        margin-left: auto;
+        position: relative;
+        display: flex;
+
+        & > vscode-dropdown {
+            width: 100%;
+        }
+    }
+}
+
+.editor-add-component-dropdown {
+    vscode-option.module-uncached { color: var(--vscode-foreground); }
+    vscode-option.module-cached { color: var(--vscode-textLink-foreground); }
+    vscode-option .codicon { margin-right: 7px; }
+    vscode-option.cached-module-batch { border-bottom: 1px solid var(--vscode-panel-border); }
+}
+.module-add-error { flex: 1 0 100%; color: var(--vscode-errorForeground); overflow-wrap: anywhere; }

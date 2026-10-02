@@ -52,7 +52,7 @@ Frontend only, with no Python required:
 ```sh
 git clone https://github.com/fr0stbyter/vscode-audio-toolkit.git
 cd vscode-audio-toolkit
-npm ci --prefix app
+npm ci
 npm run dev
 ```
 
@@ -80,7 +80,7 @@ real-model integration CI are configured, not a claim that every model has
 been locally verified on a Mac. On Windows, `-MusicBackendPath <path>` selects
 a different backend folder.
 
-Backend `.env` controls Python/model options. `app/.env.example` documents
+Backend `.env` controls Python/model options. `.env.example` documents
 frontend defaults; header settings select a local/remote backend. Librosa,
 learned-model analysis and OMR need the backend. **Never embed private tokens in
 public builds:** `VITE_*` values are readable JavaScript. See [security](SECURITY.md).
