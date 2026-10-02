@@ -30,7 +30,6 @@ jobs:
       - run: npm ci --prefix app
       - run: npm run check
       - name: Prepare static distribution and dependency notices
-        if: runner.os == 'Linux'
         run: node scripts/prepare-release.mjs
       - name: Upload static frontend (not a GitHub release)
         if: runner.os == 'Linux'

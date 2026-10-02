@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
-import { cp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { collectSourceFiles } from "./collect-source-files.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const output = join(root, "dist", "source");
@@ -20,17 +21,9 @@ const rootFiles = [
     "app/package.json", "app/package-lock.json", "app/tsconfig.json", "app/vite.config.ts",
 ];
 const files = [...rootFiles];
-async function collect(folder) {
-    for (const entry of await readdir(join(root, folder), { withFileTypes: true })) {
-        if (["node_modules", ".git", ".audio_toolkit", "dist", ".tmp"].includes(entry.name)) continue;
-        if (entry.name.startsWith(".env") && entry.name !== ".env.example") continue;
-        if (entry.isSymbolicLink()) throw new Error(`Review source symlink before release: ${folder}/${entry.name}`);
-        const path = `${folder}/${entry.name}`;
-        if (entry.isDirectory()) await collect(path);
-        else files.push(path);
-    }
+for (const folder of ["app/src", "app/public", "app/tests", "scripts", "docs", ".github"]) {
+    files.push(...await collectSourceFiles(root, folder, { optional: folder === "app/public" }));
 }
-for (const folder of ["app/src", "app/public", "app/tests", "scripts", "docs", ".github"]) await collect(folder);
 for (const path of files) {
     const destination = join(output, "audio-toolkit", path);
     await mkdir(dirname(destination), { recursive: true });
