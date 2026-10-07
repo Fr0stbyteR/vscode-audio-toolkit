@@ -66,15 +66,26 @@ const LibrosaVectorComponent: FunctionComponent<VisualizationOptions<LibrosaVect
     const paintHorizontalRuler = useCallback((ref: React.RefObject<HTMLCanvasElement>) => {
         const canvas = ref.current; const ctx = canvas?.getContext("2d"); if (!canvas || !ctx) return;
         const [width, height] = setCanvasToFullSize(canvas);
-        VectorImageProcessor.paintHorizontalRuler(ctx, 1, { width, height, verticalZoom, verticalOffset, labelMode: "linear", labelUnit: module.unit, labelsWidth: getVisualizerRulerWidth(canvas) }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
-    }, [gridColor, gridRulerColor, module.unit, monospaceFont, textColor, verticalOffset, verticalZoom]);
+        const channels = dataSlices?.[0]?.vectors.length ?? 1;
+        VectorImageProcessor.paintHorizontalRuler(ctx, channels, { width, height, verticalZoom, verticalOffset, labelMode: "linear", labelUnit: module.channelLabels ? "" : module.unit, labelsWidth: getVisualizerRulerWidth(canvas) }, { gridColor, gridRulerColor, textColor, labelFont: monospaceFont });
+        if (module.channelLabels && channels > 1) {
+            ctx.save();
+            ctx.font = `12px ${monospaceFont}`;
+            ctx.fillStyle = textColor;
+            ctx.textAlign = "left";
+            ctx.textBaseline = "middle";
+            module.channelLabels.forEach((label, index) => ctx.fillText(`${label} ${module.unit}`, width - getVisualizerRulerWidth(canvas) + 14, index * height / channels + 10));
+            ctx.restore();
+        }
+    }, [dataSlices, gridColor, gridRulerColor, module, monospaceFont, textColor, verticalOffset, verticalZoom]);
     const onCursor = useCallback((x: number, y: number, width: number, height: number) => {
         if (!dataSlices?.length || x < 0 || x > width || y < 0 || y > height) { setCursorX(undefined); setCursorY(undefined); setCursorInfo(null); return; }
         const info = VectorImageProcessor.getInfoFromCursor(dataSlices, x, y, { width, height, verticalZoom, verticalOffset }, { viewRange });
         setCursorX(info.x); setCursorY(info.y); setCursorInfo(info);
     }, [dataSlices, verticalOffset, verticalZoom, viewRange]);
     const configurationContent = <LibrosaConfiguration module={module} moduleState={moduleState} mode={props.configurationMode} />;
-    const monitorContent = <div className="default-layout">{cursorInfo ? <><div>{formatSampleRange(cursorInfo.fromIndex, cursorInfo.toIndex)} {t("samples")}</div><div>{typeof cursorInfo.value === "number" ? cursorInfo.value.toFixed(3) : cursorInfo.value.map(value => value.toFixed(3)).join(" – ")} {module.unit}</div></> : null}</div>;
+    const missingEstimate = module.analysisMetadata?.missingValue === 0 && cursorInfo?.value === 0;
+    const monitorContent = <div className="default-layout">{cursorInfo ? <><div>{formatSampleRange(cursorInfo.fromIndex, cursorInfo.toIndex)} {t("samples")}</div><div>{module.channelLabels?.[cursorInfo.channel]} {missingEstimate ? t("No estimate") : <>{typeof cursorInfo.value === "number" ? cursorInfo.value.toFixed(3) : cursorInfo.value.map(value => value.toFixed(3)).join(" – ")} {module.unit}</>}</div></> : null}</div>;
     return <ModuleUsingCanvas {...props} {...{ calculating, defaultVerticalOffset, verticalOffset, setVerticalOffset, defaultVerticalZoom, verticalZoom, setVerticalZoom, cursorX, cursorY, onCursor, paint, paintVerticalRuler, paintHorizontalRuler, configurationContent, monitorContent }} />;
 };
 

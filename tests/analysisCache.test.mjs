@@ -45,7 +45,7 @@ test("bulk add skips existing and hidden modules and adds only one variant per r
 test("all librosa and Essentia module descriptors match their calculation defaults without starting jobs", async () => {
     const catalogs = await Promise.all([bundled("../src/modules/librosa/index.ts", true), bundled("../src/modules/essentia/index.ts", true)]);
     const modules = (await Promise.all(catalogs.map(catalog => catalog.default()))).flat();
-    assert.equal(modules.filter(Module => Module.ANALYSIS_ENGINE === "librosa").length, 14);
+    assert.equal(modules.filter(Module => Module.ANALYSIS_ENGINE === "librosa").length, 38);
     for (const Module of modules) {
         const request = Module.getAnalysisRequest();
         assert.equal(request.engine, Module.ANALYSIS_ENGINE);

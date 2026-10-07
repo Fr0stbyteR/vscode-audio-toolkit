@@ -1,0 +1,11 @@
+Audio Toolkit logo concept
+
+Generated with the built-in image_gen tool, not the fallback CLI.
+Asset: public/brand/audio-toolkit-logo-concept.png
+Concept: audio waveform + analysis playhead, using the existing interface's blue and muted amber.
+Transparent PNG used by the website header and browser favicon. Both references
+respect Vite's base URL, including builds deployed in a subdirectory.
+
+Final generation/edit prompt:
+
+Use case: logo-brand. Edit the supplied Audio Toolkit logo into a production-ready SMALL SQUARE FAVICON. Preserve its identity: blue two-peak waveform, central muted gold vertical analysis cursor, transparent background, no text. Primary targeted change: compact favicon geometry and perfectly clean flat silhouette. Remove the long horizontal tails entirely (only very short rounded terminals); make the two-peak waveform taller and narrower so the mark's width is approximately equal to its height. Center the resulting compact emblem at 80% of a square canvas, with even padding. Use only two completely flat solid fills: blue #4DAAFC and muted amber #D7BA7D. Keep substantial strokes and generous negative-space gaps. The cursor should be ONE uninterrupted simple narrow gold capsule passing through a clear transparent slit in the middle of the blue waveform, not an exclamation mark. No white outlines, no cyan speckles, no halos, no bevels, no lighting, no gradient, no shadows, no grain, no incidental pixels, no container tile or frame. Actual transparent alpha everywhere outside these two deliberate shapes. Crisp smooth antialiased boundaries, vector-clean geometry; high visibility on charcoal and clear at 16–32px. Only one final emblem, not a comparison sheet.

@@ -19,6 +19,14 @@ test("normal dev assets load without special exceptions; private files stay bloc
     // Middleware mode lets Node assign a free port without touching an existing dev server.
     await new Promise((resolve, reject) => { http.once("error", reject); http.listen(0, "127.0.0.1", resolve); });
     const base = `http://127.0.0.1:${http.address().port}/`;
+    const page = await fetch(base);
+    assert.equal(page.status, 200);
+    const iconUrl = /<link\s+rel="icon"[^>]*href="([^"]+)"/.exec(await page.text())?.[1];
+    assert.ok(iconUrl, "the website declares its selected PNG favicon");
+    const icon = await fetch(new URL(iconUrl, base));
+    assert.equal(icon.status, 200);
+    assert.match(icon.headers.get("content-type"), /image\/png/);
+    assert.deepEqual(Buffer.from(await icon.arrayBuffer()), await readFile(join(root, "public/brand/audio-toolkit-logo-concept.png")));
     assert.deepEqual(vite.config.server.fs.allow, [normalizePath(root).replace(/\/$/, "")]);
     const css = await fetch(new URL("node_modules/@vscode/codicons/dist/codicon.css?direct", base));
     assert.equal(css.status, 200);

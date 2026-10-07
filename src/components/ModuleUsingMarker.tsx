@@ -1,5 +1,5 @@
 import "./ModuleUsingMarker.scss";
-import { FunctionComponent, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
+import { FunctionComponent, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AudioToolkitModule, AudioToolkitModuleState, VisualizationOptions } from "../core/AudioToolkitModule";
 import { AudioEditorContext } from "./contexts";
@@ -7,6 +7,8 @@ import { VSCodeButton, VSCodeProgressRing, VSCodeTextField } from "@vscode/webvi
 import { getCssFromPosition } from "../utils";
 import ConfigurationSections from "./ConfigurationSections";
 import { useLocale } from "../i18n/LocaleContext";
+import RangeStatisticsData from "./RangeStatisticsData";
+import type { StatisticsSource } from "../core/RangeStatistics";
 
 export interface AudioMarker {
     position: number | [number, number];
@@ -58,6 +60,8 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
         configuring, monitoring, overlayMode, activeLayer, rerenderId, repaintId
     } = props;
     const audioEditor = useContext(AudioEditorContext)!;
+    const statisticsSource = useMemo<StatisticsSource>(() => ({ kind: "markers", markers: markerData }), [markerData]);
+    const dataContent = <>{monitorContent}{activeLayer ? <RangeStatisticsData source={statisticsSource} selection={selRange} length={audioEditor.length} sampleRate={audioEditor.sampleRate} /> : null}</>;
     const randomColor = useRef(`#${Math.floor(Math.random() * (16 ** 6)).toString(16).padStart(6, "0")}`).current;
     const [selectedMarkers, setSelectedMarkers] = useState<number[]>([]);
     const [bulkSelRange, setBulkSelRange] = useState<[number, number] | null>(null);
@@ -500,7 +504,7 @@ const ModuleUsingMarker: FunctionComponent<ModuleUsingMarkerProps> = (props) => 
             <div className={`visualizer-component-configuration module-using-marker-configuration ${module.moduleId.replace(".", "-")}-configuration-container`}>
                 {configurationContent ?? <ConfigurationSections mode={props.configurationMode} analysis={configurationContentChildren} appearance={<MarkerConfiguration {...{ module, selectedMarkers, setSelectedMarkers, color, setColor, markerClassName, markerName, setMarkerName }} />} />}
             </div>}
-        {document.getElementById("inspector-data") ? (activeLayer && monitorContent ? createPortal(monitorContent, document.getElementById("inspector-data")!) : null) : <div className="visualizer-component-monitor">{monitorContent}</div>}
+        {document.getElementById("inspector-data") ? (activeLayer ? createPortal(dataContent, document.getElementById("inspector-data")!) : null) : <div className="visualizer-component-monitor">{dataContent}</div>}
     </>);
 };
 

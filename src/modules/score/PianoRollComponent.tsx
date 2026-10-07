@@ -12,6 +12,7 @@ import ModuleEmptyState from "../../components/ModuleEmptyState";
 import { ScoreNote } from "./ScoreLibrary";
 import { useLocale } from "../../i18n/LocaleContext";
 import "./ScoreModules.scss";
+import { scoreStatisticsSource } from "./ScoreStatistics";
 
 const PITCH_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const BLACK_KEYS = new Set([1, 3, 6, 8, 10]);
@@ -21,6 +22,7 @@ const PianoRollComponent: FunctionComponent<VisualizationOptions<PianoRoll>> = p
     const { t } = useLocale();
     const { module, moduleState, viewRange, gridColor, gridRulerColor, textColor, monospaceFont, configuration, playhead, activeLayer, configurationMode } = props;
     const { score, busy, error, alignment, currentState, importFile, autoAlign, addAnchor, clearAnchors } = useScoreWorkspace(module, moduleState);
+    const statisticsSource = useMemo(() => score ? scoreStatisticsSource(score.notes, alignment, module.audioEditor.sampleRate, currentState.hiddenTracks) : undefined, [score, alignment, module, currentState.hiddenTracks]);
     const [selectedNote, setSelectedNote] = useState<ScoreNote>();
     const [verticalZoom, setVerticalZoom] = useState(1);
     const [verticalOffset, setVerticalOffset] = useState(0);
@@ -154,7 +156,7 @@ const PianoRollComponent: FunctionComponent<VisualizationOptions<PianoRoll>> = p
     const addCompanion = () => { if (score?.format !== "midi") void module.audioEditor.addModule("score.musicxml", { ...moduleState }, "MusicXML score", true); };
     const monitorContent = selectedNote ? <div className="default-layout"><div>{t("Pitch")}: {pitchName(selectedNote.pitch)} (MIDI {selectedNote.pitch})</div><div>{t("Instrument")}: {score?.tracks.find(track => track.id === selectedNote.trackId)?.name}</div><div>{t("Score time")}: {selectedNote.time.toFixed(2)} s</div><div>{t("Audio time")}: {audioTimeAtScore(alignment, selectedNote.time).toFixed(2)} s</div></div> : undefined;
     return <>
-        <ModuleUsingCanvas {...props} defaultVerticalZoom={1} verticalZoom={verticalZoom} setVerticalZoom={setVerticalZoom} defaultVerticalOffset={0} verticalOffset={verticalOffset} setVerticalOffset={setVerticalOffset} paint={paint} paintVerticalRuler={paintVerticalRuler} paintHorizontalRuler={paintHorizontalRuler} onCanvasMouseDown={onCanvasMouseDown} monitorContent={monitorContent} />
+        <ModuleUsingCanvas {...props} statisticsSource={statisticsSource} defaultVerticalZoom={1} verticalZoom={verticalZoom} setVerticalZoom={setVerticalZoom} defaultVerticalOffset={0} verticalOffset={verticalOffset} setVerticalOffset={setVerticalOffset} paint={paint} paintVerticalRuler={paintVerticalRuler} paintHorizontalRuler={paintHorizontalRuler} onCanvasMouseDown={onCanvasMouseDown} monitorContent={monitorContent} />
         {!score && (!props.overlayMode || activeLayer) ? <ModuleEmptyState message={error ? <span role="alert">{t(error)}</span> : busy ? `${t(busy)}…` : undefined}><ScoreImportActions kind="pianoroll" busy={!!busy} onImport={file => void importFile(file)} /></ModuleEmptyState> : null}
         <ScoreControls state={currentState} score={score} busy={busy} error={error} selectedTime={selectedNote?.time} playheadSeconds={playhead / module.audioEditor.sampleRate} mode={configurationMode} activeLayer={activeLayer} moduleKind="pianoroll" onImport={file => void importFile(file)} onAutoAlign={() => void autoAlign()} onAnchor={addAnchor} onClearAnchors={clearAnchors} onAddCompanion={addCompanion} onTrackVisibility={setTrackVisibility} />
     </>;

@@ -4,6 +4,36 @@ export type Locale = "zh" | "en";
 const STORAGE_KEY = "audioToolkit.locale";
 
 const zh: Record<string, string> = {
+    "Peak amplitude": "峰值振幅", "Crest factor": "峰均比", "RMS level · dBFS": "RMS 电平 · dBFS",
+    "DC offset": "直流偏移", "Time skewness": "时域偏度", "Time kurtosis": "时域峰度",
+    "Temporal centroid": "时间质心", "Spectral tilt": "频谱倾斜", "Spectral slope": "频谱斜率",
+    "Spectral decrease": "频谱递减", "Spectral smoothness": "频谱平滑度",
+    "Spectral irregularity · Jensen": "频谱不规则度 · Jensen", "Spectral irregularity · Krimphoff": "频谱不规则度 · Krimphoff",
+    "Positive spectral flux": "正向频谱通量", "Spectral tonality · flatness": "频谱音调性 · 平坦度",
+    "Harmonic-to-noise ratio · estimated": "谐噪比 · 估计", "Formants · LPC estimate": "共振峰 · LPC 估计",
+    "Whole-audio statistics": "整曲统计", "Valid frames": "有效帧", "Median": "中位数", "Minimum": "最小值",
+    "No estimate": "无估计值", "Statistics of valid frames across the whole audio": "整首音频有效帧的描述统计",
+    "Standard deviation": "标准差", "5th percentile": "5% 分位数", "95th percentile": "95% 分位数",
+    "Split frequency (Hz)": "分割频率（Hz）", "LPC order": "LPC 阶数", "Pre-emphasis": "预加重",
+    "Maximum formant bandwidth (Hz)": "共振峰最大带宽（Hz）",
+    "Largest absolute sample in each frame.": "每帧中采样点绝对值的最大值。",
+    "Peak amplitude divided by RMS; silence is zero.": "峰值振幅与 RMS 的比值；静音为零。",
+    "Digital RMS level, not calibrated sound pressure level.": "数字 RMS 电平，不是经过校准的声压级。",
+    "Mean signed sample amplitude in each frame.": "每帧带符号采样振幅的均值。",
+    "Asymmetry of the sample amplitude distribution.": "采样振幅分布的不对称程度。",
+    "Excess kurtosis of samples; a Gaussian distribution has value zero.": "采样振幅的超额峰度；高斯分布为零。",
+    "Energy-weighted position within each frame, normalized from zero to one.": "帧内能量加权位置，归一化至零到一。",
+    "Energy below the split frequency divided by energy above it, in dB.": "分割频率以下与以上的能量比，单位 dB。",
+    "Regression of spectral amplitude in dB against log2 frequency.": "频谱振幅 dB 与 log2 频率的回归斜率。",
+    "Frequency-weighted amplitude decrease relative to the first non-DC bin.": "相对于第一个非直流频点的频率加权振幅递减。",
+    "Mean absolute second difference of the log-amplitude spectrum.": "对数振幅谱二阶差分绝对值的均值。",
+    "Squared adjacent spectral differences divided by squared spectral amplitudes.": "相邻频谱差平方和与频谱振幅平方和的比值。",
+    "Sum of absolute deviations from the three-bin local spectral mean.": "各频点相对于三频点局部均值的绝对偏差之和。",
+    "L2 change of normalized spectral amplitudes, retaining increases only.": "归一化频谱振幅的 L2 变化，仅保留增加部分。",
+    "Flatness-derived tonality proxy, not harmonic or musical key confidence.": "基于平坦度的音调性近似值，不是和声或调性置信度。",
+    "Autocorrelation HNR estimate for isolated voices or instruments, not polyphonic source separation.": "基于自相关的谐噪比估计，适合独奏或单人声，不是复音声源分离。",
+    "Three LPC resonance candidates; zero means no estimate. Best for isolated voices or instruments.": "三个 LPC 共振候选；零表示无估计值。适合单人声或独奏。",
+    "Linear prediction cepstral coefficients; first displayed coefficient is c1.": "线性预测倒谱系数；从 c1 开始显示。",
     "Playback follow": "播放头跟随", "Page follow": "翻页跟随", "Scroll follow": "滚动跟随",
     "Turn the page before the playhead leaves the view": "播放头接近视图右边缘时翻页，保留当前缩放",
     "Scroll with the playhead while keeping the current zoom": "视图随播放头滚动，保留当前缩放",
@@ -175,7 +205,23 @@ Object.assign(zh, {
     "Rebuild the Essentia native worker to enable this algorithm": "请重新构建 Essentia 原生 worker 以启用此算法"
 });
 
+Object.assign(zh, {
+    "Roughness · Vassilakis": "粗糙度 · Vassilakis", "Roughness · Sethares": "粗糙度 · Sethares",
+    "Roughness · Plomp & Levelt": "粗糙度 · Plomp & Levelt", "Roughness · Zwicker · estimated": "粗糙度 · Zwicker · 估计",
+    "Roughness · Aures · estimated": "粗糙度 · Aures · 估计", "Roughness · Daniel / Weber · estimated": "粗糙度 · Daniel / Weber · 估计",
+    "Roughness index": "粗糙度指数", "Maximum spectral peaks": "最多频谱峰数", "Peak threshold (dB relative)": "频谱峰阈值（相对 dB）",
+    "Smoothing frames": "平滑帧数", "Modulation window (s)": "调制窗口（秒）", "Digital level reference (dB)": "数字电平参考偏移（dB）",
+    "Spectral-pair roughness with normalized digital amplitudes; a relative index, not calibrated Asper.": "基于归一化数字幅度的频谱峰对粗糙度；相对指数，并非校准过的 Asper 值。",
+    "Bark-band modulation roughness estimate, not the complete psychoacoustic model or calibrated Asper.": "基于 Bark 频带调制的粗糙度估计，并非完整心理声学模型或校准过的 Asper 值。",
+    "Selection statistics": "选区统计", "Matrix values": "矩阵数据", "All bins": "全部行", "Bin": "行",
+    "Point markers": "单点标记", "Region markers": "区域标记", "Covered time": "覆盖时长", "Region duration": "区域时长",
+    "Note duration": "音符时长", "Notes": "音符数", "Values": "有效值", "RMS": "均方根",
+    "Calculating statistics…": "正在计算统计…", "Statistics unavailable": "无法取得统计",
+    "Finite valid observations; averages are not time-weighted. Matrix statistics use original values, not rendered colors.": "统计有限且有效的观测值，均值不按时间加权。矩阵使用原始数值，不使用渲染后的颜色。"
+});
+
 export function translate(locale: Locale, key: string): string {
+    if (locale === "zh" && key.endsWith(" (librosa)")) return zh[key] ?? `${zh[key.slice(0, -" (librosa)".length)] ?? key.slice(0, -" (librosa)".length)} (librosa)`;
     if (locale === "zh" && key.endsWith(" (Essentia TF)")) return `${zh[key.slice(0, -" (Essentia TF)".length)] ?? key.slice(0, -" (Essentia TF)".length)} (Essentia TF)`;
     if (locale === "zh" && /^Recognized page \d+\/\d+$/.test(key)) return key.replace(/^Recognized page (\d+)\/(\d+)$/, "已识别 $1 / $2 页");
     if (locale === "zh" && key.endsWith(" (Essentia)")) return `${zh[key.slice(0, -" (Essentia)".length)] ?? key.slice(0, -" (Essentia)".length)} (Essentia)`;

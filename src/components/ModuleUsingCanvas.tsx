@@ -11,6 +11,8 @@ import Spectrogram from "../modules/spectrogram/Spectrogram";
 import { VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
 import { getCssFromPosition, setCanvasToFullSize } from "../utils";
 import { createPortal } from "react-dom";
+import RangeStatisticsData from "./RangeStatisticsData";
+import { moduleStatisticsSource, StatisticsSource } from "../core/RangeStatistics";
 
 export interface ModuleUsingCanvasProps extends VisualizationOptions<AudioToolkitModule> {
     calculating?: boolean | [number, string];
@@ -35,6 +37,7 @@ export interface ModuleUsingCanvasProps extends VisualizationOptions<AudioToolki
     repaintId?: any;
     configurationContent?: JSX.Element;
     monitorContent?: JSX.Element;
+    statisticsSource?: StatisticsSource;
     onCanvasMouseDown?: (event: React.MouseEvent<HTMLDivElement>, rect: DOMRect) => boolean;
 }
 
@@ -54,6 +57,8 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         configuring, monitoring, overlayMode, activeLayer, rerenderId, repaintId, onCanvasMouseDown
     } = props;
     const audioEditor = useContext(AudioEditorContext)!;
+    const statisticsSource = props.statisticsSource ?? moduleStatisticsSource(module);
+    const statisticsContent = activeLayer ? <RangeStatisticsData source={statisticsSource} selection={selRange} length={audioEditor.length} sampleRate={audioEditor.sampleRate} /> : null;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const referenceCanvasRef = useRef<HTMLCanvasElement>(null);
     const referencePaintRevision = useRef(0);
@@ -411,9 +416,10 @@ const ModuleUsingCanvas: FunctionComponent<ModuleUsingCanvasProps> = (props) => 
         {inspectorConfigRoot ? (activeLayer && configurationContent ? createPortal(configurationContent, inspectorConfigRoot) : null) :
             <div className={`visualizer-component-configuration module-using-canvas-configuration ${module.moduleId.replace(".", "-")}-configuration-container`}>{configurationContent}</div>}
         {inspectorAppearance && activeLayer && !overlayMode ? createPortal(referenceControls, inspectorAppearance) : null}
-        {inspectorData ? (activeLayer ? createPortal(<>{monitorContent}{monitoring ? <div className="data-cursor-tip">{t(cursorLocked ? "Press L to unlock the cursor" : "Press L to lock the cursor")}</div> : null}</>, inspectorData) : null) :
+        {inspectorData ? (activeLayer ? createPortal(<>{monitorContent}{statisticsContent}{monitoring ? <div className="data-cursor-tip">{t(cursorLocked ? "Press L to unlock the cursor" : "Press L to lock the cursor")}</div> : null}</>, inspectorData) : null) :
             <div className={`visualizer-component-monitor module-using-canvas-monitor ${module.moduleId.replace(".", "-")}-monitor-container`}>
                 {monitorContent}
+                {statisticsContent}
                 <div className="hover-tips">{t(cursorLocked ? "Press L to unlock the cursor" : "Press L to lock the cursor")}</div>
             </div>}
     </>);

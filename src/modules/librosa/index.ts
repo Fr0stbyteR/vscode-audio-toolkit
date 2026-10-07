@@ -12,6 +12,7 @@ import SpectralFlatness from "./SpectralFlatness";
 import ZeroCrossingRate from "./ZeroCrossingRate";
 import OnsetStrength from "./OnsetStrength";
 import Mfcc from "./Mfcc";
+import { getSignalStatisticsModules } from "./SignalStatistics";
 
 export default async () => [
     BeatMarkers,
@@ -27,5 +28,6 @@ export default async () => [
     Pitch,
     MelSpectrogram,
     Chroma,
-    Mfcc
+    Mfcc,
+    ...getSignalStatisticsModules()
 ];

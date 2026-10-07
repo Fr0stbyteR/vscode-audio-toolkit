@@ -23,6 +23,14 @@ recording on the shared waveform/spectrogram timeline.*
 - **Librosa + native Essentia:** RMS, pitch, spectral descriptors, MFCC, Mel,
   chroma and more. 29 native DSP modules and 21 Essentia TensorFlow views for
   instruments, mood/theme, genre, timbre, music tags and audio-estimated tempo.
+- **Signal statistics:** peak/crest, time-domain moments, spectral tilt/slope,
+  irregularity, estimated HNR and LPC formants, plus LPCC heatmaps. Cached backend
+  results, plus six spectral/modulation roughness indices (the modulation models
+  are estimates, not calibrated Asper measurements).
+- **Automatic range statistics:** the Data inspector follows the selection, or
+  the whole audio when no range is selected. Mean/min/max/std/RMS on original
+  Vector/Matrix data, matrix-row inspection, marker counts/coverage, and aligned
+  score/piano-roll pitch and note-duration summaries; no reanalysis needed.
 - **Text/audio matching:** CLAP/MuLan context descriptions and raw prompt
   matches; keyword-relevance curves progressively display completed results.
 - **Score + performance:** a horizontally scrolling single-system MusicXML

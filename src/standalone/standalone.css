@@ -69,7 +69,7 @@ vscode-button.danger-button::part(control) { border: 1px solid color-mix(in srgb
 .standalone-shell { display: grid; grid-template: 58px 1fr / 270px minmax(0, 1fr); height: 100%; background: #1e1e1e; }
 .app-header { grid-column: 1 / -1; display: grid; grid-template-columns: 270px 1fr auto; align-items: center; border-bottom: 1px solid #2b2b2b; background: #181818; z-index: 5; }
 .brand { height: 100%; display: flex; align-items: center; gap: 11px; padding: 0 16px; border-right: 1px solid var(--vscode-panel-border); }
-.brand-mark { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--vscode-widget-border); border-radius: 3px; color: var(--vscode-textLink-foreground); font: 700 11px var(--vscode-editor-font-family); }
+.brand-mark { display: block; width: 32px; height: 32px; flex: 0 0 32px; object-fit: contain; }
 .brand div, .current-file { display: flex; flex-direction: column; min-width: 0; }
 .brand small, .current-file small { color: var(--vscode-descriptionForeground); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .current-file { padding: 0 22px; }

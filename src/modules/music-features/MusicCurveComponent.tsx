@@ -10,6 +10,7 @@ import { useLocale } from "../../i18n/LocaleContext";
 import { MusicCurve } from "./MusicCurve";
 import ModuleEmptyState from "../../components/ModuleEmptyState";
 import { openScoreModule } from "./openScoreModule";
+import type { StatisticsSource } from "../../core/RangeStatistics";
 
 const MusicCurveComponent: FunctionComponent<VisualizationOptions<MusicCurve>> = props => {
     const { module, moduleState: state, viewRange, configuration, gridColor, gridRulerColor, textColor, monospaceFont } = props;
@@ -20,6 +21,10 @@ const MusicCurveComponent: FunctionComponent<VisualizationOptions<MusicCurve>> =
     const [cursorY, setCursorY] = useState<number>();
     const [cursorInfo, setCursorInfo] = useState<VectorCursorInfo | null>(null);
     const dataSlices = useMemo(() => curveVectors(state.points, module.audioEditor.sampleRate, state.kind === "va" ? 2 : 1, module.audioEditor.length), [state.points, state.kind, module]);
+    const statisticsSource = useMemo<StatisticsSource | undefined>(() => dataSlices[0]?.length ? {
+        kind: "vector", unit: state.kind === "va" ? "" : "BPM", labels: state.kind === "va" ? ["Valence", "Arousal"] : undefined,
+        slices: [{ ...dataSlices[0][0], vectors: dataSlices.map(channel => channel[0].vectors[0]) }]
+    } : undefined, [dataSlices, state.kind]);
     const values = state.points.flatMap(point => point.values).filter((value): value is number => value !== null && Number.isFinite(value));
     const min = state.kind === "va" ? -1.1 : Math.min(0, ...values);
     const max = state.kind === "va" ? 1.1 : Math.max(150, ...values) * 1.05;
@@ -91,7 +96,7 @@ const MusicCurveComponent: FunctionComponent<VisualizationOptions<MusicCurve>> =
     </div>;
     const appearance = <div className="default-layout">{(state.kind === "va" ? ["Valence", "Arousal"] : ["Color"]).map((label, channel) => <label key={label}>{t(label)}<input type="color" value={state.colors[channel]} onChange={event => module.setState({ ...state, colors: state.colors.map((color, index) => index === channel ? event.target.value : color) })} /></label>)}</div>;
     const addPoint = () => module.editPoints([...state.points, { time: module.audioEditor.state.playhead / module.audioEditor.sampleRate, values: state.kind === "va" ? [0, 0] : [120] }]);
-    return <ModuleUsingCanvas {...props} calculating={busy} defaultVerticalZoom={zoom} defaultVerticalOffset={offset} {...{ verticalZoom, setVerticalZoom, verticalOffset, setVerticalOffset, paint, paintVerticalRuler, paintHorizontalRuler, cursorX, cursorY, onCursor }}
+    return <ModuleUsingCanvas {...props} statisticsSource={statisticsSource} calculating={busy} defaultVerticalZoom={zoom} defaultVerticalOffset={offset} {...{ verticalZoom, setVerticalZoom, verticalOffset, setVerticalOffset, paint, paintVerticalRuler, paintHorizontalRuler, cursorX, cursorY, onCursor }}
         emptyContent={!state.points.length && !busy ? <ModuleEmptyState message={t(state.error || (state.kind === "va" ? "Analyze audio or add mood points" : "Import a score to get tempo data"))}>
             {state.kind === "va" ? <VSCodeButton onClick={() => void module.calculate()}>{t("Analyze mood")}</VSCodeButton> : <VSCodeButton onClick={() => void openScoreModule(module.audioEditor)}>{t("Open score module")}</VSCodeButton>}
             {state.kind === "performed" ? <VSCodeButton appearance="secondary" onClick={() => void module.calculate()}>{t("Recalculate")}</VSCodeButton> : <VSCodeButton appearance="secondary" onClick={addPoint}>{t("Add point at playhead")}</VSCodeButton>}

@@ -11,6 +11,9 @@ import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { ScoreEvent } from "./ScoreLibrary";
 import "./ScoreModules.scss";
 import { useLocale } from "../../i18n/LocaleContext";
+import { createPortal } from "react-dom";
+import RangeStatisticsData from "../../components/RangeStatisticsData";
+import { scoreStatisticsSource } from "./ScoreStatistics";
 
 interface PositionedEvent extends ScoreEvent { x: number; }
 
@@ -47,6 +50,9 @@ const MusicScoreComponent: FunctionComponent<VisualizationOptions<MusicScore>> =
     const { t } = useLocale();
     const { module, moduleState, playhead, viewRange, activeLayer, configurationMode } = props;
     const { score, busy, error, alignment, currentState, importFile, recognizeFile, cancelRecognition, omrProgress, autoAlign, addAnchor, clearAnchors } = useScoreWorkspace(module, moduleState);
+    const statisticsSource = useMemo(() => score ? scoreStatisticsSource(score.notes, alignment, module.audioEditor.sampleRate, currentState.hiddenTracks) : undefined, [score, alignment, module, currentState.hiddenTracks]);
+    const inspectorData = document.getElementById("inspector-data");
+    const statisticsContent = activeLayer ? <RangeStatisticsData source={statisticsSource} selection={props.selRange} length={module.audioEditor.length} sampleRate={module.audioEditor.sampleRate} /> : null;
     const viewportRef = useRef<HTMLDivElement>(null);
     const svgHostRef = useRef<HTMLDivElement>(null);
     const [positions, setPositions] = useState<PositionedEvent[]>([]);
@@ -112,6 +118,7 @@ const MusicScoreComponent: FunctionComponent<VisualizationOptions<MusicScore>> =
     };
     const addCompanion = () => void module.audioEditor.addModule("score.pianoroll", { ...moduleState }, "Piano roll", true);
     return <>
+        {inspectorData ? (statisticsContent ? createPortal(statisticsContent, inspectorData) : null) : statisticsContent}
         <div className="visualizer-component-container music-score-module">
             {!score ? (!props.overlayMode || activeLayer) && <ModuleEmptyState message={error ? <span role="alert">{t(error)}</span> : busy ? `${t(busy)}…` : undefined}><ScoreImportActions kind="score" busy={!!busy} onImport={file => void importFile(file)} onOmr={file => void recognizeFile(file)} /></ModuleEmptyState> : <>
                 <div className="score-alignment-strip">

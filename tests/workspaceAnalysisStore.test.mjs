@@ -10,6 +10,24 @@ const bundle = await build({
 });
 const { default: WorkspaceAnalysisStore } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`);
 
+test("signal statistics and LPC matrices round-trip with metadata in folder storage", async () => {
+    const store = new WorkspaceAnalysisStore(new MemoryDirectoryHandle(), "d".repeat(64), "tone.wav");
+    await store.enableWriting();
+    const request = { engine: "librosa", algorithm: "formants", options: { frameLength: 2048, lpcOrder: 16 } };
+    const result = { algorithm: "formants", sampleRate: 16000, duration: 3, vectors: [[0, 500], [0, 1500], [0, 2500]], metadata: { missingValue: 0, "statistics.0.count": 1, "statistics.0.mean": 500, "validity.0": "Ag==", "validity.1": "Ag==", "validity.2": "Ag==" } };
+    await store.saveLibrosa(request, result);
+    const restored = await store.loadLibrosa(request);
+    assert.deepEqual(restored.metadata, result.metadata);
+    assert.equal(restored.vectors.length, 3);
+    assert.deepEqual([...restored.vectors[2]], [0, 2500]);
+    const lpccRequest = { engine: "librosa", algorithm: "lpcc", options: { coefficients: 2 } };
+    await store.saveLibrosa(lpccRequest, { algorithm: "lpcc", matrix: [[-.5, .25], [.25, -.5]], metadata: { firstCoefficient: 1, minValue: -.5, maxValue: .25 } });
+    const lpcc = await store.loadLibrosa(lpccRequest);
+    assert.deepEqual([...lpcc.matrix[0]], [-.5, .25]);
+    assert.equal(lpcc.metadata.firstCoefficient, 1);
+    assert.equal((await store.listAnalyses()).length, 2);
+});
+
 class MemoryFileHandle {
     kind = "file";
     content = new Blob();

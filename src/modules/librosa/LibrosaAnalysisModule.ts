@@ -36,6 +36,7 @@ export default abstract class LibrosaAnalysisModule<State extends LibrosaVisuali
     get isCalculating() { return this._isCalculating; }
     get cacheInfo() { return this._cacheInfo; }
     get analysisEngine() { return (this.constructor as typeof LibrosaAnalysisModule).ANALYSIS_ENGINE; }
+    get analysisHelp(): string | undefined { return undefined; }
     get sharableData() { return Promise.resolve({ state: this.state }); }
     getState() { return this.state; }
 

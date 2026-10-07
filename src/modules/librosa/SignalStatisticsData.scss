@@ -1,0 +1,23 @@
+.signal-statistics-data {
+    min-width: 0;
+    width: 100%;
+    font-size: 12px;
+    margin-top: 6px;
+
+    .signal-statistics-heading, .signal-statistics-count {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 4px 8px;
+    }
+    .signal-statistics-heading { margin-bottom: 4px; }
+    .signal-statistics-bin { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+    .signal-statistics-bin select { flex: 1; min-width: 0; }
+    .signal-statistics-count { color: var(--vscode-descriptionForeground); }
+    .signal-statistics-channel + .signal-statistics-channel { margin-top: 8px; }
+    dl { margin: 4px 0 0; }
+    dl > div { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+    dt { color: var(--vscode-descriptionForeground); min-width: 0; }
+    dd { margin: 0; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+}
