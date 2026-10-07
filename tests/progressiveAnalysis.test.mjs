@@ -127,3 +127,19 @@ test("curve creates no request while empty and progressively paints only real ti
     assert.equal(curve.dataSlices, undefined);
     assert.equal(curve.lastResult, undefined);
 });
+
+test("completed CLAP summaries are available to Data; partial previews never masquerade as whole audio", async () => {
+    const metadata = { "statistics.0.count": 2, "statistics.0.mean": .2, "statistics.0.min": .2,
+        "statistics.0.max": .2, "statistics.0.std": 0, "statistics.0.rms": .2 };
+    const editor = { sampleRate: 48000, duration: 60, analyzeSemanticCurve: async (_, progress) => {
+        progress({ ...result([point(2.5)]), metadata: {} }, 2);
+        assert.deepEqual(curve.analysisMetadata, {}, "no whole-song summary until completion");
+        return { ...result([point(2.5), point(3.5)]), metadata };
+    } };
+    const curve = await Curve.fromAudioData(editor);
+    curve.getState().keyword = "piano";
+    await curve.calculate();
+    assert.deepEqual(curve.analysisMetadata, metadata);
+    curve.setState({ ...curve.getState(), color: "#4e94ce" });
+    assert.deepEqual(curve.analysisMetadata, metadata, "display-only edits preserve whole-song summaries");
+});

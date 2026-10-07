@@ -54,6 +54,7 @@ export default class ClapRelevanceCurve implements AudioToolkitModule<ClapReleva
     private constructor(public readonly audioEditor: AudioEditor, private state: ClapRelevanceCurveState) {}
     getState() { return this.state; }
     get dataSlices() { return this.data; }
+    get analysisMetadata() { return this.result?.metadata; }
     get isCalculating() { return this.calculating; }
     get lastResult() { return this.result; }
     get incompletePreview(): [number, number] | undefined { return this.partial && this.calculating === false && this.result?.points.length ? [this.result.points.length, this.totalPoints] : undefined; }

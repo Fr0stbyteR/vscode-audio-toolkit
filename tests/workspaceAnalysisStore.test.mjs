@@ -21,10 +21,14 @@ test("signal statistics and LPC matrices round-trip with metadata in folder stor
     assert.equal(restored.vectors.length, 3);
     assert.deepEqual([...restored.vectors[2]], [0, 2500]);
     const lpccRequest = { engine: "librosa", algorithm: "lpcc", options: { coefficients: 2 } };
-    await store.saveLibrosa(lpccRequest, { algorithm: "lpcc", matrix: [[-.5, .25], [.25, -.5]], metadata: { firstCoefficient: 1, minValue: -.5, maxValue: .25 } });
+    const lpccMetadata = { firstCoefficient: 1, minValue: -.5, maxValue: .25, "statistics.version": 1,
+        "statistics.matrix.0.count": 4, "statistics.matrix.0.mean": -.125, "statistics.matrix.0.rms": Math.sqrt(.15625),
+        "statistics.matrix.0.bin.0.mean": -.125, "statistics.matrix.0.bin.0.count": 2 };
+    await store.saveLibrosa(lpccRequest, { algorithm: "lpcc", matrix: [[-.5, .25], [.25, -.5]], metadata: lpccMetadata });
     const lpcc = await store.loadLibrosa(lpccRequest);
     assert.deepEqual([...lpcc.matrix[0]], [-.5, .25]);
     assert.equal(lpcc.metadata.firstCoefficient, 1);
+    assert.deepEqual(lpcc.metadata, lpccMetadata, "whole matrix and per-row summaries survive .audio_toolkit round-trip");
     assert.equal((await store.listAnalyses()).length, 2);
 });
 

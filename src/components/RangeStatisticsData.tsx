@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { calculateRangeStatistics, formatStatistic, statisticsRange, StatisticsResult, StatisticsSource } from "../core/RangeStatistics";
+import { backendRangeStatistics, calculateRangeStatistics, formatStatistic, statisticsRange, StatisticsResult, StatisticsSource } from "../core/RangeStatistics";
 import { useLocale } from "../i18n/LocaleContext";
 import "../modules/librosa/SignalStatisticsData.scss";
 
@@ -19,11 +19,13 @@ export default function RangeStatisticsData({ source, selection, length, sampleR
     const matrix = source?.kind === "matrix" ? source : undefined;
     const bins = matrix?.slices[0]?.resizedMatrices.resizes[0]?.data[0]?.[0]?.length ?? 0;
     const bin = matrix && binChoice !== "all" && Number(binChoice) < bins ? Number(binChoice) : undefined;
+    const metadata = source && "metadata" in source ? source.metadata : undefined;
+    const backendResult = useMemo(() => backendRangeStatistics(source, selected, bin), [identity, metadata, selected, bin]); // eslint-disable-line react-hooks/exhaustive-deps
     const key = `${range[0]}:${range[1]}:${selected}:${bin ?? "all"}:${sampleRate}`;
     // Cursor-only rerenders must not restart a full audio scan.
     const stable = useMemo(() => source, [identity, source?.kind, source && "metadata" in source ? source.metadata : undefined]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => {
-        if (!stable || !identity) return;
+        if (!stable || !identity || backendResult) return;
         const controller = new AbortController();
         setError(false);
         const hit = cached.get(identity)?.get(key);
@@ -38,9 +40,9 @@ export default function RangeStatisticsData({ source, selection, length, sampleR
             }).catch(() => { if (!controller.signal.aborted) setError(true); });
         }, 100);
         return () => { clearTimeout(timer); controller.abort(); };
-    }, [stable, identity, key, range[0], range[1], sampleRate, bin, selected]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [stable, identity, key, range[0], range[1], sampleRate, bin, selected, backendResult]); // eslint-disable-line react-hooks/exhaustive-deps
     if (!source || !identity) return null;
-    const result = resolved?.identity === identity && resolved.key === key ? resolved.result : undefined;
+    const result = backendResult ?? (resolved?.identity === identity && resolved.key === key ? resolved.result : undefined);
     return <div className="signal-statistics-data" aria-busy={!result && !error} title={source && "help" in source && source.help ? t(source.help) : undefined}>
         <div className="signal-statistics-heading"><strong>{t(selected ? "Selection statistics" : "Whole-audio statistics")}</strong><span>{(range[0] / sampleRate).toFixed(3)}–{(range[1] / sampleRate).toFixed(3)} s</span></div>
         {matrix && bins > 1 ? <label className="signal-statistics-bin">{t("Matrix values")}<select value={bin === undefined ? "all" : String(bin)} onChange={event => setBinChoice(event.target.value)}>

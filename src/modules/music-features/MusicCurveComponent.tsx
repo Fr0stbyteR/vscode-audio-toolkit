@@ -23,8 +23,9 @@ const MusicCurveComponent: FunctionComponent<VisualizationOptions<MusicCurve>> =
     const dataSlices = useMemo(() => curveVectors(state.points, module.audioEditor.sampleRate, state.kind === "va" ? 2 : 1, module.audioEditor.length), [state.points, state.kind, module]);
     const statisticsSource = useMemo<StatisticsSource | undefined>(() => dataSlices[0]?.length ? {
         kind: "vector", unit: state.kind === "va" ? "" : "BPM", labels: state.kind === "va" ? ["Valence", "Arousal"] : undefined,
+        metadata: state.analysisMetadata,
         slices: [{ ...dataSlices[0][0], vectors: dataSlices.map(channel => channel[0].vectors[0]) }]
-    } : undefined, [dataSlices, state.kind]);
+    } : undefined, [dataSlices, state.kind, state.analysisMetadata]);
     const values = state.points.flatMap(point => point.values).filter((value): value is number => value !== null && Number.isFinite(value));
     const min = state.kind === "va" ? -1.1 : Math.min(0, ...values);
     const max = state.kind === "va" ? 1.1 : Math.max(150, ...values) * 1.05;

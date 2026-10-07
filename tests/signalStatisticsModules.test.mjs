@@ -112,4 +112,14 @@ test("statistics panel automatically labels whole audio and selection without a 
     assert.doesNotMatch(html, /<select|<button/);
     assert.doesNotMatch(html, /NaN|Infinity/);
     assert.equal(render({ length: 16000, sampleRate: 16000 }), "", "uncomputed modules do not invent statistics");
+    const vectorProps = { ...props, source: { kind: "vector", unit: "Hz", slices: [{ vectors: [Float32Array.from([1, 2])] }],
+        metadata: { "statistics.0.count": 2, "statistics.0.mean": 123.456, "statistics.0.min": 1,
+            "statistics.0.max": 246, "statistics.0.std": 1, "statistics.0.rms": 123.46 } } };
+    const whole = render(vectorProps);
+    assert.match(whole, /123\.456/);
+    assert.match(whole, /aria-busy="false"/);
+    assert.doesNotMatch(whole, /Calculating statistics/);
+    const selection = render({ ...vectorProps, selection: [4000, 8000] });
+    assert.match(selection, /Calculating statistics/);
+    assert.doesNotMatch(selection, /123\.456/, "selections never display the server's whole-song summary");
 });

@@ -4,4 +4,5 @@ export interface MoodResult {
     scale: "normalized-minus-one-to-one";
     points: Array<{ timeSeconds: number; valence: number; arousal: number }>;
     cached: boolean;
+    metadata?: import("../types").AudioAnalysisResult["metadata"];
 }

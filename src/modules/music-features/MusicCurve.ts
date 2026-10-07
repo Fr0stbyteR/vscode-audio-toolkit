@@ -12,6 +12,7 @@ export interface MusicCurveState extends AudioToolkitModuleState {
     windowSeconds: number; hopSeconds: number; scoreKey: string;
     source: string; error: string;
     alignmentSignature?: string;
+    analysisMetadata?: import("../../types").AudioAnalysisResult["metadata"];
 }
 const defaults: MusicCurveState = { name: "", kind: "tempo", points: [], colors: ["#4e94ce", "#c586c0"], windowSeconds: 3, hopSeconds: .5, scoreKey: "", source: "", error: "" };
 
@@ -37,17 +38,22 @@ export class MusicCurve implements AudioToolkitModule<MusicCurveState> {
     private signature = "";
     dispose() { ++this.revision; this.onStateChange = undefined; this.onBusyChange = undefined; }
     protected constructor(public readonly audioEditor: AudioEditor, private state: MusicCurveState) {
+        const originalPoints = JSON.stringify(state.points);
         const channels = state.kind === "va" ? 2 : 1;
         state.points = (Array.isArray(state.points) ? state.points : []).slice(0, 50000).filter(point => point && Number.isFinite(point.time) && point.time >= 0 && point.time <= audioEditor.duration && Array.isArray(point.values)).map(point => ({ time: point.time, values: Array.from({ length: channels }, (_, index) => typeof point.values[index] === "number" && Number.isFinite(point.values[index]) ? state.kind === "va" ? Math.max(-1, Math.min(1, point.values[index]!)) : point.values[index]! : null) })).sort((a, b) => a.time - b.time);
+        if (state.source === "Manual" || JSON.stringify(state.points) !== originalPoints) state.analysisMetadata = undefined;
         state.colors = defaults.colors.map((fallback, index) => typeof state.colors?.[index] === "string" && /^#[0-9a-f]{6}$/i.test(state.colors[index]) ? state.colors[index] : fallback);
         state.windowSeconds = Number.isFinite(state.windowSeconds) && state.windowSeconds >= (state.kind === "va" ? 3 : .5) && state.windowSeconds <= 60 ? state.windowSeconds : state.kind === "va" ? 6 : 3;
         state.hopSeconds = Number.isFinite(state.hopSeconds) && state.hopSeconds >= .1 && state.hopSeconds <= 30 ? state.hopSeconds : state.kind === "va" ? 1 : .5;
     }
     get moduleId() { return this.state.kind === "va" ? "music.va" : this.state.kind === "performed" ? "music.performed-tempo" : "music.tempo"; }
     getState() { return this.state; }
-    setState(state: MusicCurveState) { this.state = state; this.onStateChange?.(state); }
+    setState(state: MusicCurveState) {
+        if (state.points !== this.state.points && state.analysisMetadata === this.state.analysisMetadata) state = { ...state, analysisMetadata: undefined };
+        this.state = state; this.onStateChange?.(state);
+    }
     editPoints(points: CurvePoint[]) {
-        this.setState({ ...this.state, points: [...points].sort((a, b) => a.time - b.time), source: "Manual", error: "" });
+        this.setState({ ...this.state, points: [...points].sort((a, b) => a.time - b.time), analysisMetadata: undefined, source: "Manual", error: "" });
         if (this.state.kind === "tempo") {
             const metadata = this.audioEditor.metadata;
             this.audioEditor.setMetadata({ ...metadata, values: { ...metadata.values, tempo: this.state.points.filter(point => point.values[0] !== null).map((point, index) => ({ id: `tempo-${index}`, time: point.time, bpm: point.values[0]! })) }, sources: { ...metadata.sources, tempo: "user" } });
@@ -67,6 +73,8 @@ export class MusicCurve implements AudioToolkitModule<MusicCurveState> {
     }
     updateMoodSummary() {
         const average = (channel: number) => {
+            const mean = this.state.analysisMetadata?.[`statistics.${channel}.mean`];
+            if (typeof mean === "number" && Number.isFinite(mean)) return mean;
             const values = this.state.points.map(point => point.values[channel]).filter((value): value is number => value !== null && Number.isFinite(value));
             return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
         };
@@ -110,7 +118,7 @@ export class MusicCurve implements AudioToolkitModule<MusicCurveState> {
         try {
             const result = await this.audioEditor.analyzeMood({ windowSeconds: this.state.windowSeconds, hopSeconds: this.state.hopSeconds, timelineDurationSeconds: this.audioEditor.duration, cachePolicy: force ? "refresh" : "use" });
             if (id !== this.revision) return;
-            this.setState({ ...this.state, points: result.points.map(point => ({ time: point.timeSeconds, values: [point.valence, point.arousal] })), source: result.model, error: "" });
+            this.setState({ ...this.state, points: result.points.map(point => ({ time: point.timeSeconds, values: [point.valence, point.arousal] })), analysisMetadata: result.metadata ? { ...result.metadata } : undefined, source: result.model, error: "" });
             this.updateMoodSummary();
         } catch (error) { if (id === this.revision) this.setState({ ...this.state, error: error instanceof Error ? error.message : String(error) }); }
         finally { if (id === this.revision) { this.busy = false; this.onBusyChange?.(false); } }

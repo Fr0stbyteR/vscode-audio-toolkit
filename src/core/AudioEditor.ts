@@ -79,6 +79,7 @@ export interface SemanticCurveResult {
     points: SemanticCurvePoint[];
     scoreKind: "cosine-similarity-not-probability";
     cached: boolean;
+    metadata?: AudioAnalysisResult["metadata"];
 }
 
 export type {

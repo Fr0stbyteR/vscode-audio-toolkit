@@ -59,6 +59,36 @@ export function moduleStatisticsSource(module: { moduleId: string }): Statistics
     return undefined;
 }
 
+/** Only whole-audio scope can use the summary bundled with backend results.
+ * This performs no scans and no requests. Legacy vectors can derive RMS from
+ * their stored mean/std; incomplete or malformed summaries fall back locally.
+ */
+export function backendRangeStatistics(source: StatisticsSource | undefined, selected: boolean, bin?: number): StatisticsResult | undefined {
+    if (selected || !source || (source.kind !== "vector" && source.kind !== "matrix") || !source.metadata) return undefined;
+    const metadata = source.metadata;
+    const count = source.kind === "vector" ? source.slices[0]?.vectors.length : source.slices[0]?.resizedMatrices.resizes[0]?.data.length;
+    if (!count) return undefined;
+    const channels: StatisticsChannel[] = [];
+    for (let index = 0; index < count; index++) {
+        const prefix = source.kind === "vector" ? `statistics.${index}` : `statistics.matrix.${index}${bin === undefined ? "" : `.bin.${bin}`}`;
+        const validCount = metadata[`${prefix}.count`];
+        if (typeof validCount !== "number" || !Number.isSafeInteger(validCount) || validCount < 0) return undefined;
+        const summary: StatisticsSummary = { count: validCount };
+        if (validCount) {
+            for (const key of ["mean", "min", "max", "std"] as const) {
+                const value = metadata[`${prefix}.${key}`];
+                if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+                summary[key] = value;
+            }
+            if (summary.std! < 0 || summary.min! > summary.max!) return undefined;
+            const rms = metadata[`${prefix}.rms`];
+            summary.rms = typeof rms === "number" && Number.isFinite(rms) && rms >= 0 ? rms : Math.hypot(summary.mean!, summary.std!);
+        }
+        channels.push({ label: source.labels?.[index] ?? (count > 1 ? `${index + 1}` : ""), unit: source.unit, summary });
+    }
+    return { channels };
+}
+
 function lowerBound(positions: Float64Array, sample: number, inclusive = false) {
     let low = 0, high = positions.length;
     while (low < high) {

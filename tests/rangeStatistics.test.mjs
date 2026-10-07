@@ -4,9 +4,39 @@ import { build } from "esbuild";
 import { fileURLToPath } from "node:url";
 
 const bundled = await build({ entryPoints: [fileURLToPath(new URL("../src/core/RangeStatistics.ts", import.meta.url))], bundle: true, write: false, platform: "node", format: "esm" });
-const { statisticsRange, calculateRangeStatistics, moduleStatisticsSource } = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
+const { statisticsRange, calculateRangeStatistics, moduleStatisticsSource, backendRangeStatistics } = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
 const slice = (vectors, extra = {}) => ({ startIndex: 0, endIndex: 100, offsetFromSample: 0, audioSamplesPerSample: 10, vectors: vectors.map(vector => Float32Array.from(vector)), ...extra });
 const source = (vectors, extra = {}) => ({ kind: "vector", unit: "Hz", slices: [slice(vectors)], ...extra });
+const summaryMetadata = (prefix, summary) => Object.fromEntries(Object.entries(summary).map(([key, value]) => [`${prefix}.${key}`, value]));
+
+test("whole audio uses bundled summaries without reading buffers; selections ignore them", async () => {
+    const summary = { count: 3, mean: 2, min: 1, max: 3, std: Math.sqrt(2 / 3), rms: Math.sqrt(14 / 3) };
+    const data = source([[1, 2, 3]], { metadata: summaryMetadata("statistics.0", summary) });
+    const vector = data.slices[0].vectors[0];
+    data.slices[0].vectors[0] = new Proxy(vector, { get() { throw new Error("whole-song stats must not scan samples"); } });
+    assert.deepEqual(backendRangeStatistics(data, false).channels[0].summary, summary);
+    assert.equal(backendRangeStatistics(data, true), undefined, "even a full-length positive selection is computed locally");
+    data.slices[0].vectors[0] = vector;
+    assert.equal((await calculateRangeStatistics(data, [10, 20], 100)).channels[0].summary.mean, 2);
+    const legacy = source([[1]], { metadata: summaryMetadata("statistics.0", { ...summary, rms: undefined }) });
+    assert.ok(Math.abs(backendRangeStatistics(legacy, false).channels[0].summary.rms - summary.rms) < 1e-12);
+    data.metadata["statistics.0.std"] = NaN;
+    assert.equal(backendRangeStatistics(data, false), undefined);
+    data.metadata = { "statistics.0.count": 0 };
+    assert.deepEqual(backendRangeStatistics(data, false).channels[0].summary, { count: 0 });
+});
+
+test("matrix summaries distinguish all bins, individual rows and legacy coefficient metadata", () => {
+    const data = { kind: "matrix", unit: "MFCC", slices: [{ resizedMatrices: { resizes: [{ data: [[]] }] } }] };
+    const summary = { count: 6, mean: 5, min: 1, max: 9, std: 2, rms: Math.sqrt(29) };
+    data.metadata = summaryMetadata("statistics.0", summary);
+    assert.equal(backendRangeStatistics(data, false), undefined, "LPCC coefficient 0 is not the matrix aggregate");
+    Object.assign(data.metadata, summaryMetadata("statistics.matrix.0", summary), summaryMetadata("statistics.matrix.0.bin.1", { ...summary, mean: 7 }));
+    assert.equal(backendRangeStatistics(data, false).channels[0].summary.mean, 5);
+    assert.equal(backendRangeStatistics(data, false, 1).channels[0].summary.mean, 7);
+    assert.equal(backendRangeStatistics(data, false, 2), undefined);
+    assert.equal(backendRangeStatistics(data, true, 1), undefined);
+});
 
 test("scope is automatically whole audio unless the clamped selection has positive duration", () => {
     for (const selection of [undefined, null, [20, 20], [NaN, 30], [-10, -2], [120, 150]]) assert.deepEqual(statisticsRange(selection, 100), { range: [0, 100], selected: false });

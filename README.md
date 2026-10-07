@@ -31,6 +31,8 @@ recording on the shared waveform/spectrogram timeline.*
   the whole audio when no range is selected. Mean/min/max/std/RMS on original
   Vector/Matrix data, matrix-row inspection, marker counts/coverage, and aligned
   score/piano-roll pitch and note-duration summaries; no reanalysis needed.
+  Backend analyses include whole-track summaries; selection statistics are
+  calculated locally from loaded data, without API requests.
 - **Text/audio matching:** CLAP/MuLan context descriptions and raw prompt
   matches; keyword-relevance curves progressively display completed results.
 - **Score + performance:** a horizontally scrolling single-system MusicXML
